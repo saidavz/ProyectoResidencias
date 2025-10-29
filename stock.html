@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventory Management</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-gradient">
+    <div class="container-fluid px-4">
+      <a href="index.html" class="p-0 me-4">
+        <img src="logo.png" alt="Logo" height="40">
+      </a>
+      <div class="collapse navbar-collapse" id="navbarMenu">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
+          <li class="nav-item"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
+          <li class="nav-item"><a class="nav-link active" href="stock.html">Inventory</a></li>
+        </ul>
+      </div>
+      <div class="d-flex align-items-center">
+        <i class="bi bi-box-seam-fill fs-4 me-2 text-white"></i>
+        <span class="h4 mb-0 text-white">Inventory Management</span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="inventory-container">
+    <div class="inventory-header">
+      <h1 class="inventory-title">Inventory</h1>
+      <div class="total-material-card">
+        <span class="total-material-number" id="totalMaterial">0</span>
+        <span class="total-material-label">Total Material</span>
+      </div>
+    </div>
+
+    <div class="inventory-search">
+      <div class="search-box-enhanced">
+        <input type="text" id="buscar" placeholder="🔍 Buscar por parte, proveedor o proyecto...">
+        <i class="bi bi-search"></i>
+      </div>
+      <div class="search-hint">
+        Search by No. Part or Project name
+      </div>
+    </div>
+
+    <div class="enhanced-table">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle" id="tablaInventario">
+          <thead>
+            <tr>
+              <th>ID Stock</th>
+              <th>Ubicación (Rack)</th>
+              <th>Fecha de Entrada</th>
+              <th>Número de Parte</th>
+              <th>Marca</th>
+              <th>Descripción</th>
+              <th>Cantidad Producto</th>
+              <th>Unidad</th>
+              <th>Tipo</th>
+              <th>Precio Unitario</th>
+              <th>Cantidad</th>
+              <th>Subtotal</th>
+              <th>Status</th>
+              <th>Network</th>
+              <th>Balance</th>
+              <th>Proveedor</th>
+              <th>Proyecto</th>
+              <th>Moneda</th>
+              <th>Fecha Entrega</th>
+              <th>PR</th>
+              <th>Shopping</th>
+              <th>PO</th>
+              <th>Cantidad Entrada</th>
+              <th>Cantidad Salida</th>
+              <th>Cantidad Disponible</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="text-center py-3 text-white bg-gradient mt-5">
+    Automation Purchase - BRK. Resideo.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="script.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(() => {
+        const rowCount = document.querySelectorAll('#tablaInventario tbody tr').length;
+        document.getElementById('totalMaterial').textContent = rowCount;
+      }, 1000);
+      
+      const searchInput = document.getElementById('buscar');
+      if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+          if (typeof window.filterTable === 'function') {
+            window.filterTable(e.target.value);
+          }
+        });
+      }
+    });
+  </script>
+  
+</body>
+</html>

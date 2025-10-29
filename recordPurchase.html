@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Purchase Records</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body class="bg-dark text-light">
+
+  <nav class="navbar navbar-expand-lg navbar-dark bg-danger">
+    <div class="container-fluid px-4">
+      <a href="index.html" class="p-0 me-4" title="Go to Home Page">
+        <img src="/logo.png" alt="Logo" height="40">
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu"
+        aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarMenu">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+          <li class="nav-item"><a class="nav-link active" href="#">Register Purchase</a></li>
+          <li class="nav-item"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
+          <li class="nav-item"><a class="nav-link" href="stock.html">Inventory</a></li>
+        </ul>
+      </div>
+      <div class="d-flex align-items-center">
+        <i class="bi bi-geo-alt-fill fs-4 me-2 text-white"></i>
+        <span class="h4 mb-0 text-white">Purchase Records</span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container my-5">
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+        <div class="card shadow-lg p-4 bg-dark text-light">
+          <h2 class="text-center mb-4 text-danger">New Purchase</h2>
+
+          <form id="formCompra">
+            <!-- Número de Parte y Descripción -->
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="noPart">Número de Parte:</label>
+                <select id="noPart" class="form-select bg-secondary text-light" required>
+                  <option value="">Select Number Part...</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Product</label>
+                <input type="text" class="form-control bg-secondary text-light" name="description" id="description" required readonly>
+              </div>
+            </div>
+
+            <!-- Quantity y Unit Price -->
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Quantity</label>
+                <input type="number" class="form-control bg-secondary text-light" name="quantity" min="1" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Unit Price</label>
+                <input type="number" step="0.01" class="form-control bg-secondary text-light" name="price_unit" placeholder="0.00" required>
+              </div>
+            </div>
+
+            <!-- Currency y Vendor -->
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Currency</label>
+                <select class="form-select bg-secondary text-light" name="currency" required>
+                  <option value="">Select...</option>
+                  <option value="USD">USD</option>
+                  <option value="MXN">MXN</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Vendor</label>
+                <select class="form-select bg-secondary text-light" name="id_vendor" required>
+                  <option value="">Loading vendors...</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Project y Network -->
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Project</label>
+                <select class="form-select bg-secondary text-light" name="no_project" required>
+                  <option value="">Loading projects...</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Network</label>
+                <select class="form-select bg-secondary text-light" name="network" required>
+                  <option value="">Loading networks...</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Delivery Date y Status -->
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Delivery Date</label>
+                <input type="date" class="form-control bg-secondary text-light" name="time_delivered" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Status</label>
+                <select class="form-select bg-secondary text-light" name="status" required>
+                  <option value="">Select...</option>
+                  <option value="Pending">Pending</option>
+                  <option value="In process">In process</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- PR y PO -->
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">PR</label>
+                <input type="text" class="form-control bg-secondary text-light" name="pr" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">PO</label>
+                <input type="text" class="form-control bg-secondary text-light" name="po" placeholder="Enter PO number" required>
+              </div>
+            </div>
+
+            <div class="d-grid mb-3">
+              <button type="submit" class="btn btn-danger btn-lg">Save Purchase</button>
+            </div>
+          </form>
+
+          <!-- Tabla de compras -->
+          <table class="table table-dark table-striped mt-4">
+            <thead class="table-danger">
+              <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Subtotal</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="tablaInventario"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="text-center py-3 text-danger bg-dark">
+    Automation Purchase - BRK. Resideo.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      loadSelectOptions();
+
+      document.getElementById('formCompra').addEventListener('submit', function (e) {
+        e.preventDefault();
+        savePurchase();
+      });
+    });
+
+    async function loadSelectOptions() {
+      try {
+        const baseURL = 'http://localhost:3000/api';
+
+        // Productos
+        const products = await fetch(`${baseURL}/products`).then(r => r.json());
+        const noPartSelect = document.getElementById('noPart');
+        products.forEach(p => {
+          const option = document.createElement('option');
+          option.value = p.no_part;
+          option.textContent = p.no_part;
+          option.dataset.description = p.description;
+          noPartSelect.appendChild(option);
+        });
+        noPartSelect.addEventListener('change', () => {
+          const selected = noPartSelect.selectedOptions[0];
+          document.getElementById('description').value = selected.dataset.description || '';
+        });
+
+        // Vendors
+        const vendors = await fetch(`${baseURL}/vendors`).then(r => r.json());
+        const vendorSelect = document.querySelector('select[name="id_vendor"]');
+        vendorSelect.innerHTML = '<option value="">Select vendor...</option>';
+        vendors.forEach(v => {
+          vendorSelect.innerHTML += `<option value="${v.id_vendor}">${v.name_vendor}</option>`;
+        });
+
+        // Projects
+        const projects = await fetch(`${baseURL}/projects`).then(r => r.json());
+        const projectSelect = document.querySelector('select[name="no_project"]');
+        projectSelect.innerHTML = '<option value="">Select project...</option>';
+        projects.forEach(pr => {
+          projectSelect.innerHTML += `<option value="${pr.no_project}">${pr.name_project}</option>`;
+        });
+
+        // Networks
+        const networks = await fetch(`${baseURL}/networks`).then(r => r.json());
+        const networkSelect = document.querySelector('select[name="network"]');
+        networkSelect.innerHTML = '<option value="">Select network...</option>';
+        networks.forEach(n => {
+          networkSelect.innerHTML += `<option value="${n.network}">${n.network}</option>`;
+        });
+
+      } catch (error) {
+        console.error('Error loading options:', error);
+        alert('Error loading form data');
+      }
+    }
+
+    async function savePurchase() {
+      const form = document.getElementById('formCompra');
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+
+      data.quantity = parseFloat(data.quantity);
+      data.price_unit = parseFloat(data.price_unit);
+
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      button.textContent = 'Saving...';
+
+      try {
+        const response = await fetch('http://localhost:3000/api/purchases', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const result = await response.json();
+
+        if (result.success) {
+          alert('Purchase saved successfully! ID: ' + result.id_purchase);
+          form.reset();
+          document.getElementById('description').value = '';
+
+          // Agregar a la tabla con subtotal calculado
+          const tablaBody = document.getElementById('tablaInventario');
+          const subtotal = data.quantity * data.price_unit;
+          const newRow = document.createElement('tr');
+          newRow.innerHTML = `
+            <td>${data.description}</td>
+            <td>${data.quantity}</td>
+            <td>${data.price_unit.toFixed(2)}</td>
+            <td>${subtotal.toFixed(2)}</td>
+            <td>${data.status}</td>
+          `;
+          tablaBody.appendChild(newRow);
+
+        } else {
+          alert('Error: ' + result.error);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Connection error with server');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Save Purchase';
+      }
+    }
+  </script>
+</body>
+
+</html>

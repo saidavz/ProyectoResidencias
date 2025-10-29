@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Purchase Tracking</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+</head>
+<body>
+
+  <nav class="navbar navbar-expand-lg navbar-dark bg-gradient">
+    <div class="container-fluid px-4">
+      <a href="index.html" class="p-0 me-4" title="Go to Home Page">
+        <img src="logo.png" alt="Logo" height="40">
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu"
+        aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarMenu">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="http://localhost:3000">Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="http://localhost:3000/recordPurchase.html">Register Purchase</a></li>
+          <li class="nav-item"><a class="nav-link active" href="#">Purchase Tracking</a></li>
+          <li class="nav-item"><a class="nav-link" href="http://localhost:3000/stock.html">Inventory</a></li>
+        </ul>
+      </div>
+      <div class="d-flex align-items-center">
+        <i class="bi bi-geo-alt-fill fs-4 me-2 text-white"></i>
+        <span class="h4 mb-0 text-white">Purchase Tracking</span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container my-5">
+    <h2 class="text-center text-white mb-4">Purchase Tracking</h2>
+
+    <div class="table-responsive">
+      <table class="table table-striped table-bordered table-hover align-middle bg-white">
+        <thead class="table-dark">
+          <tr>
+            <th>Purchase ID</th>
+            <th>NoParte</th>
+            <th>Product</th>
+            <th>Project</th>
+            <th>Vendor</th>
+            <th>Quantity</th>
+            <th>Unit Price</th>
+            <th>Subtotal</th>
+            <th>Currency</th>
+            <th>Status</th>
+            <th>Delivery Date</th>
+            <th>Network</th>
+          </tr>
+        </thead>
+        <tbody id="purchasesTableBody">
+          <tr>
+            <td colspan="11" class="text-center">Loading purchases data...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer class="text-center py-3 text-white bg-gradient mt-5">
+    Automation Purchase - BRK. Resideo.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    loadPurchasesData();
+  });
+
+  async function loadPurchasesData() {
+    try {
+      const response = await fetch('http://localhost:3000/api/purchases'); 
+      const data = await response.json();
+      displayPurchasesData(data);
+    } catch (error) {
+      console.error('Error loading purchases:', error);
+      document.getElementById('purchasesTableBody').innerHTML = 
+        '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
+    }
+  }
+
+  function displayPurchasesData(data) {
+    const tbody = document.getElementById('purchasesTableBody');
+    
+    if (data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center">No purchases found</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = '';
+
+    data.forEach(purchase => {
+      const statusClass = getStatusClass(purchase.status);
+      const deliveryDate = new Date(purchase.time_delivered).toLocaleDateString();
+      
+      const row = `
+        <tr>
+          <td>${purchase.id_purchase}</td>
+          <td>${purchase.no_part}</td>
+          <td>${purchase.product_description}</td>
+          <td>${purchase.project_name}</td>
+          <td>${purchase.vendor_name}</td>
+          <td>${purchase.quantity}</td>
+          <td>$${parseFloat(purchase.price_unit).toFixed(2)}</td>
+          <td>$${(purchase.quantity * purchase.price_unit).toFixed(2)}</td> 
+          <td>${purchase.currency}</td>
+          <td><span class="badge ${statusClass}">${purchase.status}</span></td>
+          <td>${deliveryDate}</td>
+          <td>${purchase.network}</td>
+        </tr>
+      `;
+      tbody.innerHTML += row;
+    });
+  }
+
+  function getStatusClass(status) {
+    switch(status) {
+      case 'Pending': return 'bg-warning text-dark';
+      case 'In process': return 'bg-info text-dark';
+      case 'Completed': return 'bg-success';
+      default: return 'bg-secondary';
+    }
+  }
+  </script>
+</body>
+</html>
