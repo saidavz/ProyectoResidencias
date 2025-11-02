@@ -44,12 +44,12 @@
           <h2 class="text-center mb-4 text-danger">New Purchase</h2>
 
           <form id="formCompra">
+            <!-- NO PART , DESCRIPCION "prodcuto"-->
             <div class="row">
-              <div class="col-md-6 mb-3">
+              <div class="col-md-6 mb-3" style="position: relative;">
                 <label for="noPart">Número de Parte:</label>
-                <select id="noPart" class="form-select bg-secondary text-light" required name="no_part">
-                  <option value="">Select Number Part...</option>
-                </select>
+                <input type="text" id="noPart" class="form-control bg-secondary text-light" placeholder="Search Number Part..." required name="no_part" autocomplete="off">
+                <div id="sugerenciasNoPart" class="bg-dark text-light" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;"></div>
               </div>
               <div class="col-md-6 mb-3">
                 <label class="form-label">Product</label>
@@ -147,107 +147,104 @@
     Automation Purchase - BRK. Resideo.
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      loadSelectOptions();
+      const baseURL = 'http://localhost:3000/api';
 
-      document.getElementById('formCompra').addEventListener('submit', function (e) {
-        e.preventDefault();
-        savePurchase();
+      // AUTOCOMPLETADO
+      const noPartInput = document.getElementById('noPart');
+      const sugerenciasNoPart = document.getElementById('sugerenciasNoPart');
+
+      noPartInput.addEventListener('input', async () => {
+        const term = noPartInput.value.trim();
+
+        // DESCRIPCION LIMPIA
+        document.getElementById('description').value = '';
+
+        if (!term) {
+          sugerenciasNoPart.style.display = 'none';
+          return;
+        }
+
+        try {
+          const res = await fetch(`${baseURL}/products/search?term=${term}`);
+          const data = await res.json();
+
+          sugerenciasNoPart.innerHTML = '';
+          data.forEach(item => {
+            const div = document.createElement('div');
+            div.textContent = `${item.no_part} - ${item.description}`;
+            div.style.padding = '5px';
+            div.style.cursor = 'pointer';
+            div.addEventListener('click', () => {
+              noPartInput.value = item.no_part;
+              document.getElementById('description').value = item.description;
+              sugerenciasNoPart.style.display = 'none';
+            });
+            sugerenciasNoPart.appendChild(div);
+          });
+
+          sugerenciasNoPart.style.display = data.length ? 'block' : 'none';
+
+        } catch (err) {
+          console.error(err);
+        }
       });
-    });
 
-    async function loadSelectOptions() {
-      try {
-        const baseURL = 'http://localhost:3000/api';
-
-        // Productos
-        const products = await fetch(`${baseURL}/products`).then(r => r.json());
-        const noPartSelect = document.getElementById('noPart');
-        products.forEach(p => {
-          const option = document.createElement('option');
-          option.value = p.no_part;
-          option.textContent = p.no_part;
-          option.dataset.description = p.description;
-          noPartSelect.appendChild(option);
-        });
-        noPartSelect.addEventListener('change', () => {
-          const selected = noPartSelect.selectedOptions[0];
-          document.getElementById('description').value = selected.dataset.description || '';
-        });
-
-        // Vendors
-        const vendors = await fetch(`${baseURL}/vendors`).then(r => r.json());
+      fetch(`${baseURL}/vendors`).then(r => r.json()).then(data => {
         const vendorSelect = document.querySelector('select[name="id_vendor"]');
         vendorSelect.innerHTML = '<option value="">Select vendor...</option>';
-        vendors.forEach(v => {
-          vendorSelect.innerHTML += `<option value="${v.id_vendor}">${v.name_vendor}</option>`;
-        });
+        data.forEach(v => vendorSelect.innerHTML += `<option value="${v.id_vendor}">${v.name_vendor}</option>`);
+      });
 
-        // Projects
-        const projects = await fetch(`${baseURL}/projects`).then(r => r.json());
+      fetch(`${baseURL}/projects`).then(r => r.json()).then(data => {
         const projectSelect = document.querySelector('select[name="no_project"]');
         projectSelect.innerHTML = '<option value="">Select project...</option>';
-        projects.forEach(pr => {
-          projectSelect.innerHTML += `<option value="${pr.no_project}">${pr.name_project}</option>`;
-        });
+        data.forEach(p => projectSelect.innerHTML += `<option value="${p.no_project}">${p.name_project}</option>`);
+      });
 
-        // Networks
-        const networks = await fetch(`${baseURL}/networks`).then(r => r.json());
+      fetch(`${baseURL}/networks`).then(r => r.json()).then(data => {
         const networkSelect = document.querySelector('select[name="network"]');
         networkSelect.innerHTML = '<option value="">Select network...</option>';
-        networks.forEach(n => {
-          networkSelect.innerHTML += `<option value="${n.network}">${n.network}</option>`;
-        });
+        data.forEach(n => networkSelect.innerHTML += `<option value="${n.network}">${n.network}</option>`);
+      });
 
-      } catch (error) {
-        console.error('Error loading options:', error);
-        alert('Error loading form data');
-      }
-    }
+      document.getElementById('formCompra').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = Object.fromEntries(new FormData(form).entries());
+        formData.quantity = parseFloat(formData.quantity);
+        formData.price_unit = parseFloat(formData.price_unit);
 
-    async function savePurchase() {
-      const form = document.getElementById('formCompra');
-      const formData = new FormData(form);
-      const data = Object.fromEntries(formData.entries());
+        const button = form.querySelector('button[type="submit"]');
+        button.disabled = true;
+        button.textContent = 'Saving...';
 
-      data.quantity = parseFloat(data.quantity);
-      data.price_unit = parseFloat(data.price_unit);
-
-      const button = form.querySelector('button[type="submit"]');
-      button.disabled = true;
-      button.textContent = 'Saving...';
-
-      try {
-        const response = await fetch('http://localhost:3000/api/purchases', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        const result = await response.json();
-
-        if (result.success) {
-          alert('Purchase saved successfully! ID: ' + result.id_purchase);
-          form.reset();
-          document.getElementById('description').value = '';
-
-          // Redirigir a Purchase Tracking después de guardar
-          setTimeout(() => {
-            window.location.href = 'purchaseTracking.html';
-          }, 1000);
-
-        } else {
-          alert('Error: ' + result.error);
+        try {
+          const res = await fetch(`${baseURL}/purchases`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+          });
+          const result = await res.json();
+          if (result.success) {
+            alert('Purchase saved successfully! ID: ' + result.id_purchase);
+            form.reset();
+            document.getElementById('description').value = '';
+            setTimeout(() => window.location.href = 'purchaseTracking.html', 1000);
+          } else alert('Error: ' + result.error);
+        } catch (err) {
+          console.error(err);
+          alert('Connection error with server');
+        } finally {
+          button.disabled = false;
+          button.textContent = 'Save Purchase';
         }
-      } catch (error) {
-        console.error('Error:', error);
-        alert('Connection error with server');
-      } finally {
-        button.disabled = false;
-        button.textContent = 'Save Purchase';
-      }
-    }
+      });
+    });
   </script>
 </body>
 

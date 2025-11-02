@@ -75,7 +75,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           </tr>
       `;
   }
-  // Agregar esto al FINAL de script.js
 window.filterTable = function(searchText) {
   const texto = searchText.toLowerCase();
   const filas = document.querySelectorAll('#tablaInventario tbody tr');
