@@ -44,11 +44,10 @@
           <h2 class="text-center mb-4 text-danger">New Purchase</h2>
 
           <form id="formCompra">
-            <!-- Número de Parte y Descripción -->
             <div class="row">
               <div class="col-md-6 mb-3">
                 <label for="noPart">Número de Parte:</label>
-                <select id="noPart" class="form-select bg-secondary text-light" required>
+                <select id="noPart" class="form-select bg-secondary text-light" required name="no_part">
                   <option value="">Select Number Part...</option>
                 </select>
               </div>
@@ -59,7 +58,6 @@
               </div>
             </div>
 
-            <!-- Quantity y Unit Price -->
             <div class="row">
               <div class="col-md-6 mb-3">
                 <label class="form-label">Quantity</label>
@@ -72,7 +70,6 @@
               </div>
             </div>
 
-            <!-- Currency y Vendor -->
             <div class="row">
               <div class="col-md-6 mb-3">
                 <label class="form-label">Currency</label>
@@ -90,7 +87,6 @@
               </div>
             </div>
 
-            <!-- Project y Network -->
             <div class="row">
               <div class="col-md-6 mb-3">
                 <label class="form-label">Project</label>
@@ -106,7 +102,6 @@
               </div>
             </div>
 
-            <!-- Delivery Date y Status -->
             <div class="row">
               <div class="col-md-6 mb-3">
                 <label class="form-label">Delivery Date</label>
@@ -123,7 +118,6 @@
               </div>
             </div>
 
-            <!-- PR y PO -->
             <div class="row">
               <div class="col-md-6 mb-3">
                 <label class="form-label">PR</label>
@@ -133,6 +127,10 @@
                 <label class="form-label">PO</label>
                 <input type="text" class="form-control bg-secondary text-light" name="po" placeholder="Enter PO number"
                   required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Shopping</label>
+                <input type="text" class="form-control bg-secondary text-light" name="shopping" required>
               </div>
             </div>
 

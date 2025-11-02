@@ -1,8 +1,7 @@
-const express = require("express");
+/*const express = require("express");
 const { Pool } = require("pg");
 const cors = require("cors");
 const path = require("path");
-
 const app = express();
 app.use(cors());
 app.use(express.json()); 
@@ -91,7 +90,7 @@ app.get("/api/stock", async (req, res) => {
   }
 });
 
-// ========== RUTAS API DE COMPRAS ==========
+
 app.get('/api/products', async (req, res) => {
   try {
     const result = await pool.query('SELECT no_part, description FROM product ORDER BY no_part');
@@ -268,4 +267,4 @@ app.listen(3000, () => {
   console.log("Inventario: http://localhost:3000/stock.html");
   console.log("Compras: http://localhost:3000/recordPurchase.html");
   console.log("Tracking: http://localhost:3000/purchaseTracking.html");
-});
+});*/

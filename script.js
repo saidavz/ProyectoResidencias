@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td>${safeValue(item.type_p)}</td>
   
             <td>${safeValue(item.price_unit)}</td>
-            <td>${safeValue(item.pd_quantity)}</td>
+            <td>${safeValue(item.quantity)}</td>
             <td>${safeValue(item.subtotal)}</td>
             <td>${safeValue(item.status)}</td>
   
@@ -65,6 +65,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   
     } catch (error) {
       console.error("Error al cargar datos del inventario:", error);
-      tabla.innerHTML = `<tr><td colspan="25">No se pudo cargar la información del inventario.</td></tr>`;
-    }
+      tabla.innerHTML = `
+          <tr>
+              <td colspan="25" class="text-center text-danger py-4">
+                  <i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i>
+                  Error al cargar el inventario: ${error.message}
+                  <br><small>Verifica la consola para más detalles</small>
+              </td>
+          </tr>
+      `;
+  }
+  // Agregar esto al FINAL de script.js
+window.filterTable = function(searchText) {
+  const texto = searchText.toLowerCase();
+  const filas = document.querySelectorAll('#tablaInventario tbody tr');
+  let contador = 0;
+  
+  filas.forEach(fila => {
+      const textoFila = fila.textContent.toLowerCase();
+      if (textoFila.includes(texto)) {
+          fila.style.display = '';
+          contador++;
+      } else {
+          fila.style.display = 'none';
+      }
   });
+  
+  document.getElementById('totalMaterial').textContent = contador;
+}; 
+}); 

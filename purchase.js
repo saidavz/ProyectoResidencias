@@ -30,7 +30,7 @@ app.get('/api/products', async (req, res) => {
     res.status(500).json({ error: 'Error al cargar productos' });
   }
 });
-// Buscar productos por coincidencia parcial de no_part
+
 app.get('/api/products/search', async (req, res) => {
   const term = req.query.term || '';
   try {
@@ -96,7 +96,8 @@ app.get('/api/purchases', async (req, res) => {
         pu.time_delivered,
         n.network,
         pu.po,
-        pu.pr
+        pu.pr,
+        pu.shopping
       FROM purchase pu
       INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
       INNER JOIN project pr ON pu.no_project = pr.no_project
@@ -105,7 +106,7 @@ app.get('/api/purchases', async (req, res) => {
       INNER JOIN network n ON pu.network = n.network 
       ORDER BY pu.id_purchase DESC
     `;
-    
+
     const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
@@ -116,10 +117,10 @@ app.get('/api/purchases', async (req, res) => {
 
 app.post('/api/purchases', async (req, res) => {
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
-    
+
     const {
       no_part,
       quantity,
@@ -131,65 +132,59 @@ app.post('/api/purchases', async (req, res) => {
       status,
       network,
       po,
-      pr
+      pr,
+      shopping
     } = req.body;
 
     console.log('Datos recibidos:', req.body);
 
-    const purchaseQuery = `
+      const purchaseQuery = `
       INSERT INTO purchase (currency, time_delivered, pr, shopping, po, no_project, id_vendor, network)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id_purchase
     `;
-    
+
     const purchaseResult = await client.query(purchaseQuery, [
       currency,
       time_delivered,
       pr || null,
-      'shopping',
+      shopping,
       po || null,
       no_project,
       id_vendor,
       network
     ]);
-    
-    const id_purchase = purchaseResult.rows[0].id_purchase;
 
+    const id_purchase = purchaseResult.rows[0].id_purchase;
     const detailQuery = `
-      INSERT INTO purchase_detail (quantity, price_unit, subtotal, status, id_purchase, no_project, id_vendor, network, no_part)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING id_detail
+      INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part)
+      VALUES ($1, $2, $3, $4, $5)
     `;
-    
-    const detailResult = await client.query(detailQuery, [
+
+    await client.query(detailQuery, [
       parseInt(quantity),
       parseFloat(price_unit),
-      (parseFloat(quantity) * parseFloat(price_unit)),
       status,
       id_purchase,
-      no_project,
-      id_vendor,
-      network,
       no_part
     ]);
 
     await client.query('COMMIT');
-    
+
     console.log('Compra guardada exitosamente. ID:', id_purchase);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: 'Compra guardada exitosamente',
-      id_purchase: id_purchase,
-      id_detail: detailResult.rows[0].id_detail
+      id_purchase: id_purchase
     });
-    
+
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error saving purchase:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Error al guardar la compra: ' + error.message 
+    res.status(500).json({
+      success: false,
+      error: 'Error al guardar la compra: ' + error.message
     });
   } finally {
     client.release();
@@ -199,65 +194,62 @@ app.post('/api/purchases', async (req, res) => {
 app.get("/api/stock", async (req, res) => {
   try {
     console.log("🔍 Ejecutando consulta SQL...");
-    
+
     const query = `
-    SELECT
-      s.id_stock,
-      s.rack,
-      s.date_entry,
-      p.no_part,
-      p.brand,
-      p.description AS description,
-      p.quantity AS product_quantity,
-      p.unit,
-      p.type_p,
-      pd.price_unit,
-      pd.quantity AS pd_quantity,
-      (pd.price_unit * pd.quantity) AS subtotal,
-      pd.status,
-      n.network,
-      n.balance,
-      v.name_vendor,
-      pr.name_project,
-      pu.currency,
-      pu.time_delivered,
-      pu.pr,
-      pu.shopping,
-      pu.po,
-      SUM(pd.quantity) AS cantidad_entrada,
-      COALESCE(SUM(o.quantity), 0) AS cantidad_salida,
-      SUM(pd.quantity) - COALESCE(SUM(o.quantity), 0) AS cantidad_disponible
-     FROM Stock s
-     JOIN Product p ON s.no_part = p.no_part 
-     JOIN Purchase_detail pd ON s.id_detail = pd.id_detail 
-     JOIN Vendor v ON pd.id_vendor = v.id_vendor 
-     JOIN Project pr ON pd.no_project = pr.no_project 
-     JOIN Network n ON pd.network = n.network
-     JOIN Purchase pu ON pd.id_purchase = pu.id_purchase
-     LEFT JOIN Output_inventory o
-     ON s.id_stock = o.id_stock
-     AND s.no_part = o.no_part
-     AND s.id_detail = o.id_detail
-     AND s.id_purchase = o.id_purchase
-     GROUP BY
-     s.id_stock, s.rack, s.date_entry,
-     p.no_part, p.brand, p.description, p.quantity, p.unit, p.type_p,  
-     pd.price_unit, pd.quantity, pd.status,  
-     n.network, n.balance,
-     v.name_vendor,
-     pr.name_project,
-     pu.currency, pu.time_delivered, pu.pr, pu.shopping, pu.po;
+      SELECT
+        s.id_stock,
+        s.rack,
+        s.date_entry,
+        p.no_part,
+        p.brand,
+        p.description AS description,
+        p.quantity AS product_quantity,
+        p.unit,
+        p.type_p,
+        pd.price_unit,
+        pd.quantity AS pd_quantity,
+        (pd.price_unit * pd.quantity) AS subtotal,
+        pd.status,
+        n.network,
+        n.balance,
+        v.name_vendor,
+        pr.name_project,
+        pu.currency,
+        pu.time_delivered,
+        pu.pr,
+        pu.shopping,
+        pu.po,
+        pd.quantity AS cantidad_entrada,
+        COALESCE((
+          SELECT SUM(o.quantity) 
+          FROM Output_inventory o 
+          WHERE o.id_stock = s.id_stock
+        ), 0) AS cantidad_salida,
+        (pd.quantity - COALESCE((
+          SELECT SUM(o.quantity) 
+          FROM Output_inventory o 
+          WHERE o.id_stock = s.id_stock
+        ), 0)) AS cantidad_disponible
+      FROM Stock s
+      JOIN Product p ON s.no_part = p.no_part 
+      JOIN Purchase_detail pd ON s.no_part = pd.no_part  -- ← CORREGIDO: unir por no_part
+      JOIN Purchase pu ON pd.id_purchase = pu.id_purchase
+      JOIN Vendor v ON pu.id_vendor = v.id_vendor       -- ← CORREGIDO: desde Purchase
+      JOIN Project pr ON pu.no_project = pr.no_project  -- ← CORREGIDO: desde Purchase  
+      JOIN Network n ON pu.network = n.network          -- ← CORREGIDO: desde Purchase
+      WHERE s.id_stock IS NOT NULL
+      ORDER BY s.date_entry DESC
     `;
-    
+
     const result = await pool.query(query);
     console.log(`Datos obtenidos: ${result.rows.length} registros`);
     res.json(result.rows);
-    
+
   } catch (error) {
     console.error("Error en consulta SQL:", error.message);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Error fetching stock data",
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -283,5 +275,5 @@ app.get('/', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor ÚNICO ejecutándose en http://localhost:3000`);
+  console.log(`Servidor ÚNICO ejecutándose en http://localhost:${PORT}`);
 });
