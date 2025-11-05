@@ -1,14 +1,47 @@
 document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fileInput = document.getElementById('fileinput').files[0];
-    const formData = new FormData();
-    formData.append('file', fileInput);
+    const fileInputEl = document.getElementById('fileinput');
+    const resultEl = document.getElementById('result');
+    resultEl.textContent = '';
 
-    const res = await fetch('http://localhost:3000/bom', {
-        method: 'POST',
-        body: formData
-    });
+    try {
+        const file = fileInputEl.files[0];
+        if (!file) {
+            resultEl.textContent = 'Por favor selecciona un archivo .xlsx antes de subir.';
+            return;
+        }
 
-    const data = await res.json();
-    document.getElementById('result').textContent = data.message;
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Feedback visual inmediato
+        resultEl.textContent = 'Subiendo...';
+        console.log('Intentando subir archivo:', file.name, file.size);
+
+        const res = await fetch('http://localhost:3000/bom', {
+            method: 'POST',
+            body: formData
+        });
+
+        // Intentar parsear JSON, pero manejar respuestas no-JSON
+        let text = await res.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (_) {
+            data = { message: text || (res.ok ? 'OK' : `Server error ${res.status}`) };
+        }
+
+        if (!res.ok) {
+            console.error('Server responded with error', res.status, data);
+            resultEl.textContent = 'Error en el servidor: ' + (data.message || res.status);
+            return;
+        }
+
+        resultEl.textContent = data.message || 'Subida completada';
+        console.log('Respuesta del servidor:', data);
+    } catch (err) {
+        console.error('Error subiendo archivo:', err);
+        document.getElementById('result').textContent = 'Error al subir: ' + (err.message || err);
+    }
 });

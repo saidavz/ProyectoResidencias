@@ -13,7 +13,7 @@ const pool = new Pool({
   user: "postgres",
   host: "localhost",
   database: "bd_purchase_system",
-  password: "150403kim",
+  password: "automationdb",
   port: 5432,
 });
 
@@ -122,9 +122,9 @@ app.post("/bom", upload.single("file"), async (req, res) => {
       return client.query(sql + suffix, values);
     };
 
-    // Procesamos cada fila (resolviendo/creando vendor por fila)
+     // Procesamos cada fila (resolviendo/creando vendor por fila)
     for (const rowObj of data) {
-      // 1) resolver/crear proveedor para ESTA fila
+      /*// 1) resolver/crear proveedor para ESTA fila
       const vendorCandidate = pick(rowObj, ["id_vendor", "proveedor", "vendor", "supplier", "vendor_name"]);
       let id_vendor = null;
       try {
@@ -151,9 +151,9 @@ app.post("/bom", upload.single("file"), async (req, res) => {
       } catch (e) {
         console.error("Error resolviendo/creando vendor para fila:", rowObj, e);
         continue; // pasar a la siguiente fila
-      }
+      } */
 
-      // 2) crear purchase para ESTA fila (usa moneda de la fila)
+      /*// 2) crear purchase para ESTA fila (usa moneda de la fila)
       const currency = pick(rowObj, ["currency", "moneda", "moneda_local", "curr"]);
       let id_purchase;
       try {
@@ -168,10 +168,10 @@ app.post("/bom", upload.single("file"), async (req, res) => {
       } catch (e) {
         console.error("Error creando purchase para vendor:", id_vendor, e);
         continue;
-      }
+      }*/
 
       // 3) obtener campos del producto y detalle
-      const no_part = pick(rowObj, ["no_part", "numero_de_parte", "numero_departe", "part_number", "partno"]);
+      const no_part = pick(rowObj, ["no_parte", "numero_de_parte", "numero_departe", "part_number", "partno"]);
       if (!no_part) {
         console.log("Fila omitida (no_part vacío):", rowObj);
         continue;
@@ -180,10 +180,10 @@ app.post("/bom", upload.single("file"), async (req, res) => {
 
       const brand = pick(rowObj, ["marca", "brand", "vendor_brand"]);
       const description = pick(rowObj, ["producto", "description", "desc", "descripcion"]);
-      const quantity = toInt(pick(rowObj, ["cantidad", "quantity", "qty"]));
+      const quantity = toInt(pick(rowObj, ["cantidad_venta", "quantity", "qty"]));
       const unit = pick(rowObj, ["unidad", "unit"]);
       const type_p = pick(rowObj, ["tipo", "type"]);
-      const price_unit = toFloat(pick(rowObj, ["precio_unitario", "price_unit", "unit_price", "precio"]));
+      const quantity_p = pick(rowObj, ["cantidad_solicitada"]);
 
       // 4) insertar/asegurar producto
       try {
@@ -214,19 +214,19 @@ app.post("/bom", upload.single("file"), async (req, res) => {
       }
 
       // 5) insertar purchase_detail (si hay cantidad o precio)
-      if (quantity === null && price_unit === null) {
-        console.log("Omitiendo detalle por falta de cantidad y precio:", no_part_str);
+      if (quantity_p === null) {
+        console.log("Omitiendo bom");
         continue;
       }
       try {
         await runQueryNoCache(
-          `INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part)
-           VALUES ($1::integer, $2::numeric, $3::varchar, $4::integer, $5::varchar)`,
-          [quantity, price_unit, 'Activo', id_purchase, no_part_str]
+          `INSERT INTO Bom_project (quantity_project)
+           VALUES ($1::integer)`,
+          [quantity_p]
         );
-        console.log("Detalle insertado para no_part:", no_part_str, "id_purchase:", id_purchase);
+        console.log("Detalle insertado BOM:", quantity_p);
       } catch (detailErr) {
-        console.error("Error al insertar purchase_detail para", no_part_str, detailErr);
+        console.error("Error al insertar BOM", no_part_str, detailErr);
         continue;
       }
     } // end for each row
