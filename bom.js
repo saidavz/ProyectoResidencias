@@ -18,12 +18,12 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
         resultEl.textContent = 'Subiendo...';
         console.log('Intentando subir archivo:', file.name, file.size);
 
-        const res = await fetch('http://localhost:3000/bom', {
+        const res = await fetch('http://localhost:3001/bom', {
             method: 'POST',
             body: formData
         });
 
-        // Intentar parsear JSON, pero manejar respuestas no-JSON
+        // Parsear JSON, pero manejo de respuestas no-JSON
         let text = await res.text();
         let data;
         try {

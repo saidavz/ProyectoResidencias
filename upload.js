@@ -124,52 +124,6 @@ app.post("/bom", upload.single("file"), async (req, res) => {
 
      // Procesamos cada fila (resolviendo/creando vendor por fila)
     for (const rowObj of data) {
-      /*// 1) resolver/crear proveedor para ESTA fila
-      const vendorCandidate = pick(rowObj, ["id_vendor", "proveedor", "vendor", "supplier", "vendor_name"]);
-      let id_vendor = null;
-      try {
-        if (!vendorCandidate) {
-          console.log("No se detectó proveedor en la fila, se omite fila:", rowObj);
-          continue;
-        }
-        const vendorName = String(vendorCandidate).trim();
-        console.log("Buscando vendor con name_vendor:", vendorName);
-        const r = await client.query('SELECT id_vendor, name_vendor FROM vendor WHERE name_vendor = $1', [vendorName]);
-        if (r.rows.length) {
-          id_vendor = r.rows[0].id_vendor;
-          console.log("Vendor encontrado:", r.rows[0]);
-        } else {
-          // generar id único y crear proveedor
-            // Generar ID más corto: V + últimos 6 dígitos del timestamp + 3 dígitos random
-            const timestamp = Date.now() % 1000000; // últimos 6 dígitos
-            const random = Math.floor(Math.random() * 1000); // 3 dígitos
-            const newId = `V${timestamp}${random.toString().padStart(3, '0')}`;
-          const q = await client.query('INSERT INTO vendor(id_vendor, name_vendor) VALUES($1, $2) RETURNING id_vendor, name_vendor', [newId, vendorName]);
-          id_vendor = q.rows[0].id_vendor;
-          console.log("Proveedor creado:", vendorName, "id:", id_vendor);
-        }
-      } catch (e) {
-        console.error("Error resolviendo/creando vendor para fila:", rowObj, e);
-        continue; // pasar a la siguiente fila
-      } */
-
-      /*// 2) crear purchase para ESTA fila (usa moneda de la fila)
-      const currency = pick(rowObj, ["currency", "moneda", "moneda_local", "curr"]);
-      let id_purchase;
-      try {
-        const purchaseResult = await client.query(
-          `INSERT INTO purchase (currency, id_vendor)
-           VALUES ($1, $2)
-           RETURNING id_purchase`,
-          [currency, id_vendor]
-        );
-        id_purchase = purchaseResult.rows[0].id_purchase;
-        console.log("id_purchase creado:", id_purchase, "para vendor:", id_vendor);
-      } catch (e) {
-        console.error("Error creando purchase para vendor:", id_vendor, e);
-        continue;
-      }*/
-
       // 3) obtener campos del producto y detalle
       const no_part = pick(rowObj, ["no_parte", "numero_de_parte", "numero_departe", "part_number", "partno"]);
       if (!no_part) {
@@ -220,11 +174,11 @@ app.post("/bom", upload.single("file"), async (req, res) => {
       }
       try {
         await runQueryNoCache(
-          `INSERT INTO Bom_project (quantity_project)
-           VALUES ($1::integer)`,
-          [quantity_p]
+          `INSERT INTO Bom_project (quantity_project, no_part)
+           VALUES ($1::integer, $2::varchar)`,
+          [quantity_p, no_part_str]
         );
-        console.log("Detalle insertado BOM:", quantity_p);
+        console.log("Insertado BOM:", quantity_p, no_part_str);
       } catch (detailErr) {
         console.error("Error al insertar BOM", no_part_str, detailErr);
         continue;
@@ -240,4 +194,4 @@ app.post("/bom", upload.single("file"), async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("Servidor en http://localhost:3000"));
+app.listen(3001, () => console.log("Servidor en http://localhost:3001"));
