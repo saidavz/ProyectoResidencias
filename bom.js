@@ -1,47 +1,83 @@
-document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+// bom.js - carga proyectos y sube archivo junto con no_project
+document.addEventListener('DOMContentLoaded', () => {
+  const projectSelect = document.getElementById('projectSelect');
+  const resultEl = document.getElementById('result');
+
+  // URL explícita al backend (cambia si tu backend está en otra URL)
+  const BASE = 'http://localhost:3000';
+
+  async function loadProjects() {
+    projectSelect.innerHTML = '<option value="">Cargando proyectos...</option>';
+    try {
+      const res = await fetch(`${BASE}/projects`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const projects = await res.json();
+      projectSelect.innerHTML = '<option value="">-- Selecciona un proyecto --</option>';
+      projects.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.no_project;
+        opt.textContent = `${p.no_project} - ${p.name_project}`;
+        projectSelect.appendChild(opt);
+      });
+      if (projects.length === 0) {
+        projectSelect.innerHTML = '<option value="">No hay proyectos</option>';
+      }
+    } catch (err) {
+      console.error('Error cargando proyectos:', err);
+      projectSelect.innerHTML = '<option value="">Error al cargar proyectos</option>';
+      resultEl.textContent = 'Error al obtener proyectos. Revisa la consola.';
+    }
+  }
+
+  loadProjects();
+
+  document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fileInputEl = document.getElementById('fileinput');
-    const resultEl = document.getElementById('result');
     resultEl.textContent = '';
+    const fileInputEl = document.getElementById('fileinput');
+    const file = fileInputEl.files[0];
+    const no_project = projectSelect.value;
+
+    if (!no_project) {
+      resultEl.textContent = 'Selecciona un proyecto.';
+      return;
+    }
+    if (!file) {
+      resultEl.textContent = 'Selecciona un archivo .xlsx.';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('no_project', no_project);
+
+    resultEl.textContent = 'Subiendo...';
+    console.log('Subiendo. Proyecto:', no_project, 'Archivo:', file.name);
 
     try {
-        const file = fileInputEl.files[0];
-        if (!file) {
-            resultEl.textContent = 'Por favor selecciona un archivo .xlsx antes de subir.';
-            return;
-        }
+      const res = await fetch(`${BASE}/bom`, {
+        method: 'POST',
+        body: formData,
+      });
 
-        const formData = new FormData();
-        formData.append('file', file);
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { message: text }; }
 
-        // Feedback visual inmediato
-        resultEl.textContent = 'Subiendo...';
-        console.log('Intentando subir archivo:', file.name, file.size);
+      if (!res.ok) {
+        console.error('Server responded with error', res.status, data);
+        resultEl.textContent = 'Error en servidor: ' + (data.message || res.status);
+        return;
+      }
 
-        const res = await fetch('http://localhost:3001/bom', {
-            method: 'POST',
-            body: formData
-        });
-
-        // Parsear JSON, pero manejo de respuestas no-JSON
-        let text = await res.text();
-        let data;
-        try {
-            data = JSON.parse(text);
-        } catch (_) {
-            data = { message: text || (res.ok ? 'OK' : `Server error ${res.status}`) };
-        }
-
-        if (!res.ok) {
-            console.error('Server responded with error', res.status, data);
-            resultEl.textContent = 'Error en el servidor: ' + (data.message || res.status);
-            return;
-        }
-
-        resultEl.textContent = data.message || 'Subida completada';
-        console.log('Respuesta del servidor:', data);
+      console.log('Respuesta servidor:', data);
+      resultEl.textContent = data.message || 'Subida completada correctamente.';
+      // limpia el input para evitar reenviar el mismo archivo accidentalmente
+      fileInputEl.value = '';
+      projectSelect.selectedIndex = 0;
     } catch (err) {
-        console.error('Error subiendo archivo:', err);
-        document.getElementById('result').textContent = 'Error al subir: ' + (err.message || err);
+      console.error('Error subiendo archivo:', err);
+      resultEl.textContent = 'Error al subir: ' + err.message;
     }
+  });
 });
