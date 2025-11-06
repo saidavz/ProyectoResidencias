@@ -78,7 +78,7 @@
     try {
       const response = await fetch('http://localhost:3000/api/purchases'); 
       const data = await response.json();
-      console.log("Datos recibidos:", data); // ← Agrega esto
+      console.log("Datos recibidos:", data); 
       displayPurchasesData(data);
     } catch (error) {
       console.error('Error loading purchases:', error);
