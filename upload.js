@@ -21,7 +21,7 @@ const pool = new Pool({
 //  Endpoint para obtener proyectos
 app.get("/projects", async (req, res) => {
   try {
-    const result = await pool.query("SELECT no_project, name_project FROM Project");
+    const result = await pool.query("SELECT no_project, name_project FROM Project WHERE status LIKE 'active'");
     res.json(result.rows);
   } catch (err) {
     console.error("Error obtaining projects:", err);

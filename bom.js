@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
         projectSelect.appendChild(opt);
       });
       if (projects.length === 0) {
-        projectSelect.innerHTML = '<option value="">Error loading projects</option>';
+        projectSelect.innerHTML = '<option value="">There are no projects</option>';
       }
     } catch (err) {
       projectSelect.innerHTML = '<option value="">Error loading projects</option>';
