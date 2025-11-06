@@ -14,18 +14,18 @@ const pool = new Pool({
   user: "postgres",
   host: "localhost",
   database: "bd_purchase_system",
-  password: "150403kim",
+  password: "automationdb",
   port: 5432,
 });
 
-// ✅ Endpoint para obtener proyectos
+//  Endpoint para obtener proyectos
 app.get("/projects", async (req, res) => {
   try {
     const result = await pool.query("SELECT no_project, name_project FROM Project");
     res.json(result.rows);
   } catch (err) {
-    console.error("Error al obtener proyectos:", err);
-    res.status(500).json({ message: "Error al obtener proyectos" });
+    console.error("Error obtaining projects:", err);
+    res.status(500).json({ message: "Error obtaining projects" });
   }
 });
 
@@ -38,7 +38,7 @@ function normalizeHeader(h) {
       .replace(/\s+/g, "_")
       .replace(/[^a-z0-9_]/g, "");
   } catch (e) {
-    console.error("Error normalizando header:", h, e);
+    console.error("Error normalizing headers:", h, e);
     return "";
   }
 }
@@ -70,25 +70,24 @@ function pick(rowObj, names) {
   return null;
 }
 
-// ✅ Endpoint para subir archivo Excel
+// Endpoint para subir Excel
 app.post("/bom", upload.single("file"), async (req, res) => {
   const client = await pool.connect();
   try {
     const { no_project } = req.body;
-    if (!no_project) return res.status(400).json({ message: "Falta seleccionar un proyecto" });
+    if (!no_project) return res.status(400).json({ message: "Select a project" });
 
-    if (!req.file) return res.status(400).json({ message: "No se subió archivo" });
+    if (!req.file) return res.status(400).json({ message: "No file was uploaded" });
 
     const workbook = xlsx.readFile(req.file.path);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: null });
 
     if (!rows || rows.length < 2)
-      return res.status(400).json({ message: "El Excel no contiene datos o no tiene cabecera" });
+      return res.status(400).json({ message: "The file contains no data or no header" });
 
     const rawHeaders = rows[0];
     const headers = rawHeaders.map(normalizeHeader);
-    console.log("Cabeceras detectadas:", rawHeaders);
 
     const data = [];
     for (let i = 1; i < rows.length; i++) {
@@ -102,8 +101,7 @@ app.post("/bom", upload.single("file"), async (req, res) => {
       data.push(obj);
     }
 
-    console.log("Primeras filas parseadas:", data.slice(0, 5));
-
+    //Procesar cada fila
     for (const rowObj of data) {
       const no_part = pick(rowObj, ["no_parte", "numero_de_parte", "part_number"]);
       if (!no_part) continue;
@@ -115,7 +113,7 @@ app.post("/bom", upload.single("file"), async (req, res) => {
       const type_p = pick(rowObj, ["tipo", "type"]);
       const quantity_p = toInt(pick(rowObj, ["cantidad_solicitada", "cantidad_proyecto"]));
 
-      // 🟩 Insertar producto si no existe
+      // Insertar producto si no existe
       await client.query(
         `INSERT INTO product (no_part, brand, description, quantity, unit, type_p)
          VALUES ($1, $2, $3, $4, $5, $6)
@@ -123,24 +121,23 @@ app.post("/bom", upload.single("file"), async (req, res) => {
         [no_part, brand, description, quantity, unit, type_p]
       );
 
-      // 🟦 Insertar directamente en bom_project
+      // Insertar en bom_project
       if (quantity_p !== null) {
         await client.query(
           `INSERT INTO bom_project (no_project, quantity_project, no_part)
            VALUES ($1, $2, $3)`,
           [no_project, quantity_p, no_part]
         );
-        console.log(`→ Insertado: Proyecto ${no_project}, Parte ${no_part}, Cantidad ${quantity_p}`);
       }
     }
 
-    res.json({ message: `Archivo procesado correctamente para el proyecto ${no_project}` });
+    res.json({ message: `File processed successfully for the project ${no_project}` });
   } catch (err) {
     console.error("ERROR:", err);
-    res.status(500).json({ message: "Error al procesar el Excel", error: String(err) });
+    res.status(500).json({ message: "Error processing file", error: String(err) });
   } finally {
     client.release();
   }
 });
 
-app.listen(3000, () => console.log("Servidor en http://localhost:3000"));
+app.listen(3000);
