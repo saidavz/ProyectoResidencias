@@ -3,13 +3,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultEl = document.getElementById('result');
 
   // URL explícita al backend
-  const BASE = 'http://localhost:3000';
+  const BASE = 'http://localhost:3000/api';
 
   //Funcion para cargar proyectos en el select
   async function loadProjects() {
     projectSelect.innerHTML = '<option value="">Loading projects...</option>';
     try {
-      const res = await fetch(`${BASE}/projects`);
+      
+      const res = await fetch(`${BASE}/projects/active`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const projects = await res.json();
       projectSelect.innerHTML = '<option value="">-- Select project --</option>';

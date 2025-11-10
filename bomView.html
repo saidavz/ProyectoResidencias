@@ -1,45 +1,189 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>View BOM</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+    <title>View Bill of Materials (BOM)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css"> 
 </head>
-
 <body>
-    <main class="container my-5">
-        <h2 class="text-center text-white mb-4">Purchase Tracking</h2>
 
-        <div class="table-responsive">
-            <table class="table table-striped table-bordered table-hover align-middle bg-white">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Type</th>
-                        <th>Part Number</th>
-                        <th>Description</th>
-                        <th>Brand</th>
-                        <th>Quantity Sold</th>
-                        <th>Unidad</th>
-                        <th>Quantity Requested</th>
-                    </tr>
-                </thead>
-                <tbody id="bomTableBody">
-                    <tr>
-                        <td colspan="11" class="text-center">Loading purchases data...</td>
-                    </tr>
-                </tbody>
-            </table>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-gradient">
+        <div class="container-fluid px-4">
+            <a href="index.html" class="p-0 me-4">
+                <img src="logo.png" alt="Logo" height="40">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu"
+                aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMenu">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="http://localhost:3000">Home</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle active" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            BOM
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="bom.html">Upload BOM</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item active" href="bomView.html">View BOM</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
+                    <li class="nav-item"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
+                    <li class="nav-item"><a class="nav-link" href="stock.html">Inventory</a></li>
+                </ul>
+            </div>
+            <div class="d-flex align-items-center">
+                <i class="bi bi-list-check fs-4 me-2 text-white"></i>
+                <span class="h4 mb-0 text-white">Bill of Materials</span>
+            </div>
+        </div>
+    </nav>
+    <main class="container my-5">
+        <h1 class="text-center mb-5">Bill of Materials (BOM)</h1>
+
+        <div class="card p-4 mb-5 static-filter-card"> 
+    
+            <div class="row d-flex justify-content-center">
+                <div class="col-md-4">
+                    
+                    <select id="projectFilter" class="form-select">
+                        <option value="">-- Ver Todos los Proyectos --</option>
+                    </select>
+                    
+                </div>
+            </div>
+        </div>
+        <div class="enhanced-table"> 
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    
+                    <thead class="table-dark"> 
+                        <tr>
+                            <th>Proyecto</th>           
+                            <th>Tipo</th>
+                            <th>No. Parte</th>
+                            <th>Descripción</th>
+                            <th>Marca</th>
+                            <th>Cantidad Venta</th>
+                            <th>Unidad</th>
+                            <th>Cantidad Solicitada</th>
+                        </tr>
+                    </thead>
+                    
+                    <tbody id="bomTableBody">
+                        <tr>
+                            <td colspan="9" class="text-center">Cargando datos...</td> </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </main>
-</body>
-  <footer class="text-center py-3 text-white bg-gradient mt-5">
-    Automation Purchase - BRK. Resideo.
-  </footer>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="bomView.js"></script>
 
+    <footer class="text-center py-3 text-white">
+        Automation Purchase - BRK. Resideo.
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. Cargar la lista de proyectos para llenar el dropdown
+            loadProjects(); 
+            // 2. Cargar la tabla (inicialmente con todos los datos)
+            loadBOMData(); 
+            
+            // 3. Añadir escuchador al filtro de proyectos
+            document.getElementById('projectFilter').addEventListener('change', loadBOMData);
+        });
+
+        // ----------------------------------------------------
+        // 1. CARGAR PROYECTOS (Necesita endpoint en el backend)
+        // ----------------------------------------------------
+        async function loadProjects() {
+            try {
+                const response = await fetch('http://localhost:3000/api/projects/active'); 
+                const projects = await response.json();
+                const filterSelect = document.getElementById('projectFilter');
+                
+                // Llenar el dropdown
+                projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.name; // Usamos el nombre del proyecto para filtrar
+                    option.textContent = project.name;
+                    filterSelect.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error('Error al cargar la lista de proyectos:', error);
+                // Si falla, el dropdown solo tendrá la opción de 'Ver Todos'
+            }
+        }
+
+        // ----------------------------------------------------
+        // 2. CARGAR Y FILTRAR DATOS DEL BOM
+        // ----------------------------------------------------
+        async function loadBOMData() {
+            const project = document.getElementById('projectFilter').value;
+            
+            // Construir la URL con el parámetro de filtro
+            let url = 'http://localhost:3000/api/bomView';
+            const params = new URLSearchParams();
+
+            if (project) {
+                params.append('project', project);
+            }
+            
+            if (params.toString()) {
+                url += '?' + params.toString();
+            }
+
+            try {
+                const response = await fetch(url); 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                displayBOMData(data);
+
+            } catch (error) {
+                console.error('Error al cargar BOM:', error);
+                document.getElementById('bomTableBody').innerHTML = 
+                    '<tr><td colspan="9" class="text-center text-danger">Error al cargar los datos</td></tr>';
+            }
+        }
+
+        function displayBOMData(data) {
+            const tbody = document.getElementById('bomTableBody');
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center">No se encontraron materiales</td></tr>';
+                return;
+            }
+
+            // Asegúrate de que tu backend envíe 'project_name' y 'upload_date'
+            const rows = data.map(item => {
+                const uploadDate = item.upload_date ? new Date(item.upload_date).toLocaleDateString() : 'N/A';
+                return `
+                    <tr>
+                        <td>${item.name_project}</td> 
+                        <td>${item.type_p}</td>
+                        <td>${item.no_part}</td>
+                        <td>${item.description}</td>
+                        <td>${item.brand}</td>
+                        <td class="quantity-cell">${item.quantity}</td>
+                        <td>${item.unit}</td>
+                        <td class="quantity-cell">${item.quantity_requested}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            tbody.innerHTML = rows;
+        }
+    </script>
+</body>
 </html>

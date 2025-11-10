@@ -200,7 +200,7 @@
         data.forEach(v => vendorSelect.innerHTML += `<option value="${v.id_vendor}">${v.name_vendor}</option>`);
       });
 
-      fetch(`${baseURL}/projects`).then(r => r.json()).then(data => {
+      fetch(`${baseURL}/projects/all`).then(r => r.json()).then(data => {
         const projectSelect = document.querySelector('select[name="no_project"]');
         projectSelect.innerHTML = '<option value="">Select project...</option>';
         data.forEach(p => projectSelect.innerHTML += `<option value="${p.no_project}">${p.name_project}</option>`);

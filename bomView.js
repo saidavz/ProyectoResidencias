@@ -28,13 +28,14 @@
     data.forEach(item => {
       const row = `
         <tr>
+          <td>${item.name_project}</td>
           <td>${item.type_p}</td>
           <td>${item.no_part}</td>
           <td>${item.description}</td>
           <td>${item.brand}</td>
-          <td>${item.quantity}</td>
+          <td ${item.quantity}</td>
           <td>${item.unit}</td>
-        <td>${item.quantity_requested}</td>
+          <td>${item.quantity_requested}</td>
         </tr>
       `;
       tbody.innerHTML += row;

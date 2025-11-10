@@ -281,7 +281,7 @@ body {
   background: var(--pure-white) !important;
   margin-bottom: 0;
   border: 1px solid rgba(0, 0, 0, 0.1);
-  min-width: 2000px; 
+  /*min-width: 2000px; */
 }
 
 .table-dark th {
@@ -354,7 +354,7 @@ body {
 .enhanced-table .table {
   margin-bottom: 0;
   background: var(--pure-white) !important;
-  min-width: 2000px; /* Scroll horizontal para muchas columnas */
+  /*min-width: 2000px; /* Scroll horizontal para muchas columnas */
 }
 
 .enhanced-table .table thead th {
@@ -474,7 +474,7 @@ body {
 
 /* ===== CARDS Y FORMULARIOS ===== */
 .card {
-  background: rgba(157, 154, 154, 0.244);
+  background: rgba(157, 154, 154, 0.251);
   border: none;
   border-radius: var(--card-radius);
   box-shadow: var(--shadow-medium);
@@ -490,8 +490,8 @@ body {
 }
 .card:hover {
   border-color: var(--primary-red);
-  transform: translateY(-5px);
-  box-shadow: 0 15px 30px rgba(255, 58, 48, 0.425);
+  transform: translateY(-1px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.425);
 }
 
 .form-control, .form-select {
@@ -527,7 +527,7 @@ body {
 
 .card .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 8px 8px 20px rgba(204, 21, 15, 0.749);
+  box-shadow: 8px 8px 20px rgba(0, 0, 0, 0.749);
 }
 /* ===== BOTONES ===== */
 .btn-primary {
@@ -596,4 +596,83 @@ h1 {
   font-weight: 800;
   margin: 2rem 0;
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+.upload-area {
+    border: 2px dashed var(--medium-gray); /* Borde punteado */
+    border-radius: var(--card-radius);
+    padding: 3rem 1.5rem;
+    cursor: pointer;
+    background-color: rgba(0, 0, 0, 0.1); /* Fondo muy ligeramente más claro que la card */
+    transition: var(--transition);
+}
+
+.upload-area:hover {
+    border-color: var(--primary-black);
+    background-color: rgba(10, 10, 10, 0.05); /* Ligeramente rojo al pasar el ratón */
+}
+
+/* Icono de subida (Flecha) */
+.upload-icon {
+    font-size: 3rem;
+    color: var(--primary-gray);
+    opacity: 0.8;
+    transition: var(--transition);
+}
+
+.upload-area:hover .upload-icon {
+    opacity: 1;
+    transform: translateY(-5px);
+}
+
+/* Texto principal (Drag and Drop) */
+.drag-text {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--light-gray);
+    margin-bottom: 0.2rem;
+}
+
+/* Texto "or" */
+.or-text {
+    color: var(--medium-gray);
+    font-size: 0.9rem;
+    margin-bottom: 0.2rem;
+}
+
+/* Enlace "Browse files" */
+.browse-link {
+    color: var(--light-gray);
+    font-weight: 700;
+    text-decoration: none;
+    font-size: 1rem;
+    transition: color 0.3s;
+}
+
+.browse-link:hover {
+    color: var(--pure-black);
+}
+
+/* Información adicional (Accepted types, Secure) */
+.file-info {
+    font-size: 0.85rem;
+    padding: 0.5rem 0;
+}
+
+.accepted-types {
+    color: var(--medium-gray);
+}
+
+.secure-text {
+    color: #2ecc71; /* Color verde para "Secure" */
+}
+
+/* Ajustes para hacer el input de archivo invisible (ya añadido en el HTML) */
+.d-none {
+    display: none !important;
+}
+
+/* Asegurar que el botón principal use el estilo gradiente rojo */
+.btn-primary.btn-lg {
+    font-size: 1.1rem;
+    padding: 1.0rem 1.5rem;
 }

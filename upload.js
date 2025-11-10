@@ -1,4 +1,4 @@
-import express from "express";
+/*import express from "express";
 import multer from "multer";
 import xlsx from "xlsx";
 import pkg from "pg";
@@ -14,7 +14,7 @@ const pool = new Pool({
   user: "postgres",
   host: "localhost",
   database: "bd_purchase_system",
-  password: "automationdb",
+  password: "postgresql",
   port: 5432,
 });
 
@@ -140,4 +140,4 @@ app.post("/bom", upload.single("file"), async (req, res) => {
   }
 });
 
-app.listen(3000);
+app.listen(3000);*/
