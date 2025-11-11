@@ -20,8 +20,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',
-  password: 'postgresql',
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb',
   port: 5432,
 });
 
