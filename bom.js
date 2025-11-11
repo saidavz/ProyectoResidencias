@@ -14,12 +14,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const projects = await res.json();
       projectSelect.innerHTML = '<option value="">-- Select project --</option>';
-      projects.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.no_project;
-        opt.textContent = `${p.no_project} - ${p.name_project}`;
-        projectSelect.appendChild(opt);
-      });
+      // En bom.js, dentro de la función loadProjects:
+            projects.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.no_project;
+                // CORREGIDO: Usar p.name en lugar de p.name_project
+                opt.textContent = `${p.no_project} - ${p.name}`; 
+                projectSelect.appendChild(opt);
+              });
       if (projects.length === 0) {
         projectSelect.innerHTML = '<option value="">There are no projects</option>';
       }
