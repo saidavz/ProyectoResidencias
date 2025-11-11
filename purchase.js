@@ -24,9 +24,7 @@ const pool = new pg.Pool({
   port: 5432,
 });
 
-// ============================================================================
-// RUTAS DEL SERVIRDOR 1 (purchase.js) - CON /api/
-// ============================================================================
+// RUTAS DEL SERVIRDOR 1 (purchase.js) 
 
 app.get('/api/products', async (req, res) => {
   try {
@@ -134,10 +132,10 @@ app.post('/api/purchases', async (req, res) => {
     `;
     const purchaseResult = await client.query(purchaseQuery, [currency, time_delivered, pr || null, shopping, po || null, no_project, id_vendor, network]);
     const id_purchase = purchaseResult.rows[0].id_purchase;
-    
+
     const detailQuery = `INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part) VALUES ($1, $2, $3, $4, $5)`;
     await client.query(detailQuery, [parseInt(quantity), parseFloat(price_unit), status, id_purchase, no_part]);
-    
+
     await client.query('COMMIT');
     res.json({ success: true, message: 'Compra guardada exitosamente', id_purchase: id_purchase });
   } catch (error) {
@@ -196,9 +194,7 @@ app.get("/api/stock", async (req, res) => {
   }
 });
 
-// ============================================================================
-// RUTAS DEL SERVIRDOR 2 (BOM) - SIN /api/
-// ============================================================================
+// RUTAS DEL SERVIRDOR 2 
 
 // Funciones auxiliares para BOM
 function normalizeHeader(h) {
@@ -239,17 +235,16 @@ function pick(rowObj, names) {
   return null;
 }
 
-// Ruta para BOM - obtener proyectos (SIN /api)
-// Ruta para BOM - obtener proyectos (CORREGIDO)
+// Ruta para BOM - obtener proyectos 
 app.get("/api/projects/active", async (req, res) => {
-  try {
-    //CAMBIO AQUÍ: Renombrar name_project a name
-    const result = await pool.query("SELECT no_project, name_project AS name FROM Project WHERE status LIKE 'activo'");
-    res.json(result.rows);
-  } catch (err) {
-    console.error("Error obtaining projects:", err);
-    res.status(500).json({ message: "Error obtaining projects" });
-  }
+  try {
+    //CAMBIO AQUÍ: Renombrar name_project a name
+    const result = await pool.query("SELECT no_project, name_project AS name FROM Project WHERE status LIKE 'activo'");
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error obtaining projects:", err);
+    res.status(500).json({ message: "Error obtaining projects" });
+  }
 });
 
 // Ruta para BOM - subir archivo Excel
@@ -269,7 +264,7 @@ app.post("/api/bom", upload.single("file"), async (req, res) => {
     const rawHeaders = rows[0];
     const headers = rawHeaders.map(normalizeHeader);
     const data = [];
-    
+
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row || row.every(cell => cell === null || cell === "")) continue;
@@ -319,14 +314,12 @@ app.post("/api/bom", upload.single("file"), async (req, res) => {
     client.release();
   }
 });
-// ============================================================================
 // Visualización de Materiales por Proyecto)
-// ============================================================================
 app.get('/api/bomView', async (req, res) => {
   const projectName = req.query.project; // Recibe el nombre del proyecto desde el frontend
-  
+
   try {
-      let query = `
+    let query = `
           SELECT 
               pr.name_project,
               bp.quantity_project AS quantity_requested,
@@ -341,26 +334,23 @@ app.get('/api/bomView', async (req, res) => {
           JOIN project pr ON bp.no_project = pr.no_project
       `;
 
-      const queryParams = [];
+    const queryParams = [];
 
-      if (projectName) {
-          query += ` WHERE pr.name_project = $1`;
-          queryParams.push(projectName);
-      }
+    if (projectName) {
+      query += ` WHERE pr.name_project = $1`;
+      queryParams.push(projectName);
+    }
 
-      query += ` ORDER BY pr.name_project, p.no_part`;
+    query += ` ORDER BY pr.name_project, p.no_part`;
 
-      const result = await pool.query(query, queryParams);
-      res.json(result.rows);
+    const result = await pool.query(query, queryParams);
+    res.json(result.rows);
   } catch (error) {
-      console.error('Error fetching BOM data:', error);
-      res.status(500).json({ error: 'Error al cargar los datos del BOM' });
+    console.error('Error fetching BOM data:', error);
+    res.status(500).json({ error: 'Error al cargar los datos del BOM' });
   }
 });
 
-// ============================================================================
-// RUTAS PARA SERVIR ARCHIVOS HTML
-// ============================================================================
 
 app.get('/stock.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'stock.html'));
