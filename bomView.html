@@ -165,7 +165,7 @@
                 return;
             }
 
-            // Asegúrate de que tu backend envíe 'project_name' y 'upload_date'
+            // Asegúrate de que tu backend envíe 'project_name' y 'upload_date', <td class="quantity-cell">${item.quantity}</td>
             const rows = data.map(item => {
                 const uploadDate = item.upload_date ? new Date(item.upload_date).toLocaleDateString() : 'N/A';
                 return `
@@ -175,7 +175,8 @@
                         <td>${item.no_part}</td>
                         <td>${item.description}</td>
                         <td>${item.brand}</td>
-                        <td class="quantity-cell">${item.quantity}</td>
+                        <td>${item.quantity}</td>
+                        
                         <td>${item.unit}</td>
                         <td class="quantity-cell">${item.quantity_requested}</td>
                     </tr>
