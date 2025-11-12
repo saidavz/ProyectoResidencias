@@ -176,7 +176,7 @@ app.get("/api/stock", async (req, res) => {
         pu.po,
         pd.quantity AS cantidad_entrada,
         COALESCE((SELECT SUM(o.quantity) FROM Output_inventory o WHERE o.id_stock = s.id_stock), 0) AS cantidad_salida,
-        (pd.quantity - COALESCE((SELECT SUM(o.quantity) FROM Output_inventory o WHERE o.id_stock = s.id_stock), 0)) AS cantidad_disponible
+        (p.quantity - COALESCE((SELECT SUM(o.quantity) FROM Output_inventory o WHERE o.id_stock = s.id_stock), 0)) AS cantidad_disponible
       FROM Stock s
       JOIN Product p ON s.no_part = p.no_part 
       JOIN Purchase_detail pd ON s.no_part = pd.no_part
@@ -317,7 +317,9 @@ app.post("/api/bom", upload.single("file"), async (req, res) => {
 });
 // Visualización de Materiales por Proyecto)
 app.get('/api/bomView', async (req, res) => {
-  const projectName = req.query.project; // Recibe el nombre del proyecto desde el frontend
+  // Ahora aceptamos `no_project` (identificador) desde el frontend
+  const noProject = req.query.no_project;
+  console.log('/api/bomView called with no_project=', noProject);
 
   try {
     let query = `
@@ -337,9 +339,10 @@ app.get('/api/bomView', async (req, res) => {
 
     const queryParams = [];
 
-    if (projectName) {
-      query += ` WHERE pr.name_project = $1`;
-      queryParams.push(projectName);
+    if (noProject) {
+      // Comparamos como texto para evitar problemas de tipos (int vs string)
+      query += ` WHERE pr.no_project::text = $1`;
+      queryParams.push(String(noProject));
     }
 
     query += ` ORDER BY pr.name_project, p.no_part`;
@@ -383,4 +386,34 @@ app.listen(PORT, () => {
   console.log(`   - /api/projects/active (BOM)`);               // ← CORREGIR
   console.log(`   - /api/bom (Subir archivos BOM)`);            // ← CORREGIR
   console.log(`   - /api/stock (Inventory)`);
+});
+
+// Endpoint de diagnóstico para comprobar qué recibe el servidor y cuántas filas devuelve
+app.get('/api/bomView/debug', async (req, res) => {
+  const noProject = req.query.no_project;
+  console.log('/api/bomView/debug called with no_project=', noProject);
+  try {
+    let query = `
+      SELECT 
+        pr.no_project,
+        pr.name_project,
+        p.no_part,
+        p.description
+      FROM bom_project bp
+      JOIN product p ON bp.no_part = p.no_part
+      JOIN project pr ON bp.no_project = pr.no_project
+    `;
+    const params = [];
+    if (noProject) {
+      query += ` WHERE pr.no_project::text = $1`;
+      params.push(String(noProject));
+    }
+    query += ` ORDER BY pr.no_project, p.no_part`;
+
+    const result = await pool.query(query, params);
+    res.json({ received: noProject ?? null, count: result.rows.length, sample: result.rows.slice(0, 5) });
+  } catch (err) {
+    console.error('/api/bomView/debug error:', err);
+    res.status(500).json({ error: String(err) });
+  }
 });

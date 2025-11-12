@@ -15,6 +15,7 @@
     }
   }
 
+
   function displayBOMData(data) {
     const tbody = document.getElementById('bomTableBody');
     
@@ -22,6 +23,33 @@
       tbody.innerHTML = '<tr><td colspan=7" class="text-center">No BOM found</td></tr>';
       return;
     }
+  // URL explícita al backend
+  const BASE = 'http://localhost:3000/api';
+
+  //Funcion para cargar proyectos en el select
+  async function loadProjects() {
+    projectSelect.innerHTML = '<option value="">Loading projects...</option>';
+    try {
+      
+      const res = await fetch(`${BASE}/projects/active`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const projects = await res.json();
+      projectSelect.innerHTML = '<option value="">-- Select project --</option>';
+      // En bom.js, dentro de la función loadProjects:
+            projects.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.no_project;
+                // CORREGIDO: Usar p.name en lugar de p.name_project
+                opt.textContent = `${p.no_project} - ${p.name}`; 
+                projectSelect.appendChild(opt);
+              });
+      if (projects.length === 0) {
+        projectSelect.innerHTML = '<option value="">There are no projects</option>';
+      }
+    } catch (err) {
+      projectSelect.innerHTML = '<option value="">Error loading projects</option>';
+    }
+  }
 
     tbody.innerHTML = '';
 

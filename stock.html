@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -42,12 +43,10 @@
 
     <div class="inventory-search">
       <div class="search-box-enhanced">
-        <input type="text" id="buscar" placeholder="Buscar por parte, proveedor o proyecto...">
+        <input type="text" id="buscar" placeholder="Buscar, NoPart, Proyect, Proveedor">
         <i class="bi bi-search"></i>
       </div>
-      <div class="search-hint">
-        Search by No. Part or Project name
-      </div>
+
     </div>
 
     <div class="enhanced-table">
@@ -56,30 +55,22 @@
           <thead>
             <tr>
               <th>ID Stock</th>
-              <th>Ubicación (Rack)</th>
-              <th>Fecha de Entrada</th>
-              <th>Número de Parte</th>
-              <th>Marca</th>
               <th>Descripción</th>
-              <th>Cantidad Producto</th>
-              <th>Unidad</th>
               <th>Tipo</th>
-              <th>Precio Unitario</th>
-              <th>Cantidad</th>
-              <th>Subtotal</th>
-              <th>Status</th>
-              <th>Network</th>
-              <th>Balance</th>
+              <th>Número de Parte</th>
               <th>Proveedor</th>
               <th>Proyecto</th>
-              <th>Moneda</th>
-              <th>Fecha Entrega</th>
+              <th>Marca</th>
+              <th>Network</th>
               <th>PR</th>
               <th>Shopping</th>
               <th>PO</th>
-              <th>Cantidad Entrada</th>
+              <th>Ubicación (Rack)</th>
+              <th>Cantidad Producto</th>
+              <th>Unidad</th>
               <th>Cantidad Salida</th>
               <th>Cantidad Disponible</th>
+
             </tr>
           </thead>
           <tbody>
@@ -95,17 +86,17 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="script.js"></script>
-  
+
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       setTimeout(() => {
         const rowCount = document.querySelectorAll('#tablaInventario tbody tr').length;
         document.getElementById('totalMaterial').textContent = rowCount;
       }, 1000);
-      
+
       const searchInput = document.getElementById('buscar');
       if (searchInput) {
-        searchInput.addEventListener('input', function(e) {
+        searchInput.addEventListener('input', function (e) {
           if (typeof window.filterTable === 'function') {
             window.filterTable(e.target.value);
           }
@@ -113,6 +104,32 @@
       }
     });
   </script>
-  
+
 </body>
+
 </html>
+
+
+<!-- 
+              <th>Fecha de Entrada</th>
+              <th>Status</th>
+              <th>Subtotal</th>
+              <th>Balance</th>
+              <th>Moneda</th>
+              <th>Fecha Entrega</th>
+              <th>Cantidad</th>
+              <th>Cantidad Entrada</th>
+              <th>Precio Unitario</th>
+
+              script:
+              
+            <td>${item.date_entry ? new Date(item.date_entry).toLocaleDateString() : ''}</td>
+            <td>${safeValue(item.price_unit)}</td>
+            <td>${safeValue(item.quantity)}</td>
+            <td>${safeValue(item.cantidad_entrada)}</td>
+            <td>${safeValue(item.subtotal)}</td>
+            <td>${safeValue(item.status)}</td>
+            <td>${safeValue(item.balance)}</td>
+            <td>${safeValue(item.currency)}</td>
+            <td>${item.time_delivered ? new Date(item.time_delivered).toLocaleDateString() : ''}</td>
+-->

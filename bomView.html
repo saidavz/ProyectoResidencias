@@ -53,7 +53,7 @@
                 <div class="col-md-4">
                     
                     <select id="projectFilter" class="form-select">
-                        <option value="">-- Ver Todos los Proyectos --</option>
+                        <option value="">-- Ver por Proyectos --</option>
                     </select>
                     
                 </div>
@@ -106,21 +106,31 @@
         // ----------------------------------------------------
         async function loadProjects() {
             try {
-                const response = await fetch('http://localhost:3000/api/projects/active'); 
+                // Pedimos la lista completa de proyectos (endpoint existente en el servidor)
+                const response = await fetch('http://localhost:3000/api/projects/all'); 
                 const projects = await response.json();
                 const filterSelect = document.getElementById('projectFilter');
-                
-                // Llenar el dropdown
-                projects.forEach(project => {
-                    const option = document.createElement('option');
-                    option.value = project.name; // Usamos el nombre del proyecto para filtrar
-                    option.textContent = project.name;
-                    filterSelect.appendChild(option);
-                });
+
+                // Resetear el select y añadir la opción por defecto
+                filterSelect.innerHTML = '<option value="">-- Ver por Proyectos --</option>';
+                console.log('loadProjects: projects fetched =', Array.isArray(projects) ? projects.length : typeof projects, projects);
+
+                // Llenar el dropdown usando las claves que devuelve el servidor (no_project y name_project)
+                if (Array.isArray(projects) && projects.length > 0) {
+                    projects.forEach(project => {
+                        const option = document.createElement('option');
+                        option.value = project.no_project; // enviar ID del proyecto al backend
+                        option.textContent = `${project.no_project} - ${project.name_project}`;
+                        filterSelect.appendChild(option);
+                    });
+                } else {
+                    // Mensaje claro si no hay proyectos
+                    filterSelect.innerHTML = '<option value="">-- No hay proyectos --</option>';
+                }
 
             } catch (error) {
                 console.error('Error al cargar la lista de proyectos:', error);
-                // Si falla, el dropdown solo tendrá la opción de 'Ver Todos'
+                // Si falla, el dropdown solo tendrá la opción por defecto
             }
         }
 
@@ -129,13 +139,15 @@
         // ----------------------------------------------------
         async function loadBOMData() {
             const project = document.getElementById('projectFilter').value;
+            console.log('Selected project (no_project):', project);
             
             // Construir la URL con el parámetro de filtro
             let url = 'http://localhost:3000/api/bomView';
             const params = new URLSearchParams();
 
             if (project) {
-                params.append('project', project);
+                // Enviar el identificador del proyecto (no_project) al backend
+                params.append('no_project', project);
             }
             
             if (params.toString()) {
@@ -143,11 +155,13 @@
             }
 
             try {
+                console.log('Fetching BOM URL:', url);
                 const response = await fetch(url); 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
+                console.log('BOM response length:', Array.isArray(data) ? data.length : 'not-array', data);
                 displayBOMData(data);
 
             } catch (error) {
@@ -175,8 +189,7 @@
                         <td>${item.no_part}</td>
                         <td>${item.description}</td>
                         <td>${item.brand}</td>
-                        <td>${item.quantity}</td>
-                        
+                        <td>${item.quantity}</td> 
                         <td>${item.unit}</td>
                         <td class="quantity-cell">${item.quantity_requested}</td>
                     </tr>
