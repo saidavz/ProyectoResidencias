@@ -20,8 +20,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb',
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: 'postgresql',
   port: 5432,
 });
 
@@ -65,7 +65,7 @@ app.get('/api/vendors', async (req, res) => {
   }
 });
 
-app.get('/api/projects/all', async (req, res) => {
+/*app.get('/api/projects/all', async (req, res) => {
   try {
     const result = await pool.query('SELECT no_project, name_project FROM project ORDER BY name_project');
     res.json(result.rows);
@@ -73,7 +73,22 @@ app.get('/api/projects/all', async (req, res) => {
     console.error('Error fetching projects:', error);
     res.status(500).json({ error: 'Error al cargar proyectos' });
   }
+});*/
+app.get('/api/projects/all', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT no_project, name_project
+      FROM project
+      WHERE name_project NOT ILIKE '%Sin asignar%'
+      ORDER BY name_project
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    res.status(500).json({ error: 'Error al cargar proyectos' });
+  }
 });
+
 
 app.get('/api/networks', async (req, res) => {
   try {
