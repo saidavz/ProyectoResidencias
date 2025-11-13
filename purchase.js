@@ -20,8 +20,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'postgresql',
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb',
   port: 5432,
 });
 
@@ -43,10 +43,10 @@ app.get('/api/products/search', async (req, res) => {
     const result = await pool.query(
       `SELECT no_part, description 
        FROM product 
-       WHERE no_part ILIKE $1 
+       WHERE no_part ILIKE $1 OR description ILIKE $2
        ORDER BY no_part 
        LIMIT 10`,
-      [`${term}%`]
+      [`${term}%`, `%${term}%`]
     );
     res.json(result.rows);
   } catch (err) {
