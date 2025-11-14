@@ -254,8 +254,9 @@ function pick(rowObj, names) {
 // Ruta para BOM - obtener proyectos 
 app.get("/api/projects/active", async (req, res) => {
   try {
-    //CAMBIO AQUÍ: Renombrar name_project a name
-    const result = await pool.query("SELECT no_project, name_project AS name FROM Project WHERE status LIKE 'activo'");
+    // Devolver el nombre con la misma columna que está en la BD: name_project
+    // Usar el estado en español 'active' (coincide con la base de datos)
+    const result = await pool.query("SELECT no_project, name_project FROM Project WHERE status ILIKE 'active'");
     res.json(result.rows);
   } catch (err) {
     console.error("Error obtaining projects:", err);

@@ -38,12 +38,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     renderTabla(data);
 
+    function normalizeText(text) {
+      return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
     inputBuscar.addEventListener("input", e => {
-      const texto = e.target.value.toLowerCase();
+      const texto = normalizeText(e.target.value);
       const filtrado = data.filter(item =>
-        (item.no_part && item.no_part.toLowerCase().includes(texto)) ||
-        (item.name_vendor && item.name_vendor.toLowerCase().includes(texto)) ||
-        (item.name_project && item.name_project.toLowerCase().includes(texto))
+        (item.no_part && normalizeText(item.no_part).includes(texto)) ||
+        (item.name_vendor && normalizeText(item.name_vendor).includes(texto)) ||
+        (item.name_project && normalizeText(item.name_project).includes(texto))
       );
       renderTabla(filtrado);
     });
@@ -60,13 +64,18 @@ document.addEventListener("DOMContentLoaded", async () => {
           </tr>
       `;
   }
+  
+  function normalizeText(text) {
+    return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+  
   window.filterTable = function (searchText) {
-    const texto = searchText.toLowerCase();
+    const texto = normalizeText(searchText);
     const filas = document.querySelectorAll('#tablaInventario tbody tr');
     let contador = 0;
 
     filas.forEach(fila => {
-      const textoFila = fila.textContent.toLowerCase();
+      const textoFila = normalizeText(fila.textContent);
       if (textoFila.includes(texto)) {
         fila.style.display = '';
         contador++;

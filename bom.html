@@ -58,13 +58,15 @@
                     <!-- Tu formulario original, ahora dentro de la tarjeta -->
                     <form id="uploadForm" class="mb-3">
                         
-                        <!-- Select con los proyectos activos -->
-                        <div class="mb-3">
-                            <label for="projectSelect" class="form-label">Select Project</label>
-                            <select id="projectSelect" class="form-select" required>
-                                <option value="">Loading Projects...</option>
-                            </select>
+                        <!-- Buscador de proyectos activos -->
+                        <div class="mb-3" style="position: relative;">
+                            <label for="projectSearch" class="form-label">Search Project</label>
+                            <input type="text" id="projectSearch" class="form-control" placeholder="Search project..." autocomplete="off">
+                            <div id="projectSuggestions" class="bg-light text-dark" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;"></div>
                         </div>
+                        
+                        <!-- Campo oculto para guardar el no_project seleccionado -->
+                        <input type="hidden" id="projectSelect" value="">
                         
                         <!-- Subir el archivo (Diseño de Carga) -->
                         <div class="mb-3">

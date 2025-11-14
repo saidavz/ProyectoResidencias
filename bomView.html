@@ -47,19 +47,17 @@
     <main class="container my-5">
         <h1 class="text-center mb-5">Bill of Materials (BOM)</h1>
 
-        <div class="card p-4 mb-5 static-filter-card"> 
+        <div class="card p-4 mb-5 static-filter-card" style="position: relative; z-index: 1010; overflow: visible;"> 
     
             <div class="row d-flex justify-content-center">
-                <div class="col-md-4">
-                    
-                    <select id="projectFilter" class="form-select">
-                        <option value="">-- Ver por Proyectos --</option>
-                    </select>
-                    
+                <div class="col-md-6" style="position: relative; z-index: 1010; overflow: visible;">
+                    <label for="projectSearchBomView" class="form-label">Search Project</label>
+                    <input type="text" id="projectSearchBomView" class="form-control" placeholder="Search project..." autocomplete="off">
+                    <div id="projectSuggestionsBomView" class="bg-light text-dark" style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 2000; border: 1px solid #ccc; display: none; max-height: 300px; overflow-y: auto; border-radius: 4px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); background-color: white;"></div>
                 </div>
             </div>
         </div>
-        <div class="enhanced-table"> 
+        <div class="enhanced-table" style="position: relative; z-index: 1;"> 
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
                     
@@ -92,112 +90,178 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // 1. Cargar la lista de proyectos para llenar el dropdown
-            loadProjects(); 
-            // 2. Cargar la tabla (inicialmente con todos los datos)
-            loadBOMData(); 
-            
-            // 3. Añadir escuchador al filtro de proyectos
-            document.getElementById('projectFilter').addEventListener('change', loadBOMData);
-        });
+            const BASE = 'http://localhost:3000/api';
+            const projectSearchInput = document.getElementById('projectSearchBomView');
+            const projectSuggestions = document.getElementById('projectSuggestionsBomView');
+            let allProjects = [];
 
-        // ----------------------------------------------------
-        // 1. CARGAR PROYECTOS (Necesita endpoint en el backend)
-        // ----------------------------------------------------
-        async function loadProjects() {
-            try {
-                // Pedimos la lista completa de proyectos (endpoint existente en el servidor)
-                const response = await fetch('http://localhost:3000/api/projects/all'); 
-                const projects = await response.json();
-                const filterSelect = document.getElementById('projectFilter');
+            // Función para normalizar acentos y convertir a minúsculas
+            function normalizeText(text) {
+                return text
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, ''); // Elimina marcas diacríticas
+            }
 
-                // Resetear el select y añadir la opción por defecto
-                filterSelect.innerHTML = '<option value="">-- Ver por Proyectos --</option>';
-                console.log('loadProjects: projects fetched =', Array.isArray(projects) ? projects.length : typeof projects, projects);
+            // Cargar todos los proyectos al iniciar
+            async function loadAllProjects() {
+                try {
+                    const res = await fetch(`${BASE}/projects/all`);
+                    allProjects = await res.json();
+                } catch (err) {
+                    console.error('Error loading projects:', err);
+                }
+            }
 
-                // Llenar el dropdown usando las claves que devuelve el servidor (no_project y name_project)
-                if (Array.isArray(projects) && projects.length > 0) {
-                    projects.forEach(project => {
-                        const option = document.createElement('option');
-                        option.value = project.no_project; // enviar ID del proyecto al backend
-                        option.textContent = `${project.no_project} - ${project.name_project}`;
-                        filterSelect.appendChild(option);
+            // Buscador de proyectos
+            projectSearchInput.addEventListener('input', () => {
+                const term = normalizeText(projectSearchInput.value.trim());
+
+                if (!term) {
+                    projectSuggestions.style.display = 'none';
+                    loadAllBOMData(); // Mostrar todos los BOMs si no hay búsqueda
+                    return;
+                }
+
+                // Filtrar proyectos excluyendo "Sin asignar"
+                const filtered = allProjects.filter(p => {
+                    const pname = normalizeText(p.name_project || '');
+                    const pid = normalizeText((p.no_project || '').toString());
+                    // Excluir "Sin asignar"
+                    if (pname.includes('sin asignar')) return false;
+                    // Incluir si contiene el término en nombre o en no_project (normalizado)
+                    return pname.includes(term) || pid.includes(term);
+                });
+
+                // Jerarquizar: primero los que empiezan con el término, luego los que lo contienen en otro lado
+                const filteredProjects = filtered.sort((a, b) => {
+                    const aname = normalizeText(a.name_project || '');
+                    const bname = normalizeText(b.name_project || '');
+                    
+                    const aStartsWith = aname.startsWith(term);
+                    const bStartsWith = bname.startsWith(term);
+                    
+                    // Si uno empieza y el otro no, poner primero al que empieza
+                    if (aStartsWith && !bStartsWith) return -1;
+                    if (!aStartsWith && bStartsWith) return 1;
+                    
+                    // Si ambos empiezan (o ninguno), mantener orden alfabético
+                    return aname.localeCompare(bname);
+                });
+
+                projectSuggestions.innerHTML = '';
+                filteredProjects.forEach(project => {
+                    const div = document.createElement('div');
+                    div.textContent = `${project.no_project} - ${project.name_project}`;
+                    div.style.padding = '8px';
+                    div.style.cursor = 'pointer';
+                    div.style.borderBottom = '1px solid #eee';
+                    div.addEventListener('click', () => {
+                        projectSearchInput.value = `${project.no_project} - ${project.name_project}`;
+                        projectSearchInput.dataset.noProject = project.no_project;
+                        projectSuggestions.style.display = 'none';
+                        // Cargar BOM filtrado por proyecto
+                        loadBOMDataByProject(project.no_project);
                     });
-                } else {
-                    // Mensaje claro si no hay proyectos
-                    filterSelect.innerHTML = '<option value="">-- No hay proyectos --</option>';
+                    div.addEventListener('mouseover', () => {
+                        div.style.backgroundColor = '#f0f0f0';
+                    });
+                    div.addEventListener('mouseout', () => {
+                        div.style.backgroundColor = 'transparent';
+                    });
+                    projectSuggestions.appendChild(div);
+                });
+
+                projectSuggestions.style.display = filteredProjects.length ? 'block' : 'none';
+            });
+
+            // Ocultar sugerencias al hacer click fuera
+            document.addEventListener('click', (e) => {
+                if (e.target !== projectSearchInput && !projectSuggestions.contains(e.target)) {
+                    projectSuggestions.style.display = 'none';
+                }
+            });
+
+            // Cargar BOM filtrado por proyecto
+            async function loadBOMDataByProject(noProject) {
+                let url = `${BASE}/bomView`;
+                const params = new URLSearchParams();
+
+                if (noProject) {
+                    params.append('no_project', noProject);
                 }
 
-            } catch (error) {
-                console.error('Error al cargar la lista de proyectos:', error);
-                // Si falla, el dropdown solo tendrá la opción por defecto
-            }
-        }
-
-        // ----------------------------------------------------
-        // 2. CARGAR Y FILTRAR DATOS DEL BOM
-        // ----------------------------------------------------
-        async function loadBOMData() {
-            const project = document.getElementById('projectFilter').value;
-            console.log('Selected project (no_project):', project);
-            
-            // Construir la URL con el parámetro de filtro
-            let url = 'http://localhost:3000/api/bomView';
-            const params = new URLSearchParams();
-
-            if (project) {
-                // Enviar el identificador del proyecto (no_project) al backend
-                params.append('no_project', project);
-            }
-            
-            if (params.toString()) {
-                url += '?' + params.toString();
-            }
-
-            try {
-                console.log('Fetching BOM URL:', url);
-                const response = await fetch(url); 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                if (params.toString()) {
+                    url += '?' + params.toString();
                 }
-                const data = await response.json();
-                console.log('BOM response length:', Array.isArray(data) ? data.length : 'not-array', data);
-                displayBOMData(data);
 
-            } catch (error) {
-                console.error('Error al cargar BOM:', error);
-                document.getElementById('bomTableBody').innerHTML = 
-                    '<tr><td colspan="9" class="text-center text-danger">Error al cargar los datos</td></tr>';
-            }
-        }
-
-        function displayBOMData(data) {
-            const tbody = document.getElementById('bomTableBody');
-            
-            if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="text-center">No se encontraron materiales</td></tr>';
-                return;
+                try {
+                    console.log('Fetching BOM URL:', url);
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    console.log('BOM response length:', Array.isArray(data) ? data.length : 'not-array', data);
+                    displayBOMData(data);
+                } catch (error) {
+                    console.error('Error al cargar BOM:', error);
+                    document.getElementById('bomTableBody').innerHTML =
+                        '<tr><td colspan="9" class="text-center text-danger">Error al cargar los datos</td></tr>';
+                }
             }
 
-            // Asegúrate de que tu backend envíe 'project_name' y 'upload_date', <td class="quantity-cell">${item.quantity}</td>
-            const rows = data.map(item => {
-                const uploadDate = item.upload_date ? new Date(item.upload_date).toLocaleDateString() : 'N/A';
-                return `
-                    <tr>
-                        <td>${item.name_project}</td> 
-                        <td>${item.type_p}</td>
-                        <td>${item.no_part}</td>
-                        <td>${item.description}</td>
-                        <td>${item.brand}</td>
-                        <td>${item.quantity}</td> 
-                        <td>${item.unit}</td>
-                        <td class="quantity-cell">${item.quantity_requested}</td>
-                    </tr>
-                `;
-            }).join('');
-            
-            tbody.innerHTML = rows;
-        }
+            // Cargar todos los BOM al inicio
+            async function loadAllBOMData() {
+                let url = `${BASE}/bomView`;
+
+                try {
+                    console.log('Fetching all BOM URL:', url);
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    console.log('BOM response length:', Array.isArray(data) ? data.length : 'not-array', data);
+                    displayBOMData(data);
+                } catch (error) {
+                    console.error('Error al cargar BOM:', error);
+                    document.getElementById('bomTableBody').innerHTML =
+                        '<tr><td colspan="9" class="text-center text-danger">Error al cargar los datos</td></tr>';
+                }
+            }
+
+            function displayBOMData(data) {
+                const tbody = document.getElementById('bomTableBody');
+
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="text-center">No se encontraron materiales</td></tr>';
+                    return;
+                }
+
+                const rows = data.map(item => {
+                    const uploadDate = item.upload_date ? new Date(item.upload_date).toLocaleDateString() : 'N/A';
+                    return `
+                        <tr>
+                            <td>${item.name_project}</td> 
+                            <td>${item.type_p}</td>
+                            <td>${item.no_part}</td>
+                            <td>${item.description}</td>
+                            <td>${item.brand}</td>
+                            <td>${item.quantity}</td> 
+                            <td>${item.unit}</td>
+                            <td class="quantity-cell">${item.quantity_requested}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                tbody.innerHTML = rows;
+            }
+
+            // Cargar proyectos y BOMs al iniciar
+            loadAllProjects();
+            loadAllBOMData();
+        });
     </script>
 </body>
 </html>
