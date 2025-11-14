@@ -20,7 +20,7 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
   password: 'automationdb',
   port: 5432,
 });
@@ -104,27 +104,18 @@ app.get('/api/purchases', async (req, res) => {
   try {
     const query = `
       SELECT 
-        pu.id_purchase,
+        pr.name_project as project_name,
         p.no_part,
         p.description as description,
-        pr.name_project as project_name,
         v.name_vendor as vendor_name,
         pd.quantity,
-        pd.price_unit,
-        (pd.price_unit * pd.quantity) AS subtotal,
-        pu.currency,
         pd.status,
-        pu.time_delivered,
-        n.network,
-        pu.po,
-        pu.pr,
-        pu.shopping
+        pu.time_delivered
       FROM purchase pu
       INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
       INNER JOIN project pr ON pu.no_project = pr.no_project
       INNER JOIN vendor v ON pu.id_vendor = v.id_vendor
       INNER JOIN product p ON pd.no_part = p.no_part
-      INNER JOIN network n ON pu.network = n.network 
       ORDER BY pu.id_purchase DESC
     `;
     const result = await pool.query(query);
