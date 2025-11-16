@@ -21,7 +21,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb',
+  password: '150403kim',
   port: 5432,
 });
 
@@ -424,3 +424,47 @@ app.get('/api/bomView/debug', async (req, res) => {
     res.status(500).json({ error: String(err) });
   }
 });
+
+//RUTA PARA PARA PURCHASE TRACKING
+
+//Se obtienen los porcentajes de los estados de la compra
+//NOTA: Sai, agrega los porcentajes que te tocan aquí, ya esta hecho el cálculo, solo verifica como escribir los status
+/*
+En ingles es como se registraran en la base de datos, porque ya puse el codigo de colores segun el status
+  Quoted-> cotizado
+  Delivered to BRK-> entregado
+*/
+app.get('/api/trackingCards', async (req, res) => {
+  try {
+    const { projectId } = req.query;
+
+    const sql = `
+      SELECT 
+        COUNT(*) FILTER (WHERE pd.status = 'PO') * 100.0 
+          / NULLIF(COUNT(*), 0) AS porcentaje_po,
+
+        COUNT(*) FILTER (WHERE pd.status = 'PR') * 100.0 
+          / NULLIF(COUNT(*), 0) AS porcentaje_pr,
+
+        COUNT(*) FILTER (WHERE pd.status = 'Shoping cart') * 100.0 
+          / NULLIF(COUNT(*), 0) AS porcentaje_shopping
+
+      FROM product p
+      INNER JOIN purchase_detail pd ON p.no_part = pd.no_part
+      INNER JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+      WHERE ($1::text IS NULL OR pu.no_project = $1);
+    `;
+
+    const params = [ projectId || null ];
+
+    const result = await pool.query(sql, params);
+    res.json(result.rows[0]);
+
+  } catch (error) {
+    console.error('Error fetching percentages:', error);
+    res.status(500).json({ error: 'Error al cargar porcentajes' });
+  }
+});
+
+
+
