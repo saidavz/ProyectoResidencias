@@ -56,7 +56,7 @@
       <div class="card mb-3" style="width: 12rem;">
         <div class="card-header text-secondary" style="text-align: center; font-size: 20px;">% Quoted</div>
         <div class="card-body text-secondary">
-          <h5 class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
+          <h5 id="percentCotizado" style="text-align: center; font-size: 40px;">0%</h5>
         </div>
       </div>
 
@@ -84,18 +84,32 @@
       <div class="card bg-green-soft mb-3" style="width: 12rem;">
         <div class="card-header text-success" style="text-align: center; font-size: 20px;">% Delivered</div>
         <div class="card-body text-success">
-          <h5 class="card-title" style="text-align: center; font-size: 40px;">10%</h5>
+          <h5 id="percentEntregado" style="text-align: center; font-size: 40px;">0%</h5>
         </div>
       </div>
 
       <div class="card bg-white-soft mb-3" style="width: 12rem;">
-        <div class="card-header" style="text-align: center; font-size: 20px; color: white;">% Delivered</div>
+        <div class="card-header" style="text-align: center; font-size: 20px; color: white;">% Spended</div>
         <div class="card-body">
-          <h5 class="card-title" style="text-align: center; font-size: 40px; color: white;">0%</h5>
+          <h5 id="percentGastado" style="text-align: center; font-size: 40px; color: white;">0%</h5>
         </div>
       </div>
     </div>
     <br>
+
+    <!-- Buscador agregado aquí -->
+    <div class="card p-4 mb-4 static-filter-card" style="position: relative; z-index: 1010; overflow: visible;">
+      <div class="row d-flex justify-content-center">
+        <div class="col-md-6" style="position: relative; z-index: 1010; overflow: visible;">
+          <label for="projectSearchTracking" class="form-label">Search Project</label>
+          <input type="text" id="projectSearchTracking" class="form-control" placeholder="Search project..."
+            autocomplete="off">
+          <div id="projectSuggestionsTracking" class="bg-light text-dark"
+            style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 2000; border: 1px solid #ccc; display: none; max-height: 300px; overflow-y: auto; border-radius: 4px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); background-color: white;">
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div class="table-responsive">
       <table class="table table-striped table-bordered table-hover align-middle bg-white">
@@ -126,96 +140,205 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      loadPurchasesData();
-      loadPercentages(""); //Envia el ID del proyecto
-    });
+      const BASE = 'http://localhost:3000/api';
+      const projectSearchInput = document.getElementById('projectSearchTracking');
+      const projectSuggestions = document.getElementById('projectSuggestionsTracking');
+      let allProjects = [];
 
-async function loadPercentages(projectId) {
-  try {
-    const res = await fetch(`http://localhost:3000/api/trackingCards?projectId=${encodeURIComponent(projectId)}`);
-    const data = await res.json();
-
-    // PO
-    document.getElementById("percentPO").innerText =
-      `${Number(data.porcentaje_po)}%`;
-
-    // PR
-    document.getElementById("percentPR").innerText =
-      `${Number(data.porcentaje_pr)}%`;
-
-    // SHOPPING
-    document.getElementById("percentShopping").innerText =
-      `${Number(data.porcentaje_shopping)}%`;
-
-  } catch (error) {
-    console.error("Error loading percentages:", error);
-  }
-}
-
-    async function loadPurchasesData() {
-      try {
-        const response = await fetch('http://localhost:3000/api/purchases');
-        const data = await response.json();
-        console.log("Datos recibidos:", data);
-        displayPurchasesData(data);
-      } catch (error) {
-        console.error('Error loading purchases:', error);
-        document.getElementById('purchasesTableBody').innerHTML =
-          '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
-      }
-    }
-
-    function displayPurchasesData(data) {
-      const tbody = document.getElementById('purchasesTableBody');
-
-      if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center">No purchases found</td></tr>';
-        return;
+      // Función para normalizar acentos y convertir a minúsculas
+      function normalizeText(text) {
+        return text
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
       }
 
-      tbody.innerHTML = '';
+      // Cargar todos los proyectos al iniciar
+      async function loadAllProjects() {
+        try {
+          const res = await fetch(`${BASE}/projects/all`);
+          allProjects = await res.json();
+        } catch (err) {
+          console.error('Error loading projects:', err);
+        }
+      }
 
-      data.forEach(purchase => {
-        const statusClass = getStatusClass(purchase.status);
-        const deliveryDate = new Date(purchase.time_delivered).toLocaleDateString();
+      // Buscador de proyectos
+      projectSearchInput.addEventListener('input', () => {
+        const term = normalizeText(projectSearchInput.value.trim());
 
-        const row = `
-        <tr>
-          <td>${purchase.project_name}</td>
-          <td>${purchase.no_part}</td>
-          <td>${purchase.description}</td>
-          <td>${purchase.vendor_name}</td>
-          <td>${purchase.quantity}</td>
-          <td><span class="badge ${statusClass}">${purchase.status}</span></td>
-          <td>${deliveryDate}</td>
-        </tr>
-      `;
-        tbody.innerHTML += row;
+        if (!term) {
+          projectSuggestions.style.display = 'none';
+          loadPurchasesData(); // Mostrar todas las compras si no hay búsqueda
+          loadPercentages(""); // Mostrar todos los porcentajes
+          return;
+        }
+
+        // Filtrar proyectos excluyendo "Sin asignar"
+        const filtered = allProjects.filter(p => {
+          const pname = normalizeText(p.name_project || '');
+          const pid = normalizeText((p.no_project || '').toString());
+          // Excluir "Sin asignar"
+          if (pname.includes('sin asignar')) return false;
+          // Incluir si contiene el término en nombre o en no_project
+          return pname.includes(term) || pid.includes(term);
+        });
+
+        // Jerarquizar resultados
+        const filteredProjects = filtered.sort((a, b) => {
+          const aname = normalizeText(a.name_project || '');
+          const bname = normalizeText(b.name_project || '');
+
+          const aStartsWith = aname.startsWith(term);
+          const bStartsWith = bname.startsWith(term);
+
+          if (aStartsWith && !bStartsWith) return -1;
+          if (!aStartsWith && bStartsWith) return 1;
+
+          return aname.localeCompare(bname);
+        });
+
+        projectSuggestions.innerHTML = '';
+        filteredProjects.forEach(project => {
+          const div = document.createElement('div');
+          div.textContent = `${project.no_project} - ${project.name_project}`;
+          div.style.padding = '8px';
+          div.style.cursor = 'pointer';
+          div.style.borderBottom = '1px solid #eee';
+          div.addEventListener('click', () => {
+            projectSearchInput.value = `${project.no_project} - ${project.name_project}`;
+            projectSearchInput.dataset.noProject = project.no_project;
+            projectSuggestions.style.display = 'none';
+            // Cargar datos filtrados por proyecto
+            loadPurchasesDataByProject(project.no_project);
+            loadPercentages(project.no_project);
+          });
+          div.addEventListener('mouseover', () => {
+            div.style.backgroundColor = '#f0f0f0';
+          });
+          div.addEventListener('mouseout', () => {
+            div.style.backgroundColor = 'transparent';
+          });
+          projectSuggestions.appendChild(div);
+        });
+
+        projectSuggestions.style.display = filteredProjects.length ? 'block' : 'none';
       });
-    }
 
-    function getStatusClass(status) {
-      switch (status) {
-        case 'Quoted':
-          return 'bg-secondary'; //Gris
-        case 'PR':
-          return 'bg-dark'; //Negro
-        case 'PO':
-          return 'bg-purple text-white'; //Morado
-        case 'Shopping cart':
-          return 'bg-danger'; //Rojo
-        case 'In the process of delivery to HW US':
-          return 'bg-primary'; //Azul
-        case 'Delivered to HW US':
-          return 'bg-info text-dark'; //Celeste
-        case 'Reviewed and imported':
-          return 'bg-warning text-dark'; //Amarillo
-        case 'Delivered to BRK':
-          return 'bg-success'; //Verde
-        default:
-          return 'bg-secondary'; //Gris
+      // Ocultar sugerencias al hacer click fuera
+      document.addEventListener('click', (e) => {
+        if (e.target !== projectSearchInput && !projectSuggestions.contains(e.target)) {
+          projectSuggestions.style.display = 'none';
+        }
+      });
+
+      // Cargar compras filtradas por proyecto
+      async function loadPurchasesDataByProject(noProject) {
+        try {
+          let url = `${BASE}/purchases`;
+          if (noProject) {
+            url += `?projectId=${encodeURIComponent(noProject)}`;
+          }
+
+          const response = await fetch(url);
+          const data = await response.json();
+          console.log("Datos filtrados recibidos:", data);
+          displayPurchasesData(data);
+        } catch (error) {
+          console.error('Error loading filtered purchases:', error);
+          document.getElementById('purchasesTableBody').innerHTML =
+            '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
+        }
       }
-    }
+
+      // Funciones existentes (sin modificaciones)
+      async function loadPercentages(projectId) {
+        try {
+          const res = await fetch(`http://localhost:3000/api/trackingCards?projectId=${encodeURIComponent(projectId)}`);
+          const data = await res.json();
+
+          document.getElementById("percentPO").innerText = `${Number(data.porcentaje_po)}%`;
+          document.getElementById("percentPR").innerText = `${Number(data.porcentaje_pr)}%`;
+          document.getElementById("percentShopping").innerText = `${Number(data.porcentaje_shopping)}%`;
+          document.getElementById("percentEntregado").innerText = `${Number(data.porcentaje_entregado)}%`;
+          document.getElementById("percentCotizado").innerText = `${Number(data.porcentaje_cotizado)}%`;
+          document.getElementById("percentGastado").innerText = `${Number(data.porcentaje_gastado).toFixed(2)}%`;
+          
+        } catch (error) {
+          console.error("Error loading percentages:", error);
+        }
+      }
+
+      async function loadPurchasesData() {
+        try {
+          const response = await fetch('http://localhost:3000/api/purchases');
+          const data = await response.json();
+          console.log("Datos recibidos:", data);
+          displayPurchasesData(data);
+        } catch (error) {
+          console.error('Error loading purchases:', error);
+          document.getElementById('purchasesTableBody').innerHTML =
+            '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
+        }
+      }
+
+      function displayPurchasesData(data) {
+        const tbody = document.getElementById('purchasesTableBody');
+
+        if (data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10" class="text-center">No purchases found</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = '';
+
+        data.forEach(purchase => {
+          const statusClass = getStatusClass(purchase.status);
+          const deliveryDate = new Date(purchase.time_delivered).toLocaleDateString();
+
+          const row = `
+          <tr>
+            <td>${purchase.project_name}</td>
+            <td>${purchase.no_part}</td>
+            <td>${purchase.description}</td>
+            <td>${purchase.vendor_name}</td>
+            <td>${purchase.quantity}</td>
+            <td><span class="badge ${statusClass}">${purchase.status}</span></td>
+            <td>${deliveryDate}</td>
+          </tr>
+        `;
+          tbody.innerHTML += row;
+        });
+      }
+
+      function getStatusClass(status) {
+        switch (status) {
+          case 'Quoted':
+            return 'bg-secondary';
+          case 'PR':
+            return 'bg-dark';
+          case 'PO':
+            return 'bg-purple text-white';
+          case 'Shopping cart':
+            return 'bg-danger';
+          case 'In the process of delivery to HW US':
+            return 'bg-primary';
+          case 'Delivered to HW US':
+            return 'bg-info text-dark';
+          case 'Reviewed and imported':
+            return 'bg-warning text-dark';
+          case 'Delivered to BRK':
+            return 'bg-success';
+          default:
+            return 'bg-secondary';
+        }
+      }
+
+      // Inicializar
+      loadAllProjects();
+      loadPurchasesData();
+      loadPercentages("");
+    });
   </script>
 </body>
 

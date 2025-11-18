@@ -21,7 +21,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim',
+  password: 'postgresql',
   port: 5432,
 });
 
@@ -65,15 +65,6 @@ app.get('/api/vendors', async (req, res) => {
   }
 });
 
-/*app.get('/api/projects/all', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT no_project, name_project FROM project ORDER BY name_project');
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching projects:', error);
-    res.status(500).json({ error: 'Error al cargar proyectos' });
-  }
-});*/
 app.get('/api/projects/all', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -89,10 +80,9 @@ app.get('/api/projects/all', async (req, res) => {
   }
 });
 
-
 app.get('/api/networks', async (req, res) => {
   try {
-    const result = await pool.query('SELECT network FROM network ORDER BY network');
+    const result = await pool.query('SELECT network, balance FROM network ORDER BY network');
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching networks:', error);
@@ -102,13 +92,17 @@ app.get('/api/networks', async (req, res) => {
 
 app.get('/api/purchases', async (req, res) => {
   try {
-    const query = `
+    const { projectId } = req.query;
+
+    let query = `
       SELECT 
         pr.name_project as project_name,
         p.no_part,
         p.description as description,
         v.name_vendor as vendor_name,
         pd.quantity,
+        pd.price_unit,
+        (pd.quantity * pd.price_unit) as total_amount,
         pd.status,
         pu.time_delivered
       FROM purchase pu
@@ -116,41 +110,132 @@ app.get('/api/purchases', async (req, res) => {
       INNER JOIN project pr ON pu.no_project = pr.no_project
       INNER JOIN vendor v ON pu.id_vendor = v.id_vendor
       INNER JOIN product p ON pd.no_part = p.no_part
-      ORDER BY pu.id_purchase DESC
     `;
-    const result = await pool.query(query);
+
+    const params = [];
+
+    // Si hay projectId, agregar filtro
+    if (projectId) {
+      query += ` WHERE pr.no_project::text = $1`;
+      params.push(String(projectId));
+    }
+
+    query += ` ORDER BY pu.id_purchase DESC`;
+
+    console.log('Purchases query:', query, 'Params:', params);
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching purchases:', error);
     res.status(500).json({ error: 'Error al cargar las compras' });
   }
-});
+})
 
+// RUTA MODIFICADA PARA MÚLTIPLES PRODUCTOS Y ACTUALIZAR BALANCE (SIN total_amount en BD)
 app.post('/api/purchases', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { no_part, quantity, price_unit, currency, id_vendor, no_project, time_delivered, status, network, po, pr, shopping } = req.body;
 
+    // Extraer datos de la compra
+    const { currency, id_vendor, no_project, time_delivered, status, network, po, pr, shopping, productos } = req.body;
+
+    // Validar que hay productos
+    if (!productos || !Array.isArray(productos) || productos.length === 0) {
+      return res.status(400).json({ success: false, error: 'No products provided' });
+    }
+
+    // Calcular el total de la compra
+    let totalCompra = 0;
+    productos.forEach(producto => {
+      totalCompra += producto.quantity * producto.price_unit;
+    });
+
+    // Verificar si hay suficiente balance en la network
+    const balanceQuery = `SELECT balance FROM network WHERE network = $1`;
+    const balanceResult = await client.query(balanceQuery, [network]);
+
+    if (balanceResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: 'Network not found' });
+    }
+
+    const balanceActual = parseFloat(balanceResult.rows[0].balance);
+
+    if (balanceActual < totalCompra) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        error: `Insufficient balance in network. Available: $${balanceActual.toFixed(2)}, Required: $${totalCompra.toFixed(2)}`
+      });
+    }
+
+    // Insertar en la tabla purchase (SIN total_amount - COLUMNA ELIMINADA)
     const purchaseQuery = `
       INSERT INTO purchase (currency, time_delivered, pr, shopping, po, no_project, id_vendor, network)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id_purchase
     `;
-    const purchaseResult = await client.query(purchaseQuery, [currency, time_delivered, pr || null, shopping, po || null, no_project, id_vendor, network]);
+    const purchaseResult = await client.query(purchaseQuery, [
+      currency, time_delivered, pr || null, shopping, po || null, no_project, id_vendor, network
+    ]);
     const id_purchase = purchaseResult.rows[0].id_purchase;
 
-    const detailQuery = `INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part) VALUES ($1, $2, $3, $4, $5)`;
-    await client.query(detailQuery, [parseInt(quantity), parseFloat(price_unit), status, id_purchase, no_part]);
+    // Insertar cada producto en purchase_detail
+    for (const producto of productos) {
+      const { no_part, quantity, price_unit } = producto;
+
+      const detailQuery = `
+        INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part) 
+        VALUES ($1, $2, $3, $4, $5)
+      `;
+      await client.query(detailQuery, [
+        parseInt(quantity),
+        parseFloat(price_unit),
+        status,
+        id_purchase,
+        no_part
+      ]);
+    }
+
+    // Actualizar el balance de la network
+    const nuevoBalance = balanceActual - totalCompra;
+    const updateBalanceQuery = `
+      UPDATE network SET balance = $1 WHERE network = $2
+    `;
+    await client.query(updateBalanceQuery, [nuevoBalance, network]);
 
     await client.query('COMMIT');
-    res.json({ success: true, message: 'Compra guardada exitosamente', id_purchase: id_purchase });
+    res.json({
+      success: true,
+      message: `Purchase saved successfully with ${productos.length} products. Total: $${totalCompra.toFixed(2)}`,
+      id_purchase: id_purchase,
+      total_amount: totalCompra,
+      new_balance: nuevoBalance
+    });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error saving purchase:', error);
-    res.status(500).json({ success: false, error: 'Error al guardar la compra: ' + error.message });
+    res.status(500).json({ success: false, error: 'Error saving purchase: ' + error.message });
   } finally {
     client.release();
+  }
+});
+
+// Ruta para obtener el balance de una network específica
+app.get('/api/network/balance/:network', async (req, res) => {
+  try {
+    const { network } = req.params;
+    const result = await pool.query('SELECT network, balance FROM network WHERE network = $1', [network]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Network not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching network balance:', error);
+    res.status(500).json({ error: 'Error al cargar el balance de la network' });
   }
 });
 
@@ -322,6 +407,7 @@ app.post("/api/bom", upload.single("file"), async (req, res) => {
     client.release();
   }
 });
+
 // Visualización de Materiales por Proyecto)
 app.get('/api/bomView', async (req, res) => {
   // Ahora aceptamos `no_project` (identificador) desde el frontend
@@ -362,7 +448,6 @@ app.get('/api/bomView', async (req, res) => {
   }
 });
 
-
 app.get('/stock.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'stock.html'));
 });
@@ -386,13 +471,69 @@ app.get('/index.html', (req, res) => {
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
-app.listen(PORT, () => {
-  console.log(`SERVIDOR UNIFICADO ejecutándose en http://localhost:${PORT}`);
-  console.log(`Todas las rutas funcionando:`);
-  console.log(`   - /api/projects/all (Register Purchase)`);    // ← CORREGIR
-  console.log(`   - /api/projects/active (BOM)`);               // ← CORREGIR
-  console.log(`   - /api/bom (Subir archivos BOM)`);            // ← CORREGIR
-  console.log(`   - /api/stock (Inventory)`);
+
+//RUTA PARA PARA PURCHASE TRACKING
+
+//Se obtienen los porcentajes de los estados de la compra
+//NOTA: Sai, agrega los porcentajes que te tocan aquí, ya esta hecho el cálculo, solo verifica como escribir los status
+/*
+En ingles es como se registraran en la base de datos, porque ya puse el codigo de colores segun el status
+  Quoted-> cotizado
+  Delivered to BRK-> entregado
+*/
+app.get('/api/trackingCards', async (req, res) => {
+  try {
+    const { projectId } = req.query;
+
+    // CONSULTA SIMPLIFICADA - igual a la de diagnóstico
+    const sql = `
+      WITH finance_data AS (
+        SELECT 
+          COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado,
+          COALESCE((SELECT SUM(balance) FROM network), 0) AS balance_actual
+        FROM purchase_detail pd
+        INNER JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+        ${projectId ? 'WHERE pu.no_project = $1' : ''}
+      )
+      SELECT 
+        -- Porcentajes existentes
+        COUNT(*) FILTER (WHERE pd.status = 'PO') * 100.0 
+          / NULLIF(COUNT(*), 0) AS porcentaje_po,
+
+        COUNT(*) FILTER (WHERE pd.status = 'PR') * 100.0 
+          / NULLIF(COUNT(*), 0) AS porcentaje_pr,
+
+        COUNT(*) FILTER (WHERE pd.status = 'Shopping cart') * 100.0 
+          / NULLIF(COUNT(*), 0) AS porcentaje_shopping,
+
+        COUNT(*) FILTER (WHERE pd.status = 'Delivered to BRK') * 100.0 
+          / NULLIF(COUNT(*), 0) AS porcentaje_entregado,
+
+        COUNT(*) FILTER (WHERE pd.status = 'Quoted') * 100.0 
+          / NULLIF(COUNT(*), 0) AS porcentaje_cotizado,
+
+        -- % Gastado (igual al diagnóstico)
+        (fd.total_gastado * 100.0 / NULLIF((fd.total_gastado + fd.balance_actual), 0)) AS porcentaje_gastado
+
+      FROM product p
+      INNER JOIN purchase_detail pd ON p.no_part = pd.no_part
+      INNER JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+      CROSS JOIN finance_data fd
+      ${projectId ? 'WHERE pu.no_project = $1' : ''}
+      GROUP BY fd.total_gastado, fd.balance_actual;
+    `;
+
+    const params = projectId ? [projectId] : [];
+    const result = await pool.query(sql, params);
+    
+   
+    
+    res.json(result.rows[0]);
+
+  } catch (error) {
+    console.error('Error fetching percentages:', error);
+    res.status(500).json({ error: 'Error al cargar porcentajes' });
+  }
 });
 
 // Endpoint de diagnóstico para comprobar qué recibe el servidor y cuántas filas devuelve
@@ -425,46 +566,13 @@ app.get('/api/bomView/debug', async (req, res) => {
   }
 });
 
-//RUTA PARA PARA PURCHASE TRACKING
-
-//Se obtienen los porcentajes de los estados de la compra
-//NOTA: Sai, agrega los porcentajes que te tocan aquí, ya esta hecho el cálculo, solo verifica como escribir los status
-/*
-En ingles es como se registraran en la base de datos, porque ya puse el codigo de colores segun el status
-  Quoted-> cotizado
-  Delivered to BRK-> entregado
-*/
-app.get('/api/trackingCards', async (req, res) => {
-  try {
-    const { projectId } = req.query;
-
-    const sql = `
-      SELECT 
-        COUNT(*) FILTER (WHERE pd.status = 'PO') * 100.0 
-          / NULLIF(COUNT(*), 0) AS porcentaje_po,
-
-        COUNT(*) FILTER (WHERE pd.status = 'PR') * 100.0 
-          / NULLIF(COUNT(*), 0) AS porcentaje_pr,
-
-        COUNT(*) FILTER (WHERE pd.status = 'Shoping cart') * 100.0 
-          / NULLIF(COUNT(*), 0) AS porcentaje_shopping
-
-      FROM product p
-      INNER JOIN purchase_detail pd ON p.no_part = pd.no_part
-      INNER JOIN purchase pu ON pd.id_purchase = pu.id_purchase
-      WHERE ($1::text IS NULL OR pu.no_project = $1);
-    `;
-
-    const params = [ projectId || null ];
-
-    const result = await pool.query(sql, params);
-    res.json(result.rows[0]);
-
-  } catch (error) {
-    console.error('Error fetching percentages:', error);
-    res.status(500).json({ error: 'Error al cargar porcentajes' });
-  }
+app.listen(PORT, () => {
+  console.log(`SERVIDOR  ejecutándose en http://localhost:${PORT}`);
+  console.log(`Todas las rutas funcionando:`);
+  console.log(`   - /api/projects/all (Register Purchase)`);
+  console.log(`   - /api/projects/active (BOM)`);
+  console.log(`   - /api/bom (Subir archivos BOM)`);
+  console.log(`   - /api/stock (Inventory)`);
+  console.log(`   - /api/purchases (MULTIPLE PRODUCTS SUPPORT + BALANCE UPDATE)`);
+  console.log(`   - /api/network/balance/:network (GET NETWORK BALANCE)`);
 });
-
-
-

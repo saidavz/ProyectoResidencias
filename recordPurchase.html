@@ -8,7 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
+ 
 </head>
 
 <body class="bg-dark text-light">
@@ -39,98 +39,144 @@
 
   <main class="container my-5">
     <div class="row justify-content-center">
-      <div class="col-lg-8">
+      <div class="col-lg-10">
         <div class="card shadow-lg p-4 bg-dark text-light">
           <h2 class="text-center mb-4 text-danger">New Purchase</h2>
 
           <form id="formCompra">
-            <!-- NO PART , DESCRIPCION "prodcuto"-->
-            <div class="row">
-              <div class="col-md-6 mb-3" style="position: relative;">
-                <label for="noPart">Part Number:</label>
-                <input type="text" id="noPart" class="form-control bg-secondary text-light" placeholder="Search Number Part..." required name="no_part" autocomplete="off">
-                <div id="sugerenciasNoPart" class="bg-dark text-light" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;"></div>
+            <!-- Sección de productos -->
+            <div class="mb-4">
+              <!--<h4 class="text-warning mb-3">Product Information</h4>-->
+              
+              <div class="producto-item card bg-secondary mb-3 p-3">
+                <div class="row">
+                  <div class="col-md-6 mb-3" style="position: relative;">
+                    <label>Part Number:</label>
+                    <input type="text" class="form-control bg-dark text-light no-part-input" placeholder="Search Number Part..." autocomplete="off">
+                    <div class="sugerencias-no-part bg-dark text-light" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;"></div>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Product</label>
+                    <input type="text" class="form-control bg-dark text-light description-input" readonly>
+                  </div>
+                </div>
+                
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Quantity</label>
+                    <input type="number" class="form-control bg-dark text-light quantity-input" min="1">
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label">Unit Price</label>
+                    <input type="number" step="0.01" class="form-control bg-dark text-light price-input" placeholder="0.00">
+                  </div>
+                </div>
+                
+                <div class="d-grid">
+                  <button type="button" class="btn btn-outline-info btn-agregar-tabla">
+                    <i class="bi bi-plus-circle"></i> Add a product
+                  </button>
+                </div>
               </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Product</label>
-                <input type="text" class="form-control bg-secondary text-light" name="description" id="description"
-                  required readonly>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Quantity</label>
-                <input type="number" class="form-control bg-secondary text-light" name="quantity" min="1" required>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Unit Price</label>
-                <input type="number" step="0.01" class="form-control bg-secondary text-light" name="price_unit"
-                  placeholder="0.00" required>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Currency</label>
-                <select class="form-select bg-secondary text-light" name="currency" required>
-                  <option value="">Select...</option>
-                  <option value="USD">USD</option>
-                  <option value="MXN">MXN</option>
-                </select>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Vendor</label>
-                <select class="form-select bg-secondary text-light" name="id_vendor" required>
-                  <option value="">Loading vendors...</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Project</label>
-                <select class="form-select bg-secondary text-light" name="no_project" required>
-                  <option value="">Loading projects...</option>
-                </select>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Network</label>
-                <select class="form-select bg-secondary text-light" name="network" required>
-                  <option value="">Loading networks...</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Delivery Date</label>
-                <input type="date" class="form-control bg-secondary text-light" name="time_delivered" required>
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Status</label>
-                <select class="form-select bg-secondary text-light" name="status" required>
-                  <option value="">Select...</option>
-                  <option value="Pending">Pending</option>
-                  <option value="In process">In process</option>
-                  <option value="Completed">Completed</option>
-                </select>
+              
+              <!-- Tabla de productos agregados -->
+              <div class="mt-4">
+                <div class="table-responsive">
+                  <table class="table table-dark table-striped" id="tablaProductos">
+                    <thead>
+                      <tr>
+                        <th>Part Number</th>
+                        <th>Description</th>
+                        <th>Quantity</th>
+                        <th>Unit Price</th>
+                        <th>Subtotal</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <!-- Los productos se agregarán aquí dinámicamente -->
+                    </tbody>
+                    <tfoot>
+                      <tr class="total-row">
+                        <td colspan="4" class="text-end"><strong>Total:</strong></td>
+                        <td id="totalCompra">$0.00</td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
             </div>
 
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label">PR</label>
-                <input type="text" class="form-control bg-secondary text-light" name="pr" required>
+            <!-- Información de compra (una sola vez) -->
+            <div class="mb-4">
+              
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Currency</label>
+                  <select class="form-select bg-secondary text-light" name="currency" required>
+                    <option value="">Select...</option>
+                    <option value="USD">USD</option>
+                    <option value="MXN">MXN</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Vendor</label>
+                  <select class="form-select bg-secondary text-light" name="id_vendor" required>
+                    <option value="">Loading vendors...</option>
+                  </select>
+                </div>
               </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">PO</label>
-                <input type="text" class="form-control bg-secondary text-light" name="po" placeholder="Enter PO number"
-                  required>
+
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Project</label>
+                  <select class="form-select bg-secondary text-light" name="no_project" required>
+                    <option value="">Loading projects...</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Network</label>
+                  <select class="form-select bg-secondary text-light" name="network" id="networkSelect" required>
+                    <option value="">Loading networks...</option>
+                  </select>
+                  <!-- Mostrar balance de la network -->
+                  <div id="balanceInfo" class="balance-info mt-2" style="display: none;">
+                    <i class="bi bi-wallet2"></i> Available Balance: <span id="balanceAmount">$0.00</span>
+                  </div>
+                </div>
               </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label">Shopping</label>
-                <input type="text" class="form-control bg-secondary text-light" name="shopping" required>
+
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Delivery Date</label>
+                  <input type="date" class="form-control bg-secondary text-light" name="time_delivered" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Status</label>
+                  <select class="form-select bg-secondary text-light" name="status" required>
+                    <option value="">Select...</option>
+                    <option value="Pending">Pending</option>
+                    <option value="In process">In process</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">PR</label>
+                  <input type="text" class="form-control bg-secondary text-light" name="pr" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">PO</label>
+                  <input type="text" class="form-control bg-secondary text-light" name="po" placeholder="Enter PO number"
+                    required>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Shopping</label>
+                  <input type="text" class="form-control bg-secondary text-light" name="shopping" required>
+                </div>
               </div>
             </div>
 
@@ -153,47 +199,139 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const baseURL = 'http://localhost:3000/api';
+      let productosEnTabla = [];
 
-      // AUTOCOMPLETADO
-      const noPartInput = document.getElementById('noPart');
-      const sugerenciasNoPart = document.getElementById('sugerenciasNoPart');
+      // Función para calcular y actualizar el total
+      function actualizarTotal() {
+        let total = 0;
+        productosEnTabla.forEach(producto => {
+          total += producto.subtotal;
+        });
+        document.getElementById('totalCompra').textContent = `$${total.toFixed(2)}`;
+        return total;
+      }
 
-      noPartInput.addEventListener('input', async () => {
-        const term = noPartInput.value.trim();
+      // Función para inicializar autocompletado
+      function inicializarAutocompletado(inputNoPart, inputDescripcion, contenedorSugerencias) {
+        inputNoPart.addEventListener('input', async () => {
+          const term = inputNoPart.value.trim();
 
-        // DESCRIPCION LIMPIA
-        document.getElementById('description').value = '';
+          // Limpiar descripción
+          inputDescripcion.value = '';
 
-        if (!term) {
-          sugerenciasNoPart.style.display = 'none';
+          if (!term) {
+            contenedorSugerencias.style.display = 'none';
+            return;
+          }
+
+          try {
+            const res = await fetch(`${baseURL}/products/search?term=${term}`);
+            const data = await res.json();
+
+            contenedorSugerencias.innerHTML = '';
+            data.forEach(item => {
+              const div = document.createElement('div');
+              div.textContent = `${item.no_part} - ${item.description}`;
+              div.style.padding = '5px';
+              div.style.cursor = 'pointer';
+              div.addEventListener('click', () => {
+                inputNoPart.value = item.no_part;
+                inputDescripcion.value = item.description;
+                contenedorSugerencias.style.display = 'none';
+              });
+              contenedorSugerencias.appendChild(div);
+            });
+
+            contenedorSugerencias.style.display = data.length ? 'block' : 'none';
+
+          } catch (err) {
+            console.error(err);
+          }
+        });
+
+        // Ocultar sugerencias al hacer clic fuera
+        document.addEventListener('click', (e) => {
+          if (!contenedorSugerencias.contains(e.target) && e.target !== inputNoPart) {
+            contenedorSugerencias.style.display = 'none';
+          }
+        });
+      }
+
+      // Inicializar autocompletado
+      const noPartInput = document.querySelector('.no-part-input');
+      const descripcionInput = document.querySelector('.description-input');
+      const sugerenciasDiv = document.querySelector('.sugerencias-no-part');
+      inicializarAutocompletado(noPartInput, descripcionInput, sugerenciasDiv);
+
+      // Función para agregar producto a la tabla
+      function agregarProductoTabla() {
+        const noPart = document.querySelector('.no-part-input').value;
+        const descripcion = document.querySelector('.description-input').value;
+        const cantidad = parseFloat(document.querySelector('.quantity-input').value);
+        const precio = parseFloat(document.querySelector('.price-input').value);
+        const subtotal = cantidad * precio;
+        
+        // Validar que todos los campos estén completos
+        if (!noPart || !descripcion || !cantidad || !precio) {
+          alert('Please complete all product fields before adding to the table.');
           return;
         }
+        
+        const producto = {
+          no_part: noPart,
+          description: descripcion,
+          quantity: cantidad,
+          price_unit: precio,
+          subtotal: subtotal
+        };
+        
+        productosEnTabla.push(producto);
+        
+        const tablaBody = document.querySelector('#tablaProductos tbody');
+        const nuevaFila = document.createElement('tr');
+        const filaId = `producto-${Date.now()}`;
+        nuevaFila.id = filaId;
+        
+        nuevaFila.innerHTML = `
+          <td>${noPart}</td>
+          <td>${descripcion}</td>
+          <td>${cantidad}</td>
+          <td>$${precio.toFixed(2)}</td>
+          <td>$${subtotal.toFixed(2)}</td>
+          <td>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-producto">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        `;
+        
+        tablaBody.appendChild(nuevaFila);
+        
+        // Agregar evento al botón eliminar
+        nuevaFila.querySelector('.btn-eliminar-producto').addEventListener('click', function() {
+          // Remover producto del array
+          productosEnTabla = productosEnTabla.filter(p => p.no_part !== noPart || p.quantity !== cantidad || p.price_unit !== precio);
+          nuevaFila.remove();
+          actualizarTotal();
+        });
+        
+        // Limpiar campos del producto
+        document.querySelector('.no-part-input').value = '';
+        document.querySelector('.description-input').value = '';
+        document.querySelector('.quantity-input').value = '';
+        document.querySelector('.price-input').value = '';
+        
+        // Actualizar total
+        actualizarTotal();
+        
+        // Enfocar el campo de part number para el siguiente producto
+        document.querySelector('.no-part-input').focus();
+      }
 
-        try {
-          const res = await fetch(`${baseURL}/products/search?term=${term}`);
-          const data = await res.json();
+      // Agregar evento al botón "Add to Table"
+      document.querySelector('.btn-agregar-tabla').addEventListener('click', agregarProductoTabla);
 
-          sugerenciasNoPart.innerHTML = '';
-          data.forEach(item => {
-            const div = document.createElement('div');
-            div.textContent = `${item.no_part} - ${item.description}`;
-            div.style.padding = '5px';
-            div.style.cursor = 'pointer';
-            div.addEventListener('click', () => {
-              noPartInput.value = item.no_part;
-              document.getElementById('description').value = item.description;
-              sugerenciasNoPart.style.display = 'none';
-            });
-            sugerenciasNoPart.appendChild(div);
-          });
-
-          sugerenciasNoPart.style.display = data.length ? 'block' : 'none';
-
-        } catch (err) {
-          console.error(err);
-        }
-      });
-
+      // Cargar datos de selects
       fetch(`${baseURL}/vendors`).then(r => r.json()).then(data => {
         const vendorSelect = document.querySelector('select[name="id_vendor"]');
         vendorSelect.innerHTML = '<option value="">Select vendor...</option>';
@@ -212,12 +350,68 @@
         data.forEach(n => networkSelect.innerHTML += `<option value="${n.network}">${n.network}</option>`);
       });
 
+      // Evento para mostrar balance cuando se selecciona una network
+      document.getElementById('networkSelect').addEventListener('change', function() {
+        const network = this.value;
+        if (network) {
+          fetch(`${baseURL}/network/balance/${network}`)
+            .then(r => r.json())
+            .then(data => {
+              document.getElementById('balanceAmount').textContent = `$${parseFloat(data.balance).toFixed(2)}`;
+              document.getElementById('balanceInfo').style.display = 'block';
+            })
+            .catch(err => {
+              console.error('Error fetching balance:', err);
+              document.getElementById('balanceInfo').style.display = 'none';
+            });
+        } else {
+          document.getElementById('balanceInfo').style.display = 'none';
+        }
+      });
+
+      // Envío del formulario
       document.getElementById('formCompra').addEventListener('submit', async function (e) {
         e.preventDefault();
+        
+        // Verificar que hay productos en la tabla
+        if (productosEnTabla.length === 0) {
+          alert('Please add at least one product to the table before saving.');
+          return;
+        }
+
+        const totalCompra = actualizarTotal();
+        const network = document.querySelector('select[name="network"]').value;
+
+        // Obtener balance actual para validación
+        let balanceActual = 0;
+        if (network) {
+          try {
+            const balanceRes = await fetch(`${baseURL}/network/balance/${network}`);
+            const balanceData = await balanceRes.json();
+            balanceActual = parseFloat(balanceData.balance);
+          } catch (err) {
+            console.error('Error fetching balance:', err);
+          }
+        }
+
+        // Mensaje de confirmación con información del total y balance
+        const confirmMessage = `Are you sure you want to save this purchase?\n\nTotal: $${totalCompra.toFixed(2)}\nNetwork Balance: $${balanceActual.toFixed(2)}\nNew Balance: $${(balanceActual - totalCompra).toFixed(2)}`;
+        
+        const confirmSave = confirm(confirmMessage);
+        if (!confirmSave) {
+          return;
+        }
+        
         const form = e.target;
         const formData = Object.fromEntries(new FormData(form).entries());
-        formData.quantity = parseFloat(formData.quantity);
-        formData.price_unit = parseFloat(formData.price_unit);
+        
+        // Agregar productos al formData
+        formData.productos = productosEnTabla.map(p => ({
+          no_part: p.no_part,
+          description: p.description,
+          quantity: p.quantity,
+          price_unit: p.price_unit
+        }));
 
         const button = form.querySelector('button[type="submit"]');
         button.disabled = true;
@@ -231,11 +425,21 @@
           });
           const result = await res.json();
           if (result.success) {
-            alert('Purchase saved successfully! ID: ' + result.id_purchase);
+            alert(`Purchase saved successfully!\nID: ${result.id_purchase}\nTotal: $${result.total_amount.toFixed(2)}\nNew Balance: $${result.new_balance.toFixed(2)}`);
+            // Limpiar todo
+            document.querySelector('.no-part-input').value = '';
+            document.querySelector('.description-input').value = '';
+            document.querySelector('.quantity-input').value = '';
+            document.querySelector('.price-input').value = '';
+            document.querySelector('#tablaProductos tbody').innerHTML = '';
+            productosEnTabla = [];
+            actualizarTotal();
+            document.getElementById('balanceInfo').style.display = 'none';
             form.reset();
-            document.getElementById('description').value = '';
-            setTimeout(() => window.location.href = 'purchaseTracking.html', 1000);
-          } else alert('Error: ' + result.error);
+            setTimeout(() => window.location.href = 'purchaseTracking.html', 2000);
+          } else {
+            alert('Error: ' + result.error);
+          }
         } catch (err) {
           console.error(err);
           alert('Connection error with server');
