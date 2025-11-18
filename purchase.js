@@ -20,8 +20,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'postgresql',
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb',
   port: 5432,
 });
 
@@ -485,50 +485,77 @@ app.get('/api/trackingCards', async (req, res) => {
   try {
     const { projectId } = req.query;
 
-    // CONSULTA SIMPLIFICADA - igual a la de diagnóstico
-    const sql = `
-      WITH finance_data AS (
+    let sql;
+    let params = [];
+
+    if (projectId) {
+      // Cuando hay projectId: total_gastado filtrado por proyecto, balance solo de networks del proyecto
+      sql = `
+        WITH finance_data AS (
+          SELECT 
+            COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado,
+            COALESCE((
+              SELECT SUM(n.balance) FROM network n
+              WHERE n.network IN (
+                SELECT DISTINCT pu.network FROM purchase pu WHERE pu.no_project = $1
+              )
+            ), 0) AS balance_actual
+          FROM purchase_detail pd
+          INNER JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+          WHERE pu.no_project = $1
+        )
         SELECT 
-          COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado,
-          COALESCE((SELECT SUM(balance) FROM network), 0) AS balance_actual
-        FROM purchase_detail pd
-        INNER JOIN purchase pu ON pd.id_purchase = pu.id_purchase
-        ${projectId ? 'WHERE pu.no_project = $1' : ''}
-      )
-      SELECT 
-        -- Porcentajes existentes
-        COUNT(*) FILTER (WHERE pd.status = 'PO') * 100.0 
-          / NULLIF(COUNT(*), 0) AS porcentaje_po,
+          COUNT(*) FILTER (WHERE pd.status = 'PO') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_po,
+          COUNT(*) FILTER (WHERE pd.status = 'PR') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_pr,
+          COUNT(*) FILTER (WHERE pd.status = 'Shopping cart') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_shopping,
+          COUNT(*) FILTER (WHERE pd.status = 'Delivered to BRK') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_entregado,
+          COUNT(*) FILTER (WHERE pd.status = 'Quoted') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_cotizado,
+          (fd.total_gastado * 100.0 / NULLIF((fd.total_gastado + fd.balance_actual), 0)) AS porcentaje_gastado,
+          fd.total_gastado AS total_gastado,
+          fd.balance_actual AS balance_actual
+        FROM purchase pu
+        INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
+        CROSS JOIN finance_data fd
+        WHERE pu.no_project = $1
+        GROUP BY fd.total_gastado, fd.balance_actual;
+      `;
+      params = [projectId];
+    } else {
+      // Sin projectId: vista general, balance de todas las networks
+      sql = `
+        WITH finance_data AS (
+          SELECT 
+            COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado,
+            COALESCE((SELECT SUM(balance) FROM network), 0) AS balance_actual
+          FROM purchase_detail pd
+          INNER JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+        )
+        SELECT 
+          COUNT(*) FILTER (WHERE pd.status = 'PO') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_po,
+          COUNT(*) FILTER (WHERE pd.status = 'PR') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_pr,
+          COUNT(*) FILTER (WHERE pd.status = 'Shopping cart') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_shopping,
+          COUNT(*) FILTER (WHERE pd.status = 'Delivered to BRK') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_entregado,
+          COUNT(*) FILTER (WHERE pd.status = 'Quoted') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_cotizado,
+          (fd.total_gastado * 100.0 / NULLIF((fd.total_gastado + fd.balance_actual), 0)) AS porcentaje_gastado,
+          fd.total_gastado AS total_gastado,
+          fd.balance_actual AS balance_actual
+        FROM purchase pu
+        INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
+        CROSS JOIN finance_data fd
+        GROUP BY fd.total_gastado, fd.balance_actual;
+      `;
+      params = [];
+    }
 
-        COUNT(*) FILTER (WHERE pd.status = 'PR') * 100.0 
-          / NULLIF(COUNT(*), 0) AS porcentaje_pr,
-
-        COUNT(*) FILTER (WHERE pd.status = 'Shopping cart') * 100.0 
-          / NULLIF(COUNT(*), 0) AS porcentaje_shopping,
-
-        COUNT(*) FILTER (WHERE pd.status = 'Delivered to BRK') * 100.0 
-          / NULLIF(COUNT(*), 0) AS porcentaje_entregado,
-
-        COUNT(*) FILTER (WHERE pd.status = 'Quoted') * 100.0 
-          / NULLIF(COUNT(*), 0) AS porcentaje_cotizado,
-
-        -- % Gastado (igual al diagnóstico)
-        (fd.total_gastado * 100.0 / NULLIF((fd.total_gastado + fd.balance_actual), 0)) AS porcentaje_gastado
-
-      FROM product p
-      INNER JOIN purchase_detail pd ON p.no_part = pd.no_part
-      INNER JOIN purchase pu ON pd.id_purchase = pu.id_purchase
-      CROSS JOIN finance_data fd
-      ${projectId ? 'WHERE pu.no_project = $1' : ''}
-      GROUP BY fd.total_gastado, fd.balance_actual;
-    `;
-
-    const params = projectId ? [projectId] : [];
     const result = await pool.query(sql, params);
+    const row = result.rows[0] || {};
     
-   
+    // Convertir a números para asegurar tipos correctos
+    if (row.total_gastado !== undefined) row.total_gastado = Number(row.total_gastado);
+    if (row.balance_actual !== undefined) row.balance_actual = Number(row.balance_actual);
+    if (row.porcentaje_gastado !== undefined) row.porcentaje_gastado = Number(row.porcentaje_gastado);
     
-    res.json(result.rows[0]);
+    res.json(row);
 
   } catch (error) {
     console.error('Error fetching percentages:', error);

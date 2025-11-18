@@ -52,7 +52,7 @@
   <main class="container my-5">
     <h2 class="text-center text-white mb-4">Purchase Tracking</h2>
 
-    <div style="display: flex; gap: 50px;">
+    <div class="d-flex justify-content-center flex-wrap flex-md-nowrap" style="gap: 50px;">
       <div class="card mb-3" style="width: 12rem;">
         <div class="card-header text-secondary" style="text-align: center; font-size: 20px;">% Quoted</div>
         <div class="card-body text-secondary">
@@ -88,10 +88,20 @@
         </div>
       </div>
 
+    </div>
+
+    <div style="display: flex; gap: 20px; justify-content: center; margin-top: 18px;">
       <div class="card bg-white-soft mb-3" style="width: 12rem;">
         <div class="card-header" style="text-align: center; font-size: 20px; color: white;">% Spended</div>
         <div class="card-body">
           <h5 id="percentGastado" style="text-align: center; font-size: 40px; color: white;">0%</h5>
+        </div>
+      </div>
+
+      <div class="card bg-white-soft mb-3" style="width: 12rem;">
+        <div class="card-header" style="text-align: center; font-size: 16px; color: white;">Spended Amount</div>
+        <div class="card-body">
+          <h5 id="spentAmount" style="text-align: center; font-size: 28px; color: white;">$0.00</h5>
         </div>
       </div>
     </div>
@@ -254,16 +264,32 @@
       // Funciones existentes (sin modificaciones)
       async function loadPercentages(projectId) {
         try {
+          // Fetch percentage breakdowns (existing behavior)
           const res = await fetch(`http://localhost:3000/api/trackingCards?projectId=${encodeURIComponent(projectId)}`);
           const data = await res.json();
 
-          document.getElementById("percentPO").innerText = `${Number(data.porcentaje_po)}%`;
-          document.getElementById("percentPR").innerText = `${Number(data.porcentaje_pr)}%`;
-          document.getElementById("percentShopping").innerText = `${Number(data.porcentaje_shopping)}%`;
-          document.getElementById("percentEntregado").innerText = `${Number(data.porcentaje_entregado)}%`;
-          document.getElementById("percentCotizado").innerText = `${Number(data.porcentaje_cotizado)}%`;
-          document.getElementById("percentGastado").innerText = `${Number(data.porcentaje_gastado).toFixed(2)}%`;
-          
+          // Helper to format percentages with one decimal place
+          const formatPercent = (v) => {
+            const n = Number(v);
+            return Number.isFinite(n) ? n.toFixed(1) : '0.0';
+          };
+
+          document.getElementById("percentPO").innerText = `${formatPercent(data.porcentaje_po)}%`;
+          document.getElementById("percentPR").innerText = `${formatPercent(data.porcentaje_pr)}%`;
+          document.getElementById("percentShopping").innerText = `${formatPercent(data.porcentaje_shopping)}%`;
+          document.getElementById("percentEntregado").innerText = `${formatPercent(data.porcentaje_entregado)}%`;
+          document.getElementById("percentCotizado").innerText = `${formatPercent(data.porcentaje_cotizado)}%`;
+          document.getElementById("percentGastado").innerText = `${formatPercent(data.porcentaje_gastado)}%`;
+
+          // Use backend-provided total_gastado (numeric amount) to populate the spent amount card
+          try {
+            const spent = Number(data.total_gastado || 0);
+            document.getElementById('spentAmount').textContent = `$${spent.toFixed(2)}`;
+          } catch (errSet) {
+            console.error('Error setting spent amount from trackingCards:', errSet);
+            document.getElementById('spentAmount').textContent = '$0.00';
+          }
+
         } catch (error) {
           console.error("Error loading percentages:", error);
         }
