@@ -52,72 +52,85 @@
   <main class="container my-5">
     <h2 class="text-center text-white mb-4">Purchase Tracking</h2>
 
-    <div class="d-flex justify-content-center flex-wrap flex-md-nowrap" style="gap: 50px;">
-      <div class="card mb-3" style="width: 12rem;">
-        <div class="card-header text-secondary" style="text-align: center; font-size: 20px;">% Quoted</div>
-        <div class="card-body text-secondary">
-          <h5 id="percentCotizado" style="text-align: center; font-size: 40px;">0%</h5>
-        </div>
-      </div>
-
-      <div class="card mb-3" style="width: 12rem;">
-        <div class="card-header" style="text-align: center; font-size: 20px;">% PR</div>
-        <div class="card-body">
-          <h5 id="percentPR" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
-        </div>
-      </div>
-
-      <div class="card mb-3 bg-purple-soft" style="width: 12rem;">
-        <div class="card-header" style="text-align: center; font-size: 20px;">% PO</div>
-        <div class="card-body">
-          <h5 id="percentPO" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
-        </div>
-      </div>
-
-      <div class="card bg-red-soft mb-3" style="width: 12rem;">
-        <div class="card-header text-danger" style="text-align: center; font-size: 20px;">% Shopping Cart</div>
-        <div class="card-body text-danger">
-          <h5 id="percentShopping" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
-        </div>
-      </div>
-
-      <div class="card bg-green-soft mb-3" style="width: 12rem;">
-        <div class="card-header text-success" style="text-align: center; font-size: 20px;">% Delivered</div>
-        <div class="card-body text-success">
-          <h5 id="percentEntregado" style="text-align: center; font-size: 40px;">0%</h5>
-        </div>
-      </div>
-
-    </div>
-
-    <div style="display: flex; gap: 20px; justify-content: center; margin-top: 18px;">
-      <div class="card bg-white-soft mb-3" style="width: 12rem;">
-        <div class="card-header" style="text-align: center; font-size: 20px; color: white;">% Spended</div>
-        <div class="card-body">
-          <h5 id="percentGastado" style="text-align: center; font-size: 40px; color: white;">0%</h5>
-        </div>
-      </div>
-
-      <div class="card bg-white-soft mb-3" style="width: 12rem;">
-        <div class="card-header" style="text-align: center; font-size: 16px; color: white;">Spended Amount</div>
-        <div class="card-body">
-          <h5 id="spentAmount" style="text-align: center; font-size: 28px; color: white;">$0.00</h5>
-        </div>
-      </div>
-    </div>
-    <br>
-
     <!-- Buscador agregado aquí -->
     <div class="card p-4 mb-4 static-filter-card" style="position: relative; z-index: 1010; overflow: visible;">
       <div class="row d-flex justify-content-center">
-        <div class="col-md-6" style="position: relative; z-index: 1010; overflow: visible;">
+        <div class="col-md-8" style="position: relative; z-index: 1010; overflow: visible;">
           <label for="projectSearchTracking" class="form-label">Search Project</label>
-          <input type="text" id="projectSearchTracking" class="form-control" placeholder="Search project..."
-            autocomplete="off">
-          <div id="projectSuggestionsTracking" class="bg-light text-dark"
-            style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 2000; border: 1px solid #ccc; display: none; max-height: 300px; overflow-y: auto; border-radius: 4px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); background-color: white;">
+          <div class="d-flex align-items-end" style="gap:12px;">
+            <div style="flex:1; position: relative;">
+              <input type="text" id="projectSearchTracking" class="form-control" placeholder="Search project..." autocomplete="off">
+              <div id="projectSuggestionsTracking" class="bg-light text-dark"
+                style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 2000; border: 1px solid #ccc; display: none; max-height: 300px; overflow-y: auto; border-radius: 4px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); background-color: white;">
+              </div>
+            </div>
+
+            <!-- Boton para colapso -->
+            <div style="white-space: nowrap;">
+              <button id="btnGeneral" class="btn btn-primary" type="button" aria-expanded="false" aria-controls="collapse">
+                General Tracking
+              </button>
+            </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Cards colapsadas -->
+     <div style="min-height: 120px;">
+      <div class="collapse collapse-vertical" id="collapse">
+        <div class="d-flex justify-content-center flex-wrap flex-md-nowrap" style="gap: 50px;">
+          <div class="card mb-3" style="width: 12rem;">
+            <div class="card-header text-secondary" style="text-align: center; font-size: 20px;">% Quoted</div>
+            <div class="card-body text-secondary">
+              <h5 id="percentCotizado" style="text-align: center; font-size: 40px;">0%</h5>
+            </div>
+          </div>
+
+          <div class="card mb-3" style="width: 12rem;">
+            <div class="card-header" style="text-align: center; font-size: 20px;">% PR</div>
+            <div class="card-body">
+              <h5 id="percentPR" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
+            </div>
+          </div>
+
+          <div class="card mb-3 bg-purple-soft" style="width: 12rem;">
+            <div class="card-header" style="text-align: center; font-size: 20px;">% PO</div>
+            <div class="card-body">
+              <h5 id="percentPO" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
+            </div>
+          </div>
+
+          <div class="card bg-red-soft mb-3" style="width: 12rem;">
+            <div class="card-header text-danger" style="text-align: center; font-size: 20px;">% Shopping Cart</div>
+            <div class="card-body text-danger">
+              <h5 id="percentShopping" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
+            </div>
+          </div>
+
+          <div class="card bg-green-soft mb-3" style="width: 12rem;">
+            <div class="card-header text-success" style="text-align: center; font-size: 20px;">% Delivered</div>
+            <div class="card-body text-success">
+              <h5 id="percentEntregado" style="text-align: center; font-size: 40px;">0%</h5>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 20px; justify-content: center; margin-top: 18px;">
+          <div class="card bg-white-soft mb-3" style="width: 12rem;">
+            <div class="card-header" style="text-align: center; font-size: 20px; color: white;">% Spended</div>
+            <div class="card-body">
+              <h5 id="percentGastado" style="text-align: center; font-size: 40px; color: white;">0%</h5>
+            </div>
+          </div>
+
+          <div class="card bg-white-soft mb-3" style="width: 12rem;">
+            <div class="card-header" style="text-align: center; font-size: 16px; color: white;">Spended Amount</div>
+            <div class="card-body">
+              <h5 id="spentAmount" style="text-align: center; font-size: 28px; color: white;">$0.00</h5>
+            </div>
+          </div>
+        </div>
+        <br>
       </div>
     </div>
 
@@ -144,7 +157,7 @@
   </main>
 
   <footer class="text-center py-3 text-white bg-gradient mt-5">
-    Automation Purchase - BRK. Resideo.
+    Purchase-Inventory System - BRK. Resideo.
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -154,6 +167,46 @@
       const projectSearchInput = document.getElementById('projectSearchTracking');
       const projectSuggestions = document.getElementById('projectSuggestionsTracking');
       let allProjects = [];
+
+      // Botón General Tracking
+      const btnGeneral = document.getElementById('btnGeneral');
+      if (btnGeneral) {
+        btnGeneral.addEventListener('click', function (e) {
+          if (!projectSearchInput || !projectSearchInput.dataset.noProject) {
+            e.preventDefault();
+            // mostrar mensaje temporal debajo del input
+            const cont = projectSearchInput && projectSearchInput.parentElement;
+            if (cont) {
+              let msg = cont.querySelector('.temp-msg');
+              if (!msg) {
+                msg = document.createElement('div');
+                msg.className = 'temp-msg text-danger small mt-1';
+                cont.appendChild(msg);
+              }
+              msg.textContent = 'Please select a project from suggestions first.';
+              setTimeout(() => { if (msg) msg.remove(); }, 2200);
+            } else {
+              alert('Please select a project from suggestions first.');
+            }
+            return;
+          }
+
+          //NOTA: Sai, aquí hay que mandar a llamar el collapse desde la seleccion en la tabla
+          // Si hay proyecto seleccionado, toggleamos el collapse explícitamente
+          try {
+            const collapseEl = document.getElementById('collapse');
+            if (window.bootstrap && bootstrap.Collapse) {
+              const inst = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+              inst.toggle();
+            } else {
+              // fallback manual
+              collapseEl.classList.toggle('show');
+            }
+          } catch (err) {
+            console.error('Error toggling collapse:', err);
+          }
+        });
+      }
 
       // Función para normalizar acentos y convertir a minúsculas
       function normalizeText(text) {
@@ -175,6 +228,8 @@
 
       // Buscador de proyectos
       projectSearchInput.addEventListener('input', () => {
+        // Si el usuario escribe manualmente, quitar selección previa
+        delete projectSearchInput.dataset.noProject;
         const term = normalizeText(projectSearchInput.value.trim());
 
         if (!term) {
