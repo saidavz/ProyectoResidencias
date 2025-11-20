@@ -21,7 +21,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'postgresql',
+  password: 'automationdb',
   port: 5432,
 });
 
@@ -190,7 +190,9 @@ app.post('/api/purchases', async (req, res) => {
         VALUES ($1, $2, $3, $4, $5)
       `;
       await client.query(detailQuery, [
-        parseInt(quantity),
+        // Usar parseFloat para conservar decimales si el usuario los proporciona
+        // y fallback a 0 si viene vacío o no numérico
+        Number.isFinite(parseFloat(quantity)) ? parseFloat(quantity) : 0,
         parseFloat(price_unit),
         status,
         id_purchase,
