@@ -45,14 +45,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const aid = normalizeText((a.no_project || '').toString());
         const bname = normalizeText(b.name_project || '');
         const bid = normalizeText((b.no_project || '').toString());
-        
+
         const aStartsWith = aname.startsWith(term) || aid.startsWith(term);
         const bStartsWith = bname.startsWith(term) || bid.startsWith(term);
-        
+
         // Si uno empieza y el otro no, poner primero al que empieza
         if (aStartsWith && !bStartsWith) return -1;
         if (!aStartsWith && bStartsWith) return 1;
-        
+
         // Si ambos empiezan (o ninguno), mantener orden alfabético
         return aname.localeCompare(bname);
       });
@@ -92,50 +92,88 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Verificación de la subida de datos
-  document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    resultEl.textContent = '';
-    const fileInputEl = document.getElementById('fileinput');
-    const file = fileInputEl.files[0];
-    const no_project = projectSelectHidden.value;
+// Verificación de la subida de datos
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  resultEl.innerHTML = '';
+  const fileInputEl = document.getElementById('fileinput');
+  const file = fileInputEl.files[0];
+  const no_project = projectSelectHidden.value;
 
-    if (!no_project) {
-      resultEl.textContent = 'Select a project.';
+  if (!no_project) {
+    resultEl.innerHTML = `
+<div class="alert alert-warning d-flex align-items-center" role="alert" style="padding: 6px 12px;">
+  <svg class="bi flex-shrink-0 me-2" style="width: 15px; height: 15px;" role="img" aria-label="Warning:">
+    <use xlink:href="#exclamation-triangle-fill"/>
+  </svg>
+  <div style="font-size: 0.95rem;">Select project</div>
+</div>`;
+    resultEl.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+
+  if (!file) {
+    resultEl.innerHTML = `
+<div class="alert alert-warning d-flex align-items-center" role="alert" style="padding: 6px 12px;">
+  <svg class="bi flex-shrink-0 me-2" style="width: 15px; height: 15px;" role="img" aria-label="Warning:">
+    <use xlink:href="#exclamation-triangle-fill"/>
+  </svg>
+  <div style="font-size: 0.95rem;">Select file</div>
+</div>`;
+    resultEl.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('no_project', no_project);
+
+  try {
+    const res = await fetch(`${BASE}/bom`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+    if (!res.ok) {
+      resultEl.innerHTML = `
+<div class="alert alert-danger d-flex align-items-center" role="alert" style="padding: 6px 12px;">
+  <svg class="bi flex-shrink-0 me-2" style="width: 15px; height: 15px;" role="img" aria-label="Error:">
+    <use xlink:href="#exclamation-triangle-fill"/>
+  </svg>
+  <div style="font-size: 0.95rem;">Error: ${data.message || 'Unknown error'}</div>
+</div>`;
+      resultEl.scrollIntoView({ behavior: 'smooth' });
       return;
     }
-    if (!file) {
-      resultEl.textContent = 'Select file .xlsx.';
-      return;
-    }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('no_project', no_project);
+    resultEl.innerHTML = `
+<div class="alert alert-success d-flex align-items-center" role="alert" style="padding: 6px 12px;">
+  <svg class="bi flex-shrink-0 me-2" style="width: 15px; height: 15px;" role="img" aria-label="Success:">
+    <use xlink:href="#check-circle-fill"/>
+  </svg>
+  <div style="font-size: 0.95rem;">Successfully uploaded</div>
+</div>`;
 
-    resultEl.textContent = 'Loading...';
-
-    try {
-      const res = await fetch(`${BASE}/bom`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const text = await res.text();
-      let data;
-      try { data = JSON.parse(text); } catch { data = { message: text }; }
-
-      if (!res.ok) {
-        resultEl.textContent = 'Server responded with error: ' + (data.message || res.status);
-        return;
-      }
-      resultEl.textContent = data.message || 'Subida completada correctamente.';
-      //Limpia el input para que no se mande el archivo multiples veces
+    setTimeout(() => {
       fileInputEl.value = '';
       projectSearchInput.value = '';
       projectSelectHidden.value = '';
-    } catch (err) {
-      resultEl.textContent = 'Error loading file: ' + err.message;
-    }
-  });
+    }, 5000);
+
+  } catch (err) {
+    // En caso de error de red u otro, mostrar err.message
+    resultEl.innerHTML = `
+<div class="alert alert-danger d-flex align-items-center" role="alert" style="padding: 6px 12px;">
+  <svg class="bi flex-shrink-0 me-2" style="width: 15px; height: 15px;" role="img" aria-label="Error:">
+    <use xlink:href="#exclamation-triangle-fill"/>
+  </svg>
+  <div style="font-size: 0.95rem;">Error: ${err.message || 'Network error'}</div>
+</div>`;
+    resultEl.scrollIntoView({ behavior: 'smooth' });
+  }
+});
 });
