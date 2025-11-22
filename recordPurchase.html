@@ -8,7 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
- 
+
 </head>
 
 <body class="bg-dark text-light">
@@ -47,38 +47,62 @@
             <!-- Sección de productos -->
             <div class="mb-4">
               <!--<h4 class="text-warning mb-3">Product Information</h4>-->
-              
+
               <div class="producto-item card bg-secondary mb-3 p-3">
                 <div class="row">
                   <div class="col-md-6 mb-3" style="position: relative;">
-                    <label>Part Number:</label>
-                    <input type="text" class="form-control bg-dark text-light no-part-input" placeholder="Search Number Part..." autocomplete="off">
-                    <div class="sugerencias-no-part bg-dark text-light" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;"></div>
+                    <label>Project</label>
+                    <input type="text" class="form-control bg-dark text-light project-input"
+                      placeholder="Search Project..." autocomplete="off">
+                    <div class="sugerencias-project bg-dark text-light"
+                      style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;">
+                    </div>
                   </div>
-                  <div class="col-md-6 mb-3">
-                    <label class="form-label">Product</label>
-                    <input type="text" class="form-control bg-dark text-light description-input" readonly>
+                  <input type="hidden" id="projectSelect" value="">
+                  <div class="col-md-6 mb-3" style="position: relative;">
+                    <label>Type of material</label>
+                    <input type="text" class="form-control bg-dark text-light type-input" placeholder="Search Type..."
+                      autocomplete="off">
+                    <div class="sugerencias-type bg-dark text-light"
+                      style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;">
+                    </div>
                   </div>
                 </div>
-                
+                <div class="row">
+                  <div class="col-md-6 mb-3" style="position: relative;">
+                    <label>Vendor</label>
+                    <input type="text" class="form-control bg-dark text-light vendor-input"
+                      placeholder="Search Vendor..." autocomplete="off">
+                    <div class="sugerencias-vendor bg-dark text-light"
+                      style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;">
+                    </div>
+                  </div>
+                  <div class="col-md-6 mb-3" style="position: relative;">
+                    <label>Network</label>
+                    <input type="text" class="form-control bg-dark text-light network-input" placeholder="Search Network..."
+                      autocomplete="off">
+                    <div class="sugerencias-network bg-dark text-light"
+                      style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;">
+                    </div>
+                  </div>
+                </div>
                 <div class="row">
                   <div class="col-md-6 mb-3">
-                    <label class="form-label">Quantity</label>
-                    <input type="number" class="form-control bg-dark text-light quantity-input" min="1">
+                    <label class="form-label">Currency</label>
+                    <input type="text" class="form-control bg-dark text-light currency-input" min="1">
                   </div>
                   <div class="col-md-6 mb-3">
-                    <label class="form-label">Unit Price</label>
-                    <input type="number" step="0.01" class="form-control bg-dark text-light price-input" placeholder="0.00">
+                    <label class="form-label">PR</label>
+                    <input type="text" class="form-control bg-dark text-light pr-input">
                   </div>
                 </div>
-                
                 <div class="d-grid">
                   <button type="button" class="btn btn-outline-info btn-agregar-tabla">
                     <i class="bi bi-plus-circle"></i> Add a product
                   </button>
                 </div>
               </div>
-              
+
               <!-- Tabla de productos agregados -->
               <div class="mt-4">
                 <div class="table-responsive">
@@ -110,7 +134,7 @@
 
             <!-- Información de compra (una sola vez) -->
             <div class="mb-4">
-              
+
               <div class="row">
                 <div class="col-md-6 mb-3">
                   <label class="form-label">Currency</label>
@@ -170,8 +194,8 @@
                 </div>
                 <div class="col-md-6 mb-3">
                   <label class="form-label">PO</label>
-                  <input type="text" class="form-control bg-secondary text-light" name="po" placeholder="Enter PO number"
-                    required>
+                  <input type="text" class="form-control bg-secondary text-light" name="po"
+                    placeholder="Enter PO number" required>
                 </div>
                 <div class="col-md-6 mb-3">
                   <label class="form-label">Shopping</label>
@@ -187,6 +211,34 @@
         </div>
       </div>
     </div>
+
+    <div class="enhanced-table" style="position: relative; z-index: 1;">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+
+          <thead class="table-dark">
+            <tr>
+              <th>Part Number</th>
+              <th>Brand</th>
+              <th>Description</th>
+              <th>Content</th>
+              <th>Unit</th>
+              <th>Type</th>
+              <th>Number of Packages</th>
+              <th>Price Unit</th>
+              <th>Time Delivered</th>
+            </tr>
+          </thead>
+
+          <tbody id="bomTableBody">
+            <tr>
+              <td colspan="9" class="text-center">Cargando datos...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </main>
 
   <footer class="text-center py-3 text-danger bg-dark">
@@ -270,13 +322,13 @@
         const cantidad = parseFloat(document.querySelector('.quantity-input').value);
         const precio = parseFloat(document.querySelector('.price-input').value);
         const subtotal = cantidad * precio;
-        
+
         // Validar que todos los campos estén completos
         if (!noPart || !descripcion || !cantidad || !precio) {
           alert('Please complete all product fields before adding to the table.');
           return;
         }
-        
+
         const producto = {
           no_part: noPart,
           description: descripcion,
@@ -284,14 +336,14 @@
           price_unit: precio,
           subtotal: subtotal
         };
-        
+
         productosEnTabla.push(producto);
-        
+
         const tablaBody = document.querySelector('#tablaProductos tbody');
         const nuevaFila = document.createElement('tr');
         const filaId = `producto-${Date.now()}`;
         nuevaFila.id = filaId;
-        
+
         nuevaFila.innerHTML = `
           <td>${noPart}</td>
           <td>${descripcion}</td>
@@ -304,26 +356,26 @@
             </button>
           </td>
         `;
-        
+
         tablaBody.appendChild(nuevaFila);
-        
+
         // Agregar evento al botón eliminar
-        nuevaFila.querySelector('.btn-eliminar-producto').addEventListener('click', function() {
+        nuevaFila.querySelector('.btn-eliminar-producto').addEventListener('click', function () {
           // Remover producto del array
           productosEnTabla = productosEnTabla.filter(p => p.no_part !== noPart || p.quantity !== cantidad || p.price_unit !== precio);
           nuevaFila.remove();
           actualizarTotal();
         });
-        
+
         // Limpiar campos del producto
         document.querySelector('.no-part-input').value = '';
         document.querySelector('.description-input').value = '';
         document.querySelector('.quantity-input').value = '';
         document.querySelector('.price-input').value = '';
-        
+
         // Actualizar total
         actualizarTotal();
-        
+
         // Enfocar el campo de part number para el siguiente producto
         document.querySelector('.no-part-input').focus();
       }
@@ -351,7 +403,7 @@
       });
 
       // Evento para mostrar balance cuando se selecciona una network
-      document.getElementById('networkSelect').addEventListener('change', function() {
+      document.getElementById('networkSelect').addEventListener('change', function () {
         const network = this.value;
         if (network) {
           fetch(`${baseURL}/network/balance/${network}`)
@@ -372,7 +424,7 @@
       // Envío del formulario
       document.getElementById('formCompra').addEventListener('submit', async function (e) {
         e.preventDefault();
-        
+
         // Verificar que hay productos en la tabla
         if (productosEnTabla.length === 0) {
           alert('Please add at least one product to the table before saving.');
@@ -396,15 +448,15 @@
 
         // Mensaje de confirmación con información del total y balance
         const confirmMessage = `Are you sure you want to save this purchase?\n\nTotal: $${totalCompra.toFixed(2)}\nNetwork Balance: $${balanceActual.toFixed(2)}\nNew Balance: $${(balanceActual - totalCompra).toFixed(2)}`;
-        
+
         const confirmSave = confirm(confirmMessage);
         if (!confirmSave) {
           return;
         }
-        
+
         const form = e.target;
         const formData = Object.fromEntries(new FormData(form).entries());
-        
+
         // Agregar productos al formData
         formData.productos = productosEnTabla.map(p => ({
           no_part: p.no_part,
