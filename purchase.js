@@ -1,4 +1,4 @@
-//VERIFICACION DE LOS CAMBIOSS
+// server.js
 import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
@@ -21,7 +21,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb',
+  password: 'postgresql',
   port: 5432,
 });
 
@@ -52,6 +52,75 @@ app.get('/api/products/search', async (req, res) => {
   } catch (err) {
     console.error('Error searching products:', err);
     res.status(500).json({ error: 'Error al buscar productos' });
+  }
+});
+
+// ==============================================
+// NUEVO: OBTENER PRODUCTOS POR TYPE_P
+// ==============================================
+app.get("/api/products/byType", async (req, res) => {
+  try {
+    const { type_p } = req.query;
+
+    if (!type_p) {
+      return res.status(400).json({ message: "Debe proporcionar type_p" });
+    }
+
+    const result = await pool.query(
+      `SELECT no_part, brand, description, quantity, unit, type_p 
+       FROM product 
+       WHERE type_p = $1
+       ORDER BY no_part`,
+      [type_p]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error al obtener productos por type_p:", error);
+    res.status(500).send("Error en el servidor");
+  }
+});
+
+// === NUEVOS ENDPOINTS PARA AUTOCOMPLETADO ===
+
+// Búsqueda de proyectos (NUEVO)
+app.get('/api/projects/search', async (req, res) => {
+  const term = req.query.term || '';
+  try {
+    const result = await pool.query(
+      `SELECT no_project, name_project 
+       FROM project 
+       WHERE (no_project::text ILIKE $1 OR name_project ILIKE $2)
+         AND name_project NOT ILIKE '%Sin asignar%'
+       ORDER BY name_project 
+       LIMIT 10`,
+      [`%${term}%`, `%${term}%`]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error searching projects:', err);
+    res.status(500).json({ error: 'Error al buscar proyectos' });
+  }
+});
+
+// Búsqueda de tipos de productos (NUEVO)
+app.get('/api/products/types', async (req, res) => {
+  const term = req.query.term || '';
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT type_p 
+       FROM product 
+       WHERE type_p IS NOT NULL 
+         AND type_p != ''
+         AND type_p ILIKE $1
+       ORDER BY type_p 
+       LIMIT 10`,
+      [`%${term}%`]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error searching product types:', err);
+    res.status(500).json({ error: 'Error al buscar tipos de producto' });
   }
 });
 
@@ -129,7 +198,7 @@ app.get('/api/purchases', async (req, res) => {
     console.error('Error fetching purchases:', error);
     res.status(500).json({ error: 'Error al cargar las compras' });
   }
-})
+});
 
 // RUTA MODIFICADA PARA MÚLTIPLES PRODUCTOS Y ACTUALIZAR BALANCE (SIN total_amount en BD)
 app.post('/api/purchases', async (req, res) => {
@@ -137,8 +206,8 @@ app.post('/api/purchases', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Extraer datos de la compra
-    const { currency, id_vendor, no_project, time_delivered, status, network, po, pr, shopping, productos } = req.body;
+    // Extraer datos de la compra (AGREGAR type_p)
+    const { currency, id_vendor, no_project, time_delivered, status, network, po, pr, shopping, type_p, productos } = req.body;
 
     // Validar que hay productos
     if (!productos || !Array.isArray(productos) || productos.length === 0) {
@@ -190,8 +259,6 @@ app.post('/api/purchases', async (req, res) => {
         VALUES ($1, $2, $3, $4, $5)
       `;
       await client.query(detailQuery, [
-        // Usar parseFloat para conservar decimales si el usuario los proporciona
-        // y fallback a 0 si viene vacío o no numérico
         Number.isFinite(parseFloat(quantity)) ? parseFloat(quantity) : 0,
         parseFloat(price_unit),
         status,
@@ -332,8 +399,6 @@ function pick(rowObj, names) {
 // Ruta para BOM - obtener proyectos 
 app.get("/api/projects/active", async (req, res) => {
   try {
-    // Devolver el nombre con la misma columna que está en la BD: name_project
-    // Usar el estado en español 'active' (coincide con la base de datos)
     const result = await pool.query("SELECT no_project, name_project FROM Project WHERE status ILIKE 'active'");
     res.json(result.rows);
   } catch (err) {
@@ -412,7 +477,6 @@ app.post("/api/bom", upload.single("file"), async (req, res) => {
 
 // Visualización de Materiales por Proyecto)
 app.get('/api/bomView', async (req, res) => {
-  // Ahora aceptamos `no_project` (identificador) desde el frontend
   const noProject = req.query.no_project;
   console.log('/api/bomView called with no_project=', noProject);
 
@@ -435,7 +499,6 @@ app.get('/api/bomView', async (req, res) => {
     const queryParams = [];
 
     if (noProject) {
-      // Comparamos como texto para evitar problemas de tipos (int vs string)
       query += ` WHERE pr.no_project::text = $1`;
       queryParams.push(String(noProject));
     }
@@ -476,13 +539,6 @@ app.get('/', (req, res) => {
 
 //RUTA PARA PARA PURCHASE TRACKING
 
-//Se obtienen los porcentajes de los estados de la compra
-//NOTA: Sai, agrega los porcentajes que te tocan aquí, ya esta hecho el cálculo, solo verifica como escribir los status
-/*
-En ingles es como se registraran en la base de datos, porque ya puse el codigo de colores segun el status
-  Quoted-> cotizado
-  Delivered to BRK-> entregado
-*/
 app.get('/api/trackingCards', async (req, res) => {
   try {
     const { projectId } = req.query;
@@ -491,7 +547,6 @@ app.get('/api/trackingCards', async (req, res) => {
     let params = [];
 
     if (projectId) {
-      // Cuando hay projectId: total_gastado filtrado por proyecto, balance solo de networks del proyecto
       sql = `
         WITH finance_data AS (
           SELECT 
@@ -523,7 +578,6 @@ app.get('/api/trackingCards', async (req, res) => {
       `;
       params = [projectId];
     } else {
-      // Sin projectId: vista general, balance de todas las networks
       sql = `
         WITH finance_data AS (
           SELECT 
@@ -552,7 +606,6 @@ app.get('/api/trackingCards', async (req, res) => {
     const result = await pool.query(sql, params);
     const row = result.rows[0] || {};
     
-    // Convertir a números para asegurar tipos correctos
     if (row.total_gastado !== undefined) row.total_gastado = Number(row.total_gastado);
     if (row.balance_actual !== undefined) row.balance_actual = Number(row.balance_actual);
     if (row.porcentaje_gastado !== undefined) row.porcentaje_gastado = Number(row.porcentaje_gastado);
@@ -599,7 +652,10 @@ app.listen(PORT, () => {
   console.log(`SERVIDOR  ejecutándose en http://localhost:${PORT}`);
   console.log(`Todas las rutas funcionando:`);
   console.log(`   - /api/projects/all (Register Purchase)`);
+  console.log(`   - /api/projects/search (NUEVO - Búsqueda proyectos)`);
   console.log(`   - /api/projects/active (BOM)`);
+  console.log(`   - /api/products/types (NUEVO - Búsqueda tipos)`);
+  console.log(`   - /api/products/byType (NUEVO - Obtener productos por tipo)`);
   console.log(`   - /api/bom (Subir archivos BOM)`);
   console.log(`   - /api/stock (Inventory)`);
   console.log(`   - /api/purchases (MULTIPLE PRODUCTS SUPPORT + BALANCE UPDATE)`);
