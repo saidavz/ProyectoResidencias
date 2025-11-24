@@ -24,7 +24,7 @@ const pool = new pg.Pool({
   password: 'automationdb',
   port: 5432,
 });
-
+//probando que si funciona conla otra cuneta
 // RUTAS DEL SERVIRDOR 1 (purchase.js) 
 
 app.get('/api/products', async (req, res) => {
