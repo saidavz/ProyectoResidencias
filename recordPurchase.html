@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,6 +9,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
+
 <body class="bg-dark text-light">
   <nav class="navbar navbar-expand-lg navbar-dark bg-gradient">
     <div class="container-fluid px-4">
@@ -116,6 +118,8 @@
                           <th>Type</th>
                           <th>Quantity</th>
                           <th>Unit</th>
+                          <th>Time Delivered</th>
+                          <th>Price Unit</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -342,7 +346,15 @@
             <td>${esc(producto.quantity)}</td>
             <td>${esc(producto.unit)}</td>
             <td>
-              <button type="button" class="btn btn-sm btn-outline-danger btn-remove"><i class="bi bi-trash"></i></button>
+              <input type="date" class="form-control time-delivered" />
+            </td>
+            <td>
+              $<input type="currency" class="price" placeholder="00.00" autocomplete="off" style="width: 50px">
+            </td>
+            <td>
+              <button type="button" class="btn btn-sm btn-outline-danger btn-remove">
+              <i class="bi bi-trash"></i>
+              </button>
             </td>
           </tr>
         `;
@@ -497,4 +509,5 @@
     });
   </script>
 </body>
+
 </html>
