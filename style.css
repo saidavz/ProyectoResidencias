@@ -1,6 +1,6 @@
 :root {
   --primary-red: #ff3b30;
-  --dark-red: #d63031;
+  --dark-red: #b51313;
   --charcoal: #2d3436;
   --dark-gray: #636e72;
   --medium-gray: #b2bec3;
@@ -60,8 +60,8 @@ body {
 }
 
 .home-btn {
-  background: linear-gradient(145deg, rgba(45, 52, 54, 0.95), rgba(0, 0, 0, 0.95));
-  border: 2px solid rgba(255, 59, 48, 0.2);
+  background: linear-gradient(145deg, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.95));
+  border: 3px solid rgb(78, 8, 8);
   border-radius: 20px;
   padding: 2.5rem 1.5rem;
   color: var(--light-gray);
@@ -142,7 +142,7 @@ body {
   align-items: center;
   margin-bottom: 2rem;
   padding: 2rem;
-  background: linear-gradient(135deg, rgba(45, 52, 54, 0.95), rgba(0, 0, 0, 0.95));
+  background: linear-gradient(135deg, rgba(54, 54, 45, 0.95), rgba(0, 0, 0, 0.95));
   border-radius: var(--card-radius);
   border-left: 4px solid var(--primary-red);
   box-shadow: var(--shadow-medium);
@@ -282,7 +282,7 @@ body {
 .table {
   background: var(--pure-white) !important;
   margin-bottom: 0;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgb(0, 0, 0);
   /*min-width: 2000px; */
 }
 
@@ -335,7 +335,7 @@ body {
   color: var(--pure-black) !important;
   font-weight: 500;
   padding: 1.2rem 1rem;
-  border-color: rgba(0, 0, 0, 0.1);
+  border-color: rgb(0, 0, 0);
 }
 
 .purchase-table tbody tr:hover {
@@ -356,7 +356,6 @@ body {
 .enhanced-table .table {
   margin-bottom: 0;
   background: var(--pure-white) !important;
-  /*min-width: 2000px; /* Scroll horizontal para muchas columnas */
 }
 
 .enhanced-table .table thead th {
@@ -921,6 +920,21 @@ h1 {
   transform: scale(1.1);
   background-color: #dc3545 !important;
   border-color: #dc3545 !important;
+}
+
+/* Botón "Added" en Purchase Record: gris oscuro */
+.btn.btn-agregar-tabla {
+  background: rgba(255, 0, 0, 0.854);
+  color: var(--pure-white) !important;
+  border: 1px solid rgb(255, 255, 255);
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem;
+  font-weight: 600;
+  transition: var(--transition);
+}
+.btn.btn-agregar-tabla:hover {
+  background: rgba(146, 12, 12, 0.95);
+  color: var(--pure-white) !important;
 }
 
 .total-highlight {
