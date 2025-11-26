@@ -431,118 +431,98 @@
       }
 
       // ---------- Carga inicial de selects (vendors, networks) ----------
-      fetch(`${baseURL}/vendors`).then(r => r.json()).then(data => {
-        const vendorSelect = document.querySelector('select[name="id_vendor"]');
-        if (!vendorSelect) return;
-        vendorSelect.innerHTML = '<option value="">Select vendor...</option>';
-        data.forEach(v => vendorSelect.innerHTML += `<option value="${v.id_vendor}">${v.name_vendor}</option>`);
-      }).catch(err => console.error(err));
+      fetch(`${baseURL}/vendors`)
+        .then(r => r.json())
+        .then(data => {
+          const vendorSelect = document.querySelector('select[name="id_vendor"]');
+          if (!vendorSelect) return;
 
-      fetch(`${baseURL}/networks`).then(r => r.json()).then(data => {
-        const networkSelect = document.querySelector('select[name="network"]');
-        if (!networkSelect) return;
-        networkSelect.innerHTML = '<option value="">Select network...</option>';
-        data.forEach(n => networkSelect.innerHTML += `<option value="${n.network}">${n.network}</option>`);
-      }).catch(err => console.error(err));
+          vendorSelect.innerHTML = '<option value="">Select vendor...</option>';
+          data.forEach(v => {
+            vendorSelect.innerHTML += `<option value="${v.id_vendor}">${v.name_vendor}</option>`;
+          });
+        })
+        .catch(err => console.error('Error loading vendors:', err));
 
-      // Evento para mostrar balance cuando se selecciona una network (mantengo tal cual)
-      const networkSelectElem = document.getElementById('networkSelect');
-      if (networkSelectElem) {
-        networkSelectElem.addEventListener('change', function () {
-          const network = this.value;
-          if (network) {
-            fetch(`${baseURL}/network/balance/${encodeURIComponent(network)}`)
-              .then(r => r.json())
-              .then(data => {
-                document.getElementById('balanceAmount').textContent = `$${parseFloat(data.balance).toFixed(2)}`;
-                document.getElementById('balanceInfo').style.display = 'block';
-              })
-              .catch(err => {
-                console.error('Error fetching balance:', err);
-                document.getElementById('balanceInfo').style.display = 'none';
-              });
-          } else {
-            document.getElementById('balanceInfo').style.display = 'none';
+      fetch(`${baseURL}/networks`)
+        .then(r => r.json())
+        .then(data => {
+          const networkSelect = document.getElementById('networkSelect');
+          if (!networkSelect) return;
+
+          networkSelect.innerHTML = '<option value="">Select network...</option>';
+          data.forEach(n => {
+            networkSelect.innerHTML += `<option value="${n.network}">${n.network}</option>`;
+          });
+        })
+        .catch(err => console.error('Error loading networks:', err));
+
+      // ---------- Mostrar balance al seleccionar network ----------
+      const networkSelect = document.getElementById('networkSelect');
+      const balanceInfo = document.getElementById('balanceInfo');
+      const balanceAmount = document.getElementById('balanceAmount');
+
+      if (networkSelect) {
+        networkSelect.addEventListener('change', async () => {
+          const network = networkSelect.value;
+          if (!network) {
+            balanceInfo.style.display = 'none';
+            return;
+          }
+
+          try {
+            const res = await fetch(`${baseURL}/networks/balance?network=${encodeURIComponent(network)}`);
+            const data = await res.json();
+            balanceAmount.textContent = `$${Number(data.balance || 0).toFixed(2)}`;
+            balanceInfo.style.display = 'block';
+
+          } catch (err) {
+            console.error('Error fetching balance:', err);
+            balanceInfo.style.display = 'none';
           }
         });
       }
 
-      // ---------- Envío del formulario (mantengo tal cual) ----------
-      document.getElementById('formCompra').addEventListener('submit', async function (e) {
-        e.preventDefault();
+      // ---------- Enviar formulario ----------
+      const form = document.getElementById('formCompra');
+      if (form) {
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
 
-        // Verificar que hay productos en la tabla (esta validación usa productosEnTabla)
-        if (productosEnTabla.length === 0) {
-          alert('Please add at least one product to the table before saving.');
-          return;
-        }
+          if (productosEnTabla.length === 0) {
+            alert("You must add at least one product.");
+            return;
+          }
 
-        const totalCompra = actualizarTotal();
-        const network = document.querySelector('select[name="network"]').value;
+          const formData = new FormData(form);
+          const jsonData = Object.fromEntries(formData.entries());
+          jsonData.products = productosEnTabla;
 
-        // Obtener balance actual para validación
-        let balanceActual = 0;
-        if (network) {
           try {
-            const balanceRes = await fetch(`${baseURL}/network/balance/${encodeURIComponent(network)}`);
-            const balanceData = await balanceRes.json();
-            balanceActual = parseFloat(balanceData.balance);
+            const res = await fetch(`${baseURL}/purchases`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(jsonData)
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+              alert("Error saving purchase: " + data.message);
+              return;
+            }
+
+            alert("Purchase saved successfully!");
+            location.reload();
+
           } catch (err) {
-            console.error('Error fetching balance:', err);
+            console.error("Submit error:", err);
+            alert("Error saving purchase.");
           }
-        }
+        });
+      }
 
-        const confirmMessage = `Are you sure you want to save this purchase?\n\nTotal: $${totalCompra.toFixed(2)}\nNetwork Balance: $${balanceActual.toFixed(2)}\nNew Balance: $${(balanceActual - totalCompra).toFixed(2)}`;
-
-        const confirmSave = confirm(confirmMessage);
-        if (!confirmSave) {
-          return;
-        }
-
-        const form = e.target;
-        const formData = Object.fromEntries(new FormData(form).entries());
-
-        // Agregar productos al formData desde productosEnTabla (esta parte se mantiene)
-        formData.productos = productosEnTabla.map(p => ({
-          no_part: p.no_part,
-          description: p.description,
-          quantity: p.quantity,
-          price_unit: p.price_unit
-        }));
-
-        const button = form.querySelector('button[type="submit"]');
-        button.disabled = true;
-        button.textContent = 'Saving...';
-
-        try {
-          const res = await fetch(`${baseURL}/purchases`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-          });
-          const result = await res.json();
-          if (result.success) {
-            alert(`Purchase saved successfully!\nID: ${result.id_purchase}\nTotal: $${result.total_amount.toFixed(2)}\nNew Balance: $${result.new_balance.toFixed(2)}`);
-            // Limpiar todo (mantengo la lógica original)
-            document.querySelector('#tablaProductos tbody').innerHTML = '';
-            productosEnTabla = [];
-            actualizarTotal();
-            document.getElementById('balanceInfo').style.display = 'none';
-            form.reset();
-            setTimeout(() => window.location.href = 'purchaseTracking.html', 2000);
-          } else {
-            alert('Error: ' + result.error);
-          }
-        } catch (err) {
-          console.error(err);
-          alert('Connection error with server');
-        } finally {
-          button.disabled = false;
-          button.textContent = 'Save Purchase';
-        }
-      });
-    });
+    }); // ← CIERRE DE DOMContentLoaded
   </script>
 </body>
-
 </html>
