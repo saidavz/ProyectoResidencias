@@ -331,43 +331,34 @@
         }
       }
 
-      // función que inserta una fila visualmente en la tabla
-      // ahora sincroniza con `productosEnTabla`, actualiza subtotales y maneja eliminación
       function agregarProductoATabla(producto) {
         const tablaBody = document.querySelector("#tablaProductos tbody");
         if (!tablaBody) return;
 
-        // escapado sencillo para evitar inyección accidental
+        // Escapar texto
         const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-        const fila = `
-          <tr data-no-part="${esc(producto.no_part)}">
-            <td class="cell-no-part">${esc(producto.no_part)}</td>
-            <td>${esc(producto.brand)}</td>
-            <td>${esc(producto.description)}</td>
-            <td>${esc(producto.type_p)}</td>
-            <td class="cell-quantity">${esc(producto.quantity)}</td>
-            <td>${esc(producto.unit)}</td>
-            <td>
-              <input type="date" class="form-control time-delivered" />
-            </td>
-            <td>
-              <input type="text" inputmode="decimal" class="form-control form-control-sm price" placeholder="0.00" autocomplete="off" style="width: 100px">
-            </td>
-            <td>
-              <button type="button" class="btn btn-sm btn-outline-danger btn-remove">
-                <i class="bi bi-trash"></i>
-              </button>
-            </td>
-          </tr>
-        `;
-        tablaBody.insertAdjacentHTML("beforeend", fila);
+        // Insertar HTML
+        const filaHTML = `
+      <tr>
+        <td class="cell-no-part">${esc(producto.no_part)}</td>
+        <td>${esc(producto.brand)}</td>
+        <td>${esc(producto.description)}</td>
+        <td>${esc(producto.type_p)}</td>
+        <td class="cell-quantity">${esc(producto.quantity)}</td>
+        <td>${esc(producto.unit)}</td>
+        <td><input type="date" class="form-control time-delivered" /></td>
+        <td><input type="text" inputmode="decimal" class="form-control form-control-sm price" placeholder="0.00" autocomplete="off" style="width: 100px"></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger btn-remove"><i class="bi bi-trash"></i></button></td>
+      </tr>
+    `;
 
-        // referencia a la fila creada
-        const nuevaFila = tablaBody.querySelector('tr[data-no-part="' + esc(producto.no_part) + '"]');
-        if (!nuevaFila) return;
+        tablaBody.insertAdjacentHTML("beforeend", filaHTML);
 
-        // crear objeto representando la fila y añadir al array
+        // Obtener la fila recién agregada (última)
+        const nuevaFila = tablaBody.lastElementChild;
+
+        // Crear OBJETO del producto
         const productoObj = {
           no_part: producto.no_part,
           brand: producto.brand,
@@ -378,35 +369,30 @@
           price_unit: 0,
           subtotal: 0
         };
+
         productosEnTabla.push(productoObj);
         actualizarTotal();
 
-        // enlazar elementos de la fila
+        // Manejo del input precio
         const priceInput = nuevaFila.querySelector('.price');
-        // cuando cambie el precio actualizamos el objeto y el total
-        if (priceInput) {
-          priceInput.addEventListener('input', () => {
-            const raw = priceInput.value || '';
-            const val = parseFloat(raw.replace(/[^0-9.-]+/g, '')) || 0;
-            productoObj.price_unit = val;
-            productoObj.subtotal = val * (productoObj.quantity || 0);
-            actualizarTotal();
-          });
-        }
+        priceInput.addEventListener('input', () => {
+          const raw = priceInput.value || '';
+          const val = parseFloat(raw.replace(/[^0-9.-]+/g, '')) || 0;
+          productoObj.price_unit = val;
+          productoObj.subtotal = val * productoObj.quantity;
+          actualizarTotal();
+        });
 
-        // botón eliminar: borra fila del DOM y del array y actualiza totales
+        // Manejo del botón eliminar
         const btn = nuevaFila.querySelector('.btn-remove');
-        if (btn) {
-          btn.addEventListener('click', () => {
-            // eliminar del DOM
-            nuevaFila.remove();
-            // eliminar del array (primer match por no_part)
-            const idx = productosEnTabla.findIndex(p => p.no_part === productoObj.no_part);
-            if (idx !== -1) productosEnTabla.splice(idx, 1);
-            actualizarTotal();
-          });
-        }
+        btn.addEventListener('click', () => {
+          nuevaFila.remove(); // Remover del DOM
+          const idx = productosEnTabla.indexOf(productoObj);
+          if (idx !== -1) productosEnTabla.splice(idx, 1);
+          actualizarTotal();
+        });
       }
+
 
       // Reemplazamos el evento del botón +Added para traer por type_p
       const btnAgregar = document.querySelector('.btn-agregar-tabla');
