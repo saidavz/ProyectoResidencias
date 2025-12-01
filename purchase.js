@@ -21,7 +21,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb',
+  password: 'postgresql',
   port: 5432,
 });
 //probando que si funciona conla otra cuneta
@@ -46,7 +46,7 @@ app.get('/api/products/search', async (req, res) => {
        WHERE no_part ILIKE $1 OR description ILIKE $2
        ORDER BY no_part 
        LIMIT 10`,
-      [`${term}%`, `%${term}%`]
+      [`%${term}%`, `%${term}%`]
     );
     res.json(result.rows);
   } catch (err) {
@@ -56,7 +56,64 @@ app.get('/api/products/search', async (req, res) => {
 });
 
 // ==============================================
-// NUEVO: OBTENER PRODUCTOS POR TYPE_P
+// NUEVO: OBTENER PRODUCTOS CON CÁLCULO BOM
+// ==============================================
+app.get("/api/products/bom-calculation", async (req, res) => {
+  try {
+    const { no_project, type_p } = req.query;
+
+    if (!no_project || !type_p) {
+      return res.status(400).json({ 
+        message: "Debe proporcionar no_project y type_p" 
+      });
+    }
+
+    // 1. Buscar en BOM por proyecto
+    const bomResult = await pool.query(
+      `SELECT no_part, quantity_project 
+       FROM bom_project 
+       WHERE no_project = $1`,
+      [no_project]
+    );
+
+    if (bomResult.rows.length === 0) {
+      return res.json([]); // No hay datos en BOM para este proyecto
+    }
+
+    const bomItems = bomResult.rows;
+    const bomNoParts = bomItems.map(item => item.no_part);
+
+    // 2. Buscar productos que coincidan con type_p Y estén en BOM
+    const productResult = await pool.query(
+      `SELECT no_part, brand, description, quantity, unit, type_p 
+       FROM product 
+       WHERE type_p = $1 
+         AND no_part = ANY($2::text[])`,
+      [type_p, bomNoParts]
+    );
+
+    // 3. Calcular Quantity = quantity_project / quantity
+    const productosCalculados = productResult.rows.map(product => {
+      const bomItem = bomItems.find(b => b.no_part === product.no_part);
+      if (!bomItem) return null;
+
+      return {
+        ...product,
+        quantity_project: bomItem.quantity_project,
+        quantity_calculated: bomItem.quantity_project / product.quantity
+      };
+    }).filter(item => item !== null);
+
+    res.json(productosCalculados);
+
+  } catch (error) {
+    console.error("Error en cálculo BOM:", error);
+    res.status(500).send("Error en el servidor");
+  }
+});
+
+// ==============================================
+// NUEVO: OBTENER PRODUCTOS POR TYPE_P (MANTENGO POR COMPATIBILIDAD)
 // ==============================================
 app.get("/api/products/byType", async (req, res) => {
   try {
@@ -136,12 +193,12 @@ app.get('/api/vendors', async (req, res) => {
 
 app.get('/api/projects/all', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT no_project, name_project
+    const result = await pool.query(
+      `SELECT no_project, name_project
       FROM project
       WHERE name_project NOT ILIKE '%Sin asignar%'
-      ORDER BY name_project
-    `);
+      ORDER BY name_project`
+    );
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching projects:', error);
@@ -163,8 +220,8 @@ app.get('/api/purchases', async (req, res) => {
   try {
     const { projectId } = req.query;
 
-    let query = `
-      SELECT 
+    let query = 
+      `SELECT 
         pr.name_project as project_name,
         p.no_part,
         p.description as description,
@@ -178,18 +235,17 @@ app.get('/api/purchases', async (req, res) => {
       INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
       INNER JOIN project pr ON pu.no_project = pr.no_project
       INNER JOIN vendor v ON pu.id_vendor = v.id_vendor
-      INNER JOIN product p ON pd.no_part = p.no_part
-    `;
+      INNER JOIN product p ON pd.no_part = p.no_part`;
 
     const params = [];
 
     // Si hay projectId, agregar filtro
     if (projectId) {
-      query += ` WHERE pr.no_project::text = $1`;
+      query +=  ` WHERE pr.no_project::text = $1`;
       params.push(String(projectId));
     }
 
-    query += ` ORDER BY pu.id_purchase DESC`;
+    query +=  ` ORDER BY pu.id_purchase DESC`;
 
     console.log('Purchases query:', query, 'Params:', params);
     const result = await pool.query(query, params);
@@ -240,11 +296,10 @@ app.post('/api/purchases', async (req, res) => {
     }
 
     // Insertar en la tabla purchase (SIN total_amount - COLUMNA ELIMINADA)
-    const purchaseQuery = `
-      INSERT INTO purchase (currency, time_delivered, pr, shopping, po, no_project, id_vendor, network)
+    const purchaseQuery = 
+      `INSERT INTO purchase (currency, time_delivered, pr, shopping, po, no_project, id_vendor, network)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING id_purchase
-    `;
+      RETURNING id_purchase`;
     const purchaseResult = await client.query(purchaseQuery, [
       currency, time_delivered, pr || null, shopping, po || null, no_project, id_vendor, network
     ]);
@@ -254,10 +309,9 @@ app.post('/api/purchases', async (req, res) => {
     for (const producto of productos) {
       const { no_part, quantity, price_unit } = producto;
 
-      const detailQuery = `
-        INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part) 
-        VALUES ($1, $2, $3, $4, $5)
-      `;
+      const detailQuery = 
+        `INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part) 
+        VALUES ($1, $2, $3, $4, $5)`;
       await client.query(detailQuery, [
         Number.isFinite(parseFloat(quantity)) ? parseFloat(quantity) : 0,
         parseFloat(price_unit),
@@ -269,9 +323,8 @@ app.post('/api/purchases', async (req, res) => {
 
     // Actualizar el balance de la network
     const nuevoBalance = balanceActual - totalCompra;
-    const updateBalanceQuery = `
-      UPDATE network SET balance = $1 WHERE network = $2
-    `;
+    const updateBalanceQuery = 
+      `UPDATE network SET balance = $1 WHERE network = $2`;
     await client.query(updateBalanceQuery, [nuevoBalance, network]);
 
     await client.query('COMMIT');
@@ -310,8 +363,8 @@ app.get('/api/network/balance/:network', async (req, res) => {
 
 app.get("/api/stock", async (req, res) => {
   try {
-    const query = `
-      SELECT
+    const query = 
+      `SELECT
         s.id_stock,
         s.rack,
         s.date_entry,
@@ -345,8 +398,7 @@ app.get("/api/stock", async (req, res) => {
       JOIN Project pr ON pu.no_project = pr.no_project
       JOIN Network n ON pu.network = n.network
       WHERE s.id_stock IS NOT NULL
-      ORDER BY s.date_entry DESC
-    `;
+      ORDER BY s.date_entry DESC`;
     const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
@@ -481,8 +533,8 @@ app.get('/api/bomView', async (req, res) => {
   console.log('/api/bomView called with no_project=', noProject);
 
   try {
-    let query = `
-          SELECT 
+    let query = 
+          `SELECT 
               pr.name_project,
               bp.quantity_project AS quantity_requested,
               p.type_p,
@@ -493,17 +545,16 @@ app.get('/api/bomView', async (req, res) => {
               p.unit 
           FROM bom_project bp
           JOIN product p ON bp.no_part = p.no_part
-          JOIN project pr ON bp.no_project = pr.no_project
-      `;
+          JOIN project pr ON bp.no_project = pr.no_project`;
 
     const queryParams = [];
 
     if (noProject) {
-      query += ` WHERE pr.no_project::text = $1`;
+      query +=  ` WHERE pr.no_project::text = $1`;
       queryParams.push(String(noProject));
     }
 
-    query += ` ORDER BY pr.name_project, p.no_part`;
+    query +=  ` ORDER BY pr.name_project, p.no_part`;
 
     const result = await pool.query(query, queryParams);
     res.json(result.rows);
@@ -547,8 +598,8 @@ app.get('/api/trackingCards', async (req, res) => {
     let params = [];
 
     if (projectId) {
-      sql = `
-        WITH finance_data AS (
+      sql = 
+        `WITH finance_data AS (
           SELECT 
             COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado,
             COALESCE((
@@ -574,12 +625,11 @@ app.get('/api/trackingCards', async (req, res) => {
         INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
         CROSS JOIN finance_data fd
         WHERE pu.no_project = $1
-        GROUP BY fd.total_gastado, fd.balance_actual;
-      `;
+        GROUP BY fd.total_gastado, fd.balance_actual;`;
       params = [projectId];
     } else {
-      sql = `
-        WITH finance_data AS (
+      sql = 
+        `WITH finance_data AS (
           SELECT 
             COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado,
             COALESCE((SELECT SUM(balance) FROM network), 0) AS balance_actual
@@ -598,8 +648,7 @@ app.get('/api/trackingCards', async (req, res) => {
         FROM purchase pu
         INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
         CROSS JOIN finance_data fd
-        GROUP BY fd.total_gastado, fd.balance_actual;
-      `;
+        GROUP BY fd.total_gastado, fd.balance_actual;`;
       params = [];
     }
 
@@ -623,22 +672,21 @@ app.get('/api/bomView/debug', async (req, res) => {
   const noProject = req.query.no_project;
   console.log('/api/bomView/debug called with no_project=', noProject);
   try {
-    let query = `
-      SELECT 
+    let query = 
+      `SELECT 
         pr.no_project,
         pr.name_project,
         p.no_part,
         p.description
       FROM bom_project bp
       JOIN product p ON bp.no_part = p.no_part
-      JOIN project pr ON bp.no_project = pr.no_project
-    `;
+      JOIN project pr ON bp.no_project = pr.no_project`;
     const params = [];
     if (noProject) {
-      query += ` WHERE pr.no_project::text = $1`;
+      query +=  ` WHERE pr.no_project::text = $1`;
       params.push(String(noProject));
     }
-    query += ` ORDER BY pr.no_project, p.no_part`;
+    query +=  ` ORDER BY pr.no_project, p.no_part`;
 
     const result = await pool.query(query, params);
     res.json({ received: noProject ?? null, count: result.rows.length, sample: result.rows.slice(0, 5) });
@@ -656,6 +704,7 @@ app.listen(PORT, () => {
   console.log(`   - /api/projects/active (BOM)`);
   console.log(`   - /api/products/types (NUEVO - Búsqueda tipos)`);
   console.log(`   - /api/products/byType (NUEVO - Obtener productos por tipo)`);
+  console.log(`   - /api/products/bom-calculation (NUEVO - Cálculo BOM + Product)`);
   console.log(`   - /api/bom (Subir archivos BOM)`);
   console.log(`   - /api/stock (Inventory)`);
   console.log(`   - /api/purchases (MULTIPLE PRODUCTS SUPPORT + BALANCE UPDATE)`);

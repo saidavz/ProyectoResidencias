@@ -316,55 +316,64 @@
         });
       }
 
-      // ---------- NUEVA LOGICA: traer productos por type_p y llenar tabla ----------
+      // ====================================================
+      // NUEVA LOGICA: CÁLCULO BOM + PRODUCT
+      // ====================================================
       let tipoProductoSeleccionado = "";
 
-      async function cargarProductosPorTypeP(type_p) {
+      // Función NUEVA para cargar productos con cálculo BOM
+      async function cargarProductosConBOM(no_project, type_p) {
         try {
-          const res = await fetch(`${baseURL}/products/byType?type_p=${encodeURIComponent(type_p)}`);
-          if (!res.ok) throw new Error('Error fetching products by type');
+          const res = await fetch(
+            `${baseURL}/products/bom-calculation?no_project=${encodeURIComponent(no_project)}&type_p=${encodeURIComponent(type_p)}`
+          );
+          if (!res.ok) throw new Error('Error fetching BOM calculation');
           const productos = await res.json();
           return productos;
         } catch (err) {
-          console.error('Error cargarProductosPorTypeP:', err);
+          console.error('Error cargarProductosConBOM:', err);
           return [];
         }
       }
 
-      function agregarProductoATabla(producto) {
+      // Función para agregar producto con cálculo aplicado
+      function agregarProductoConCalculo(producto) {
         const tablaBody = document.querySelector("#tablaProductos tbody");
         if (!tablaBody) return;
 
+        // Usar quantity_calculated del backend (quantity_project / quantity)
+        const quantityFinal = producto.quantity_calculated || 0;
+        
         // Escapar texto
         const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-        // Insertar HTML
+        // Insertar HTML - MOSTRAR QUANTITY CALCULADO
         const filaHTML = `
-      <tr>
-        <td class="cell-no-part">${esc(producto.no_part)}</td>
-        <td>${esc(producto.brand)}</td>
-        <td>${esc(producto.description)}</td>
-        <td>${esc(producto.type_p)}</td>
-        <td class="cell-quantity">${esc(producto.quantity)}</td>
-        <td>${esc(producto.unit)}</td>
-        <td><input type="date" class="form-control time-delivered" /></td>
-        <td><input type="text" inputmode="decimal" class="form-control form-control-sm price" placeholder="0.00" autocomplete="off" style="width: 100px"></td>
-        <td><button type="button" class="btn btn-sm btn-outline-danger btn-remove"><i class="bi bi-trash"></i></button></td>
-      </tr>
-    `;
+          <tr>
+            <td class="cell-no-part">${esc(producto.no_part)}</td>
+            <td>${esc(producto.brand)}</td>
+            <td>${esc(producto.description)}</td>
+            <td>${esc(producto.type_p)}</td>
+            <td class="cell-quantity">${quantityFinal.toFixed(2)}</td>
+            <td>${esc(producto.unit)}</td>
+            <td><input type="date" class="form-control time-delivered" /></td>
+            <td><input type="text" inputmode="decimal" class="form-control form-control-sm price" placeholder="0.00" autocomplete="off" style="width: 100px"></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger btn-remove"><i class="bi bi-trash"></i></button></td>
+          </tr>
+        `;
 
         tablaBody.insertAdjacentHTML("beforeend", filaHTML);
 
-        // Obtener la fila recién agregada (última)
+        // Obtener la fila recién agregada
         const nuevaFila = tablaBody.lastElementChild;
 
-        // Crear OBJETO del producto
+        // Crear OBJETO del producto CON QUANTITY CALCULADO
         const productoObj = {
           no_part: producto.no_part,
           brand: producto.brand,
           description: producto.description,
           type_p: producto.type_p,
-          quantity: Number(producto.quantity) || 0,
+          quantity: quantityFinal, // ← USAMOS EL QUANTITY CALCULADO
           unit: producto.unit,
           price_unit: 0,
           subtotal: 0
@@ -393,26 +402,85 @@
         });
       }
 
+      // Función OLD (mantenida por compatibilidad)
+      function agregarProductoATabla(producto) {
+        const tablaBody = document.querySelector("#tablaProductos tbody");
+        if (!tablaBody) return;
 
-      // Reemplazamos el evento del botón +Added para traer por type_p
+        const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+        const filaHTML = `
+          <tr>
+            <td class="cell-no-part">${esc(producto.no_part)}</td>
+            <td>${esc(producto.brand)}</td>
+            <td>${esc(producto.description)}</td>
+            <td>${esc(producto.type_p)}</td>
+            <td class="cell-quantity">${esc(producto.quantity)}</td>
+            <td>${esc(producto.unit)}</td>
+            <td><input type="date" class="form-control time-delivered" /></td>
+            <td><input type="text" inputmode="decimal" class="form-control form-control-sm price" placeholder="0.00" autocomplete="off" style="width: 100px"></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger btn-remove"><i class="bi bi-trash"></i></button></td>
+          </tr>
+        `;
+
+        tablaBody.insertAdjacentHTML("beforeend", filaHTML);
+
+        const nuevaFila = tablaBody.lastElementChild;
+
+        const productoObj = {
+          no_part: producto.no_part,
+          brand: producto.brand,
+          description: producto.description,
+          type_p: producto.type_p,
+          quantity: Number(producto.quantity) || 0,
+          unit: producto.unit,
+          price_unit: 0,
+          subtotal: 0
+        };
+
+        productosEnTabla.push(productoObj);
+        actualizarTotal();
+
+        const priceInput = nuevaFila.querySelector('.price');
+        priceInput.addEventListener('input', () => {
+          const raw = priceInput.value || '';
+          const val = parseFloat(raw.replace(/[^0-9.-]+/g, '')) || 0;
+          productoObj.price_unit = val;
+          productoObj.subtotal = val * productoObj.quantity;
+          actualizarTotal();
+        });
+
+        const btn = nuevaFila.querySelector('.btn-remove');
+        btn.addEventListener('click', () => {
+          nuevaFila.remove();
+          const idx = productosEnTabla.indexOf(productoObj);
+          if (idx !== -1) productosEnTabla.splice(idx, 1);
+          actualizarTotal();
+        });
+      }
+
+      // MODIFICACIÓN DEL EVENTO DEL BOTÓN "Added"
       const btnAgregar = document.querySelector('.btn-agregar-tabla');
       if (btnAgregar) {
         btnAgregar.addEventListener('click', async () => {
-          // validar tipo seleccionado
-          if (!tipoProductoSeleccionado || tipoProductoSeleccionado.trim() === '') {
-            alert('Please select a Type Product first.');
+          // Obtener proyecto y tipo
+          const no_project = document.querySelector('.no_project').value.trim();
+          const type_p = tipoProductoSeleccionado;
+          
+          if (!no_project || !type_p) {
+            alert('Please select both Project and Type Product first.');
             return;
           }
 
-          // llamar backend
-          const productos = await cargarProductosPorTypeP(tipoProductoSeleccionado);
+          // llamar backend CON CÁLCULO BOM
+          const productos = await cargarProductosConBOM(no_project, type_p);
           if (!productos || productos.length === 0) {
-            alert('No products found for this Type.');
+            alert('No matching products found for this Project and Type combination.');
             return;
           }
 
-          // añadir visualmente a la tabla (NO tocar totales ni network)
-          productos.forEach(prod => agregarProductoATabla(prod));
+          // añadir visualmente a la tabla CON QUANTITY CALCULADO
+          productos.forEach(prod => agregarProductoConCalculo(prod));
         });
       }
 
