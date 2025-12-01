@@ -159,9 +159,9 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const baseURL = 'http://localhost:3000/api';
-      let productosEnTabla = []; // Mantengo por compatibilidad pero NO lo toco al llenar con type_p (según tu petición)
+      let productosEnTabla = []; // Mantengo por compatibilidad 
 
-      // Función para calcular y actualizar el total (no será invocada por el llenado automático por type_p)
+      // Función para calcular y actualizar el total 
       function actualizarTotal() {
         let total = 0;
         productosEnTabla.forEach(producto => {
@@ -171,7 +171,7 @@
         return total;
       }
 
-      // ---------- Autocompletados existentes ----------
+      // ---------- Autocompletados  ----------
       function inicializarAutocompletado(inputNoPart, inputDescripcion, contenedorSugerencias) {
         if (!inputNoPart) return;
         inputNoPart.addEventListener('input', async () => {
@@ -316,12 +316,10 @@
         });
       }
 
-      // ====================================================
-      // NUEVA LOGICA: CÁLCULO BOM + PRODUCT
-      // ====================================================
+      //CÁLCULO BOM + PRODUCT
       let tipoProductoSeleccionado = "";
 
-      // Función NUEVA para cargar productos con cálculo BOM
+      // Función para cargar productos con cálculo BOM
       async function cargarProductosConBOM(no_project, type_p) {
         try {
           const res = await fetch(
@@ -499,7 +497,7 @@
         data.forEach(n => networkSelect.innerHTML += `<option value="${n.network}">${n.network}</option>`);
       }).catch(err => console.error(err));
 
-      // Evento para mostrar balance cuando se selecciona una network (mantengo tal cual)
+      // Evento para mostrar balance cuando se selecciona una network 
       const networkSelectElem = document.getElementById('networkSelect');
       if (networkSelectElem) {
         networkSelectElem.addEventListener('change', function () {
@@ -521,7 +519,7 @@
         });
       }
 
-      // ---------- Envío del formulario (mantengo tal cual) ----------
+      // ---------- Envío del formulario  ----------
       document.getElementById('formCompra').addEventListener('submit', async function (e) {
         e.preventDefault();
 
@@ -577,7 +575,7 @@
           const result = await res.json();
           if (result.success) {
             alert(`Purchase saved successfully!\nID: ${result.id_purchase}\nTotal: $${result.total_amount.toFixed(2)}\nNew Balance: $${result.new_balance.toFixed(2)}`);
-            // Limpiar todo (mantengo la lógica original)
+            // Limpiar todo
             document.querySelector('#tablaProductos tbody').innerHTML = '';
             productosEnTabla = [];
             actualizarTotal();

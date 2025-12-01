@@ -20,8 +20,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'postgresql',
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb',
   port: 5432,
 });
 //probando que si funciona conla otra cuneta
@@ -55,9 +55,7 @@ app.get('/api/products/search', async (req, res) => {
   }
 });
 
-// ==============================================
-// NUEVO: OBTENER PRODUCTOS CON CÁLCULO BOM
-// ==============================================
+//OBTENER PRODUCTOS CON CÁLCULO BOM
 app.get("/api/products/bom-calculation", async (req, res) => {
   try {
     const { no_project, type_p } = req.query;
@@ -112,9 +110,7 @@ app.get("/api/products/bom-calculation", async (req, res) => {
   }
 });
 
-// ==============================================
-// NUEVO: OBTENER PRODUCTOS POR TYPE_P (MANTENGO POR COMPATIBILIDAD)
-// ==============================================
+//OBTENER PRODUCTOS POR TYPE_P (MANTENGO POR COMPATIBILIDAD)
 app.get("/api/products/byType", async (req, res) => {
   try {
     const { type_p } = req.query;
@@ -138,9 +134,8 @@ app.get("/api/products/byType", async (req, res) => {
   }
 });
 
-// === NUEVOS ENDPOINTS PARA AUTOCOMPLETADO ===
 
-// Búsqueda de proyectos (NUEVO)
+// Búsqueda de proyectos 
 app.get('/api/projects/search', async (req, res) => {
   const term = req.query.term || '';
   try {
@@ -160,7 +155,7 @@ app.get('/api/projects/search', async (req, res) => {
   }
 });
 
-// Búsqueda de tipos de productos (NUEVO)
+// Búsqueda de tipos de productos 
 app.get('/api/products/types', async (req, res) => {
   const term = req.query.term || '';
   try {
@@ -256,7 +251,7 @@ app.get('/api/purchases', async (req, res) => {
   }
 });
 
-// RUTA MODIFICADA PARA MÚLTIPLES PRODUCTOS Y ACTUALIZAR BALANCE (SIN total_amount en BD)
+// RUTA MODIFICADA PARA MÚLTIPLES PRODUCTOS Y ACTUALIZAR BALANCE
 app.post('/api/purchases', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -295,7 +290,7 @@ app.post('/api/purchases', async (req, res) => {
       });
     }
 
-    // Insertar en la tabla purchase (SIN total_amount - COLUMNA ELIMINADA)
+    // Insertar en la tabla purchase 
     const purchaseQuery = 
       `INSERT INTO purchase (currency, time_delivered, pr, shopping, po, no_project, id_vendor, network)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
