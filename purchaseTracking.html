@@ -375,7 +375,7 @@
 
         data.forEach(purchase => {
           const statusClass = getStatusClass(purchase.status);
-          const deliveryDate = new Date(purchase.time_delivered).toLocaleDateString();
+          const deliveryDate = new Date(purchase.time_delivered_product).toLocaleDateString();
 
           const row = `
           <tr>

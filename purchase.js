@@ -21,7 +21,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'postgresql',
+  password: '150403kim',
   port: 5432,
 });
 //probando que si funciona conla otra cuneta
@@ -225,6 +225,7 @@ app.get('/api/purchases', async (req, res) => {
         pd.price_unit,
         (pd.quantity * pd.price_unit) as total_amount,
         pd.status,
+        pd.time_delivered_product,
         pu.time_delivered
       FROM purchase pu
       INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
@@ -258,7 +259,7 @@ app.post('/api/purchases', async (req, res) => {
     await client.query('BEGIN');
 
     // Extraer datos de la compra (AGREGAR type_p)
-    const { currency, id_vendor, no_project, time_delivered, status, network, po, pr, shopping, type_p, productos } = req.body;
+    const { currency, id_vendor, no_project, time_delivered, status, network, po, pr, shopping, type_p, productos} = req.body;
 
     // Validar que hay productos
     if (!productos || !Array.isArray(productos) || productos.length === 0) {
@@ -302,17 +303,18 @@ app.post('/api/purchases', async (req, res) => {
 
     // Insertar cada producto en purchase_detail
     for (const producto of productos) {
-      const { no_part, quantity, price_unit } = producto;
+      const { no_part, quantity, price_unit, time_delivered_product} = producto;
 
       const detailQuery = 
-        `INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part) 
-        VALUES ($1, $2, $3, $4, $5)`;
+        `INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part, time_delivered_product) 
+        VALUES ($1, $2, $3, $4, $5, $6)`;
       await client.query(detailQuery, [
         Number.isFinite(parseFloat(quantity)) ? parseFloat(quantity) : 0,
         parseFloat(price_unit),
         status,
         id_purchase,
-        no_part
+        no_part,
+        time_delivered_product
       ]);
     }
 
