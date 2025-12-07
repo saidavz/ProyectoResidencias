@@ -20,8 +20,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb',
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: 'postgresql',
   port: 5432,
 });
 //probando que si funciona conla otra cuneta
@@ -286,7 +286,7 @@ app.post('/api/purchases', async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        error: `Insufficient balance in network. Available: $${balanceActual.toFixed(2)}, Required: $${totalCompra.toFixed(2)}`
+        error: `Saldo insuficiente. Disponible: $${balanceActual.toFixed(2)}, Requerido: $${totalCompra.toFixed(2)}`
       });
     }
 
@@ -453,6 +453,28 @@ app.get("/api/projects/active", async (req, res) => {
     res.status(500).json({ message: "Error obtaining projects" });
   }
 });
+app.post('/api/projects', async (req, res) => {
+  try {
+    const { no_project, name_project, status } = req.body;
+
+    const result = await pool.query(
+      `INSERT INTO project (no_project, name_project, status)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [no_project, name_project, status || "active"]
+    );
+
+    res.json({
+      success: true,
+      project: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error("Error inserting project:", error);
+    res.status(500).json({ error: "Error inserting project" });
+  }
+});
+
 
 // Ruta para BOM - subir archivo Excel
 app.post("/api/bom", upload.single("file"), async (req, res) => {

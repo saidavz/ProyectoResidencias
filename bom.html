@@ -55,6 +55,40 @@
                 <div class="card p-4 p-md-5">
                     <h2 class="mb-4 text-center">Load Bill of Materials</h2>
                     <!-- Tu formulario original, ahora dentro de la tarjeta -->
+
+                    <!-- Registrar proyectos en BD (FORMULARIO 1) -->
+                    <form id="projectForm" class="mb-4 p-3 border rounded bg-light">
+                        <h5 class="mb-3 text-dark">Register Project</h5>
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Project Number</label>
+                                <input type="text" id="no_project" class="form-control" placeholder="Enter number"
+                                    required>
+                            </div>
+
+                            <div class="col-md-5">
+                                <label class="form-label">Project Name</label>
+                                <input type="text" id="name_project" class="form-control"
+                                    placeholder="Enter project name" required>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Status</label>
+                                <input type="text" id="status" class="form-control" placeholder="Active / Hold / Closed"
+                                    required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-danger w-100 mt-3" id="btnRegisterProject">
+                            <i class="bi bi-save-fill me-2"></i>Save Project
+                        </button>
+
+                        <div id="projectMessage" class="mt-2"></div>
+                    </form>
+
+
+                    <!-- FORMULARIO 2 — Upload BOM -->
                     <form id="uploadForm" class="mb-3">
 
                         <!-- Buscador de proyectos activos -->
@@ -67,31 +101,28 @@
                             </div>
                         </div>
 
-                        <!-- Campo oculto para guardar el no_project seleccionado -->
+                        <!-- Campo oculto -->
                         <input type="hidden" id="projectSelect" value="">
 
-                        <!-- Subir el archivo (Diseño de Carga) -->
+                        <!-- Subir archivo -->
                         <div class="mb-3">
                             <label for="fileinput" class="form-label">File .xlsx</label>
 
-                            <!-- Wrapper para el diseño de borde punteado y Drag & Drop -->
                             <div class="upload-area-wrapper">
-                                <!-- El input file original, ahora oculto pero aún parte del DOM para la lógica -->
                                 <input type="file" id="fileinput" accept=".xlsx" class="original-file-input" required />
 
-                                <!-- Capa de diseño que simula el Drag & Drop -->
                                 <div class="upload-design-overlay text-center"
                                     onclick="document.getElementById('fileinput').click();">
                                     <i class="bi bi-cloud-arrow-up-fill upload-icon mb-3"></i>
                                     <p class="drag-text">Drag and Drop here</p>
                                     <p class="or-text">or</p>
                                     <a href="#" class="browse-link"
-                                        onclick="event.preventDefault(); document.getElementById('fileinput').click();">Browse
-                                        files</a>
+                                        onclick="event.preventDefault(); document.getElementById('fileinput').click();">
+                                        Browse files
+                                    </a>
                                 </div>
                             </div>
 
-                            <!-- Información de tipos de archivo y seguridad -->
                             <div class="d-flex justify-content-between align-items-center mt-2 file-info">
                                 <span class="accepted-types">Accepted File Type: **.xlsx** only</span>
                                 <span class="secure-text"><i class="bi bi-lock-fill me-1"></i> Secure</span>
@@ -100,6 +131,7 @@
 
                         <button type="submit" class="btn btn-primary btn-lg w-100">Upload</button>
                     </form>
+
                 </div>
             </div>
         </div>

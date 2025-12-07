@@ -941,3 +941,49 @@ h1 {
   background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
   color: white;
 }
+input:focus {
+  outline: none !important;
+  box-shadow: none !important;}
+
+  .home-btn-dropdown button.home-btn {
+    color: white;
+    width: 350px;        /* mismo ancho que tus botones */
+    height: 275px;       /* misma altura */
+    border-radius: 12px; /* igual que el resto */
+    transition: 0.2s;
+  }
+  
+  .home-btn-dropdown button.home-btn:hover {
+    transform: scale(1.03);
+    background: #111;       /* igual al hover de los otros */
+    border-color: red;
+  }
+  
+  .home-btn-dropdown .dropdown-menu {
+    background: #202020;
+    border: 1px solid red;
+  }
+  
+  .home-btn-dropdown .dropdown-item {
+    color: white;
+  }
+  
+  .home-btn-dropdown .dropdown-item:hover {
+    background: red;
+    color: white;
+  }
+  .home-buttons-container {
+    display: grid;
+    grid-template-columns: repeat(2, auto); /* columnas según el tamaño de los botones */
+    gap: 20px;
+    justify-content: center; /* centra toda la cuadrícula horizontalmente */
+  }
+  
+  .home-btn,
+  .home-btn-dropdown button.home-btn {
+    width: 350px;        /* mismo ancho que tus botones */
+    height: 275px; 
+    flex-shrink: 0; /* evita que se encojan */
+  }
+  
+  

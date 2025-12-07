@@ -36,6 +36,8 @@
                     <li class="nav-item"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
                     <li class="nav-item"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
                     <li class="nav-item"><a class="nav-link" href="stock.html">Inventory</a></li>
+                    <li class="nav-item"><a class="nav-link" href="bom.html">Bom</a></li>
+
                 </ul>
             </div>
             <div class="d-flex align-items-center">
@@ -52,6 +54,26 @@
         </div>
 
         <div class="home-buttons-container">
+            <div class="dropdown home-btn-dropdown">
+                <button class="home-btn dropdown-toggle" 
+                        type="button" 
+                        id="dropdownBom"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false">
+                    <i class="bi bi-diagram-3-fill btn-icon"></i>
+                    <div class="btn-title">BOM</div>
+                    <div class="btn-description">Subir Bom de material y visualizarlo</div>
+                </button>
+            
+                <ul class="dropdown-menu w-100 text-center" aria-labelledby="dropdownBom">
+                    <li><a class="dropdown-item" href="bom.html">Upload BOM</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="bomView.html">View BOM</a></li>
+                </ul>
+            </div>
+            
+            
+            
 
             <a href="recordPurchase.html" class="home-btn">
                 <i class="bi bi-cart-plus-fill btn-icon"></i>

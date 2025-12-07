@@ -4,18 +4,69 @@ document.addEventListener('DOMContentLoaded', () => {
   const projectSelectHidden = document.getElementById('projectSelect');
   const resultEl = document.getElementById('result');
 
-  // URL explícita al backend
+  // URL del backend
   const BASE = 'http://localhost:3000/api';
 
-  // Función para normalizar acentos y convertir a minúsculas
+  // Normalizar texto (para búsquedas)
   function normalizeText(text) {
     return text
       .toLowerCase()
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, ''); // Elimina marcas diacríticas
+      .replace(/[\u0300-\u036f]/g, '');
   }
 
-  // Buscador de proyectos activos
+  // ======== REGISTRO DE PROYECTOS ===========
+  const projectForm = document.getElementById('projectForm');
+  const projectMessage = document.getElementById('projectMessage');
+
+  projectForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const no_project = document.getElementById('no_project').value.trim();
+    const name_project = document.getElementById('name_project').value.trim();
+    const status = document.getElementById('status').value.trim();
+
+    projectMessage.innerHTML = "";
+
+    if (!no_project || !name_project || !status) {
+      projectMessage.innerHTML = `
+        <div class="alert alert-warning py-1">Fill all fields</div>
+      `;
+      return;
+    }
+
+    try {
+      const res = await fetch(`${BASE}/projects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ no_project, name_project, status })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        projectMessage.innerHTML = `
+          <div class="alert alert-danger py-1">${data.message || "Error saving project"}</div>
+        `;
+        return;
+      }
+
+      projectMessage.innerHTML = `
+        <div class="alert alert-success py-1">Project registered successfully</div>
+      `;
+
+      document.getElementById('no_project').value = "";
+      document.getElementById('name_project').value = "";
+      document.getElementById('status').value = "";
+
+    } catch (err) {
+      projectMessage.innerHTML = `
+        <div class="alert alert-danger py-1">${err.message}</div>
+      `;
+    }
+  });
+
+  // ======== BUSCADOR DE PROYECTOS ACTIVOS ===========
   projectSearchInput.addEventListener('input', async () => {
     const term = normalizeText(projectSearchInput.value.trim());
 
@@ -27,33 +78,26 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const res = await fetch(`${BASE}/projects/active`);
       const allProjects = await res.json();
-      console.log('projects/active returned:', Array.isArray(allProjects) ? allProjects.length : typeof allProjects);
 
-      // Filtrar proyectos: excluir "Sin asignar" y buscar por término (nombre o no_project)
       const filtered = allProjects.filter(p => {
         const pname = normalizeText(p.name_project || '');
         const pid = normalizeText((p.no_project || '').toString());
-        // Excluir "Sin asignar"
         if (pname.includes('sin asignar')) return false;
-        // Incluir si contiene el término en nombre o en no_project (normalizado)
         return pname.includes(term) || pid.includes(term);
       });
 
-      // Jerarquizar: primero los que empiezan con el término, luego los que lo contienen en otro lado
       const filteredProjects = filtered.sort((a, b) => {
         const aname = normalizeText(a.name_project || '');
         const aid = normalizeText((a.no_project || '').toString());
         const bname = normalizeText(b.name_project || '');
         const bid = normalizeText((b.no_project || '').toString());
 
-        const aStartsWith = aname.startsWith(term) || aid.startsWith(term);
-        const bStartsWith = bname.startsWith(term) || bid.startsWith(term);
+        const aStarts = aname.startsWith(term) || aid.startsWith(term);
+        const bStarts = bname.startsWith(term) || bid.startsWith(term);
 
-        // Si uno empieza y el otro no, poner primero al que empieza
-        if (aStartsWith && !bStartsWith) return -1;
-        if (!aStartsWith && bStartsWith) return 1;
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
 
-        // Si ambos empiezan (o ninguno), mantener orden alfabético
         return aname.localeCompare(bname);
       });
 
@@ -65,115 +109,91 @@ document.addEventListener('DOMContentLoaded', () => {
         div.style.padding = '8px';
         div.style.cursor = 'pointer';
         div.style.borderBottom = '1px solid #eee';
+
         div.addEventListener('click', () => {
           projectSearchInput.value = `${project.no_project} - ${displayName}`;
           projectSelectHidden.value = project.no_project;
           projectSuggestions.style.display = 'none';
         });
+
         div.addEventListener('mouseover', () => {
           div.style.backgroundColor = '#f0f0f0';
         });
+
         div.addEventListener('mouseout', () => {
           div.style.backgroundColor = 'transparent';
         });
+
         projectSuggestions.appendChild(div);
       });
 
       projectSuggestions.style.display = filteredProjects.length ? 'block' : 'none';
+
     } catch (err) {
       console.error(err);
     }
   });
 
-  // Ocultar sugerencias al hacer click fuera
+  // Ocultar sugerencias si se hace click fuera
   document.addEventListener('click', (e) => {
     if (e.target !== projectSearchInput && e.target !== projectSuggestions) {
       projectSuggestions.style.display = 'none';
     }
   });
 
-// Verificación de la subida de datos
-document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  resultEl.innerHTML = '';
-  const fileInputEl = document.getElementById('fileinput');
-  const file = fileInputEl.files[0];
-  const no_project = projectSelectHidden.value;
+  // ========= SUBIR BOM ==========
+  document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    resultEl.innerHTML = '';
 
-  if (!no_project) {
-    resultEl.innerHTML = `
-<div class="alert alert-warning d-flex align-items-center" role="alert" style="padding: 6px 12px;">
-  <svg class="bi flex-shrink-0 me-2" style="width: 15px; height: 15px;" role="img" aria-label="Warning:">
-    <use xlink:href="#exclamation-triangle-fill"/>
-  </svg>
-  <div style="font-size: 0.95rem;">Select project</div>
-</div>`;
-    resultEl.scrollIntoView({ behavior: 'smooth' });
-    return;
-  }
+    const fileInputEl = document.getElementById('fileinput');
+    const file = fileInputEl.files[0];
+    const no_project = projectSelectHidden.value;
 
-  if (!file) {
-    resultEl.innerHTML = `
-<div class="alert alert-warning d-flex align-items-center" role="alert" style="padding: 6px 12px;">
-  <svg class="bi flex-shrink-0 me-2" style="width: 15px; height: 15px;" role="img" aria-label="Warning:">
-    <use xlink:href="#exclamation-triangle-fill"/>
-  </svg>
-  <div style="font-size: 0.95rem;">Select file</div>
-</div>`;
-    resultEl.scrollIntoView({ behavior: 'smooth' });
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('no_project', no_project);
-
-  try {
-    const res = await fetch(`${BASE}/bom`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = { message: text }; }
-
-    if (!res.ok) {
+    if (!no_project) {
       resultEl.innerHTML = `
-<div class="alert alert-danger d-flex align-items-center" role="alert" style="padding: 6px 12px;">
-  <svg class="bi flex-shrink-0 me-2" style="width: 15px; height: 15px;" role="img" aria-label="Error:">
-    <use xlink:href="#exclamation-triangle-fill"/>
-  </svg>
-  <div style="font-size: 0.95rem;">Error: ${data.message || 'Unknown error'}</div>
-</div>`;
-      resultEl.scrollIntoView({ behavior: 'smooth' });
+        <div class="alert alert-warning py-1">Select project</div>`;
       return;
     }
 
-    resultEl.innerHTML = `
-<div class="alert alert-success d-flex align-items-center" role="alert" style="padding: 6px 12px;">
-  <svg class="bi flex-shrink-0 me-2" style="width: 15px; height: 15px;" role="img" aria-label="Success:">
-    <use xlink:href="#check-circle-fill"/>
-  </svg>
-  <div style="font-size: 0.95rem;">Successfully uploaded</div>
-</div>`;
+    if (!file) {
+      resultEl.innerHTML = `
+        <div class="alert alert-warning py-1">Select file</div>`;
+      return;
+    }
 
-    setTimeout(() => {
-      fileInputEl.value = '';
-      projectSearchInput.value = '';
-      projectSelectHidden.value = '';
-    }, 5000);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('no_project', no_project);
 
-  } catch (err) {
-    // En caso de error de red u otro, mostrar err.message
-    resultEl.innerHTML = `
-<div class="alert alert-danger d-flex align-items-center" role="alert" style="padding: 6px 12px;">
-  <svg class="bi flex-shrink-0 me-2" style="width: 15px; height: 15px;" role="img" aria-label="Error:">
-    <use xlink:href="#exclamation-triangle-fill"/>
-  </svg>
-  <div style="font-size: 0.95rem;">Error: ${err.message || 'Network error'}</div>
-</div>`;
-    resultEl.scrollIntoView({ behavior: 'smooth' });
-  }
-});
+    try {
+      const res = await fetch(`${BASE}/bom`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+      if (!res.ok) {
+        resultEl.innerHTML = `
+          <div class="alert alert-danger py-1">Error: ${data.message}</div>`;
+        return;
+      }
+
+      resultEl.innerHTML = `
+        <div class="alert alert-success py-1">Successfully uploaded</div>`;
+
+      setTimeout(() => {
+        fileInputEl.value = '';
+        projectSearchInput.value = '';
+        projectSelectHidden.value = '';
+      }, 4000);
+
+    } catch (err) {
+      resultEl.innerHTML = `
+        <div class="alert alert-danger py-1">Error: ${err.message}</div>`;
+    }
+  });
 });

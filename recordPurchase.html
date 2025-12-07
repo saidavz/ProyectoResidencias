@@ -118,7 +118,7 @@
                           <th>Brand</th>
                           <th>Description</th>
                           <th>Type</th>
-                          <th>Quantity Tabla</th>
+                          <th>Quantity</th>
                           <th>Unit</th>
                           <th>Time Delivered</th>
                           <th>Price Unit</th>
@@ -466,14 +466,14 @@
           const type_p = tipoProductoSeleccionado;
           
           if (!no_project || !type_p) {
-            alert('Please select both Project and Type Product first.');
+            alert('Por favor selecciona un Proyecto.');
             return;
           }
 
           // llamar backend CON CÁLCULO BOM
           const productos = await cargarProductosConBOM(no_project, type_p);
           if (!productos || productos.length === 0) {
-            alert('No matching products found for this Project and Type combination.');
+            alert('No se encontraron productos que coincidan con el Bom .');
             return;
           }
 
@@ -525,7 +525,7 @@
 
         // Verificar que hay productos en la tabla (esta validación usa productosEnTabla)
         if (productosEnTabla.length === 0) {
-          alert('Please add at least one product to the table before saving.');
+          alert('Agregue al menos un producto a la tabla antes de guardar.');
           return;
         }
 
@@ -544,7 +544,7 @@
           }
         }
 
-        const confirmMessage = `Are you sure you want to save this purchase?\n\nTotal: $${totalCompra.toFixed(2)}\nNetwork Balance: $${balanceActual.toFixed(2)}\nNew Balance: $${(balanceActual - totalCompra).toFixed(2)}`;
+        const confirmMessage = `¿Estás seguro de que quieres guardar esta compra?\n\nTotal: $${totalCompra.toFixed(2)}\nSaldo disponible: $${balanceActual.toFixed(2)}\nSaldo restante: $${(balanceActual - totalCompra).toFixed(2)}`;
 
         const confirmSave = confirm(confirmMessage);
         if (!confirmSave) {
@@ -574,7 +574,7 @@
           });
           const result = await res.json();
           if (result.success) {
-            alert(`Purchase saved successfully!\nID: ${result.id_purchase}\nTotal: $${result.total_amount.toFixed(2)}\nNew Balance: $${result.new_balance.toFixed(2)}`);
+            alert(`Compra guardada exitosamente!\nTotal: $${result.total_amount.toFixed(2)}\nSaldo: $${result.new_balance.toFixed(2)}`);
             // Limpiar todo
             document.querySelector('#tablaProductos tbody').innerHTML = '';
             productosEnTabla = [];
