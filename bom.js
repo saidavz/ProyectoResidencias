@@ -1,199 +1,120 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const projectSearchInput = document.getElementById('projectSearch');
-  const projectSuggestions = document.getElementById('projectSuggestions');
-  const projectSelectHidden = document.getElementById('projectSelect');
+  const uploadMessage = document.getElementById('uploadMessage');
   const resultEl = document.getElementById('result');
 
   // URL del backend
   const BASE = 'http://localhost:3000/api';
 
-  // Normalizar texto (para búsquedas)
-  function normalizeText(text) {
-    return text
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-  }
-
-  // ======== REGISTRO DE PROYECTOS ===========
-  const projectForm = document.getElementById('projectForm');
-  const projectMessage = document.getElementById('projectMessage');
-
-  projectForm.addEventListener('submit', async (e) => {
+  // ========= SUBIR BOM Y REGISTRAR PROYECTO ==========
+  document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    uploadMessage.innerHTML = '';
 
     const no_project = document.getElementById('no_project').value.trim();
     const name_project = document.getElementById('name_project').value.trim();
-    const status = document.getElementById('status').value.trim();
-
-    projectMessage.innerHTML = "";
-
-    if (!no_project || !name_project || !status) {
-      projectMessage.innerHTML = `
-        <div class="alert alert-warning py-1">Fill all fields</div>
-      `;
-      return;
-    }
-
-    try {
-      const res = await fetch(`${BASE}/projects`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ no_project, name_project, status })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        projectMessage.innerHTML = `
-          <div class="alert alert-danger py-1">${data.message || "Error saving project"}</div>
-        `;
-        return;
-      }
-
-      projectMessage.innerHTML = `
-        <div class="alert alert-success py-1">Project registered successfully</div>
-      `;
-
-      document.getElementById('no_project').value = "";
-      document.getElementById('name_project').value = "";
-      document.getElementById('status').value = "";
-
-    } catch (err) {
-      projectMessage.innerHTML = `
-        <div class="alert alert-danger py-1">${err.message}</div>
-      `;
-    }
-  });
-
-  // ======== BUSCADOR DE PROYECTOS ACTIVOS ===========
-  projectSearchInput.addEventListener('input', async () => {
-    const term = normalizeText(projectSearchInput.value.trim());
-
-    if (!term) {
-      projectSuggestions.style.display = 'none';
-      return;
-    }
-
-    try {
-      const res = await fetch(`${BASE}/projects/active`);
-      const allProjects = await res.json();
-
-      const filtered = allProjects.filter(p => {
-        const pname = normalizeText(p.name_project || '');
-        const pid = normalizeText((p.no_project || '').toString());
-        if (pname.includes('sin asignar')) return false;
-        return pname.includes(term) || pid.includes(term);
-      });
-
-      const filteredProjects = filtered.sort((a, b) => {
-        const aname = normalizeText(a.name_project || '');
-        const aid = normalizeText((a.no_project || '').toString());
-        const bname = normalizeText(b.name_project || '');
-        const bid = normalizeText((b.no_project || '').toString());
-
-        const aStarts = aname.startsWith(term) || aid.startsWith(term);
-        const bStarts = bname.startsWith(term) || bid.startsWith(term);
-
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-
-        return aname.localeCompare(bname);
-      });
-
-      projectSuggestions.innerHTML = '';
-      filteredProjects.forEach(project => {
-        const div = document.createElement('div');
-        const displayName = project.name_project || '';
-        div.textContent = `${project.no_project} - ${displayName}`;
-        div.style.padding = '8px';
-        div.style.cursor = 'pointer';
-        div.style.borderBottom = '1px solid #eee';
-
-        div.addEventListener('click', () => {
-          projectSearchInput.value = `${project.no_project} - ${displayName}`;
-          projectSelectHidden.value = project.no_project;
-          projectSuggestions.style.display = 'none';
-        });
-
-        div.addEventListener('mouseover', () => {
-          div.style.backgroundColor = '#f0f0f0';
-        });
-
-        div.addEventListener('mouseout', () => {
-          div.style.backgroundColor = 'transparent';
-        });
-
-        projectSuggestions.appendChild(div);
-      });
-
-      projectSuggestions.style.display = filteredProjects.length ? 'block' : 'none';
-
-    } catch (err) {
-      console.error(err);
-    }
-  });
-
-  // Ocultar sugerencias si se hace click fuera
-  document.addEventListener('click', (e) => {
-    if (e.target !== projectSearchInput && e.target !== projectSuggestions) {
-      projectSuggestions.style.display = 'none';
-    }
-  });
-
-  // ========= SUBIR BOM ==========
-  document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    resultEl.innerHTML = '';
-
+    const status = 'Active'; // Status automático
     const fileInputEl = document.getElementById('fileinput');
     const file = fileInputEl.files[0];
-    const no_project = projectSelectHidden.value;
 
-    if (!no_project) {
-      resultEl.innerHTML = `
-        <div class="alert alert-warning py-1">Select project</div>`;
+    // Validar campos obligatorios
+    if (!no_project || !name_project) {
+      uploadMessage.innerHTML = `
+        <div class="alert alert-warning py-1">Todos los campos son obligatorios.</div>`;
       return;
     }
 
     if (!file) {
-      resultEl.innerHTML = `
-        <div class="alert alert-warning py-1">Select file</div>`;
+      uploadMessage.innerHTML = `
+        <div class="alert alert-warning py-1">Por favor selecciona un archivo</div>`;
       return;
     }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('no_project', no_project);
-
     try {
-      const res = await fetch(`${BASE}/bom`, {
+      // 1. Verificar si el proyecto ya existe
+      const checkRes = await fetch(`${BASE}/projects/check/${encodeURIComponent(no_project)}`);
+      const checkData = await checkRes.json();
+
+      if (checkData.exists) {
+        const confirmReplace = confirm(
+          `Desea reemplazar el BOM?\n\n!Se eliminaran todos los datos del BOM anterior.!`
+        );
+
+        if (!confirmReplace) {
+          uploadMessage.innerHTML = `
+            <div class="alert alert-info py-1">Carga cancelada</div>`;
+          return;
+        }
+
+        // Eliminar BOM anterior antes de subir el nuevo
+        await fetch(`${BASE}/bom/${encodeURIComponent(no_project)}`, {
+          method: 'DELETE'
+        });
+      } else {
+        // 2. Si no existe, registrar el proyecto primero
+        const projectRes = await fetch(`${BASE}/projects`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ no_project, name_project, status })
+        });
+
+        const projectData = await projectRes.json();
+
+        if (!projectRes.ok) {
+          uploadMessage.innerHTML = `
+            <div class="alert alert-danger py-1">Error al registrar el proyecto: ${projectData.message}</div>`;
+          return;
+        }
+      }
+
+      // 3. Subir el archivo BOM
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('no_project', no_project);
+
+      const bomRes = await fetch(`${BASE}/bom`, {
         method: 'POST',
         body: formData,
       });
 
-      const text = await res.text();
-      let data;
-      try { data = JSON.parse(text); } catch { data = { message: text }; }
+      const bomText = await bomRes.text();
+      let bomData;
+      try { bomData = JSON.parse(bomText); } catch { bomData = { message: bomText }; }
 
-      if (!res.ok) {
-        resultEl.innerHTML = `
-          <div class="alert alert-danger py-1">Error: ${data.message}</div>`;
+      if (!bomRes.ok) {
+        uploadMessage.innerHTML = `
+          <div class="alert alert-danger py-1">Error al cargar el BOM: ${bomData.message}</div>`;
         return;
       }
 
-      resultEl.innerHTML = `
-        <div class="alert alert-success py-1">Successfully uploaded</div>`;
+      // 4. Mostrar alerta de éxito
+      alert('Se guardo exitosamente.');
 
+      uploadMessage.innerHTML = `
+        <div class="alert alert-success py-1">¡Los datos se han cargado correctamente!</div>`;
+
+      // 5. Limpiar formulario
       setTimeout(() => {
+        document.getElementById('no_project').value = '';
+        document.getElementById('name_project').value = '';
         fileInputEl.value = '';
-        projectSearchInput.value = '';
-        projectSelectHidden.value = '';
-      }, 4000);
+
+        // Resetear el overlay del archivo
+        const overlay = document.querySelector('.upload-design-overlay');
+        if (overlay) {
+          overlay.classList.remove('file-selected');
+          overlay.innerHTML = `
+            <i class="bi bi-cloud-arrow-up-fill upload-icon mb-3"></i>
+            <p class="drag-text">Drag and Drop here</p>
+            <p class="or-text">or</p>
+            <a href="#" class="browse-link" onclick="event.preventDefault(); document.getElementById('fileinput').click();">Browse files</a>
+          `;
+        }
+
+        uploadMessage.innerHTML = '';
+      }, 3000);
 
     } catch (err) {
-      resultEl.innerHTML = `
-        <div class="alert alert-danger py-1">Error: ${err.message}</div>`;
+      uploadMessage.innerHTML = `
+        <div class="alert alert-danger py-1">Connection error: ${err.message}</div>`;
     }
   });
 });

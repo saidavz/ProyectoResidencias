@@ -20,8 +20,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim',
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb',
   port: 5432,
 });
 //probando que si funciona conla otra cuneta
@@ -200,6 +200,20 @@ app.get('/api/projects/all', async (req, res) => {
     res.status(500).json({ error: 'Error al cargar proyectos' });
   }
 });
+// Verificar si un proyecto existe//agregacion nueva
+app.get('/api/projects/check/:no_project', async (req, res) => {
+  try {
+    const { no_project } = req.params;
+    const result = await pool.query(
+      'SELECT no_project, name_project FROM project WHERE no_project = $1',
+      [no_project]
+    );
+    res.json({ exists: result.rows.length > 0, project: result.rows[0] || null });
+  } catch (error) {
+    console.error('Error checking project:', error);
+    res.status(500).json({ error: 'Error al verificar proyecto' });
+  }
+});
 
 app.get('/api/networks', async (req, res) => {
   try {
@@ -214,6 +228,24 @@ app.get('/api/networks', async (req, res) => {
 app.get('/api/purchases', async (req, res) => {
   try {
     const { projectId } = req.query;
+    /*let query =
+      `SELECT 
+        pr.name_project as project_name,
+        p.no_part,
+        p.description as description,
+        v.name_vendor as vendor_name,
+        pd.quantity,
+        pd.price_unit,
+        (pd.quantity * pd.price_unit) as total_amount,
+        pd.status,
+        pd.time_delivered_product,
+        pu.time_delivered
+      FROM purchase pu
+      INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
+      INNER JOIN project pr ON pu.no_project = pr.no_project
+      INNER JOIN vendor v ON pu.id_vendor = v.id_vendor
+      INNER JOIN product p ON pd.no_part = p.no_part`;*/
+
 
     let query = `
       SELECT 
@@ -302,6 +334,24 @@ app.post('/api/purchases', async (req, res) => {
     ]);
     const id_purchase = purchaseResult.rows[0].id_purchase;
 
+    /* Insertar cada producto en purchase_detail
+    for (const producto of productos) {
+      const { no_part, quantity, price_unit, time_delivered_product } = producto;
+
+      const detailQuery =
+        `INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part, time_delivered_product) 
+        VALUES ($1, $2, $3, $4, $5, $6)`;
+      await client.query(detailQuery, [
+        Number.isFinite(parseFloat(quantity)) ? parseFloat(quantity) : 0,
+        parseFloat(price_unit),
+        status,
+        id_purchase,
+        no_part,
+        time_delivered_product
+      ]);
+    }*/
+
+
     // Insertar cada producto en purchase_detail
     for (const producto of productos) {
       const { no_part, quantity, price_unit, time_delivered_product } = producto;
@@ -327,7 +377,6 @@ app.post('/api/purchases', async (req, res) => {
         [status, no_project, no_part]
       );
     }
-
 
     // Actualizar el balance de la network
     const nuevoBalance = balanceActual - totalCompra;
@@ -394,7 +443,10 @@ app.get("/api/stock", async (req, res) => {
         pu.time_delivered,
         pu.pr,
         pu.shopping,
-        pu.po
+        pu.po,
+        pd.quantity AS cantidad_entrada,
+        COALESCE((SELECT SUM(o.quantity) FROM output_inventory o WHERE o.id_stock = s.id_stock), 0) AS cantidad_salida,
+        (p.quantity - COALESCE((SELECT SUM(o.quantity) FROM output_inventory o WHERE o.id_stock = s.id_stock), 0)) AS cantidad_disponible
       FROM stock s
       JOIN product p ON s.no_part = p.no_part
       JOIN purchase_detail pd ON s.no_part = pd.no_part
@@ -539,7 +591,7 @@ app.post("/api/bom", upload.single("file"), async (req, res) => {
         [no_part, brand, description, quantity, unit, type_p]
       );
 
-      // Insertar en bom_project
+      // Insertar en bom_project// cambioss
       if (quantity_p !== null) {
         const status = "Quoted";
         await client.query(
@@ -558,6 +610,19 @@ app.post("/api/bom", upload.single("file"), async (req, res) => {
     client.release();
   }
 });
+// Eliminar BOM de un proyecto
+app.delete("/api/bom/:no_project", async (req, res) => {
+  const { no_project } = req.params;
+  
+  try {
+    await pool.query('DELETE FROM bom_project WHERE no_project = $1', [no_project]);
+    res.json({ message: `BOM deleted successfully for project ${no_project}` });
+  } catch (err) {
+    console.error("ERROR deleting BOM:", err);
+    res.status(500).json({ message: "Error deleting BOM", error: String(err) });
+  }
+});
+
 
 // Visualización de Materiales por Proyecto)
 app.get('/api/bomView', async (req, res) => {

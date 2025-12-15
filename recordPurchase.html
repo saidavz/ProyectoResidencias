@@ -339,7 +339,7 @@
         if (!tablaBody) return;
 
         // Usar quantity_calculated del backend (quantity_project / quantity)
-        const quantityFinal = producto.quantity_calculated || 0;
+                const quantityFinal = Math.ceil(producto.quantity_calculated || 0);
 
         // Escapar texto
         const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/</g, "&lt;").replace(/>/g, "&gt;");
