@@ -61,8 +61,8 @@ app.get("/api/products/bom-calculation", async (req, res) => {
     const { no_project, type_p } = req.query;
 
     if (!no_project || !type_p) {
-      return res.status(400).json({ 
-        message: "Debe proporcionar no_project y type_p" 
+      return res.status(400).json({
+        message: "Debe proporcionar no_project y type_p"
       });
     }
 
@@ -215,39 +215,40 @@ app.get('/api/purchases', async (req, res) => {
   try {
     const { projectId } = req.query;
 
-    let query = 
-      `SELECT 
-        pr.name_project as project_name,
+    let query = `
+      SELECT 
+        pr.name_project AS project_name,
         p.no_part,
-        p.description as description,
-        v.name_vendor as vendor_name,
+        p.description,
+        v.name_vendor AS vendor_name,
         pd.quantity,
         pd.price_unit,
-        (pd.quantity * pd.price_unit) as total_amount,
-        pd.status,
+        (pd.quantity * pd.price_unit) AS total_amount,
+        bp.status,
         pd.time_delivered_product,
         pu.time_delivered
       FROM purchase pu
-      INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
-      INNER JOIN project pr ON pu.no_project = pr.no_project
-      INNER JOIN vendor v ON pu.id_vendor = v.id_vendor
-      INNER JOIN product p ON pd.no_part = p.no_part`;
+      JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
+      JOIN bom_project bp 
+        ON bp.no_project = pu.no_project
+       AND bp.no_part = pd.no_part
+      JOIN project pr ON pu.no_project = pr.no_project
+      JOIN vendor v ON pu.id_vendor = v.id_vendor
+      JOIN product p ON pd.no_part = p.no_part
+    `;
 
     const params = [];
-
-    // Si hay projectId, agregar filtro
     if (projectId) {
-      query +=  ` WHERE pr.no_project::text = $1`;
-      params.push(String(projectId));
+      query += ` WHERE pr.no_project::text = $1`;
+      params.push(projectId);
     }
 
-    query +=  ` ORDER BY pu.id_purchase DESC`;
+    query += ` ORDER BY pu.id_purchase DESC`;
 
-    console.log('Purchases query:', query, 'Params:', params);
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching purchases:', error);
+    console.error(error);
     res.status(500).json({ error: 'Error al cargar las compras' });
   }
 });
@@ -259,7 +260,7 @@ app.post('/api/purchases', async (req, res) => {
     await client.query('BEGIN');
 
     // Extraer datos de la compra (AGREGAR type_p)
-    const { currency, id_vendor, no_project, time_delivered, status, network, po, pr, shopping, type_p, productos} = req.body;
+    const { currency, id_vendor, no_project, time_delivered, status, network, po, pr, shopping, type_p, productos } = req.body;
 
     // Validar que hay productos
     if (!productos || !Array.isArray(productos) || productos.length === 0) {
@@ -292,7 +293,7 @@ app.post('/api/purchases', async (req, res) => {
     }
 
     // Insertar en la tabla purchase 
-    const purchaseQuery = 
+    const purchaseQuery =
       `INSERT INTO purchase (currency, time_delivered, pr, shopping, po, no_project, id_vendor, network)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id_purchase`;
@@ -303,24 +304,34 @@ app.post('/api/purchases', async (req, res) => {
 
     // Insertar cada producto en purchase_detail
     for (const producto of productos) {
-      const { no_part, quantity, price_unit, time_delivered_product} = producto;
+      const { no_part, quantity, price_unit, time_delivered_product } = producto;
 
-      const detailQuery = 
-        `INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part, time_delivered_product) 
-        VALUES ($1, $2, $3, $4, $5, $6)`;
-      await client.query(detailQuery, [
-        Number.isFinite(parseFloat(quantity)) ? parseFloat(quantity) : 0,
-        parseFloat(price_unit),
-        status,
-        id_purchase,
-        no_part,
-        time_delivered_product
-      ]);
+      await client.query(
+        `INSERT INTO purchase_detail
+     (quantity, price_unit, id_purchase, no_part, time_delivered_product)
+     VALUES ($1, $2, $3, $4, $5)`,
+        [
+          Number.isFinite(parseFloat(quantity)) ? parseFloat(quantity) : 0,
+          parseFloat(price_unit),
+          id_purchase,
+          no_part,
+          time_delivered_product
+        ]
+      );
+
+      await client.query(
+        `UPDATE bom_project
+     SET status = $1
+     WHERE no_project = $2
+       AND no_part = $3`,
+        [status, no_project, no_part]
+      );
     }
+
 
     // Actualizar el balance de la network
     const nuevoBalance = balanceActual - totalCompra;
-    const updateBalanceQuery = 
+    const updateBalanceQuery =
       `UPDATE network SET balance = $1 WHERE network = $2`;
     await client.query(updateBalanceQuery, [nuevoBalance, network]);
 
@@ -360,21 +371,21 @@ app.get('/api/network/balance/:network', async (req, res) => {
 
 app.get("/api/stock", async (req, res) => {
   try {
-    const query = 
-      `SELECT
+    const query = `
+      SELECT
         s.id_stock,
         s.rack,
         s.date_entry,
         p.no_part,
         p.brand,
-        p.description AS description,
+        p.description,
         p.quantity AS product_quantity,
         p.unit,
         p.type_p,
         pd.price_unit,
         pd.quantity AS pd_quantity,
         (pd.price_unit * pd.quantity) AS subtotal,
-        pd.status,
+        bp.status,
         n.network,
         n.balance,
         v.name_vendor,
@@ -383,24 +394,25 @@ app.get("/api/stock", async (req, res) => {
         pu.time_delivered,
         pu.pr,
         pu.shopping,
-        pu.po,
-        pd.quantity AS cantidad_entrada,
-        COALESCE((SELECT SUM(o.quantity) FROM Output_inventory o WHERE o.id_stock = s.id_stock), 0) AS cantidad_salida,
-        (p.quantity - COALESCE((SELECT SUM(o.quantity) FROM Output_inventory o WHERE o.id_stock = s.id_stock), 0)) AS cantidad_disponible
-      FROM Stock s
-      JOIN Product p ON s.no_part = p.no_part 
-      JOIN Purchase_detail pd ON s.no_part = pd.no_part
-      JOIN Purchase pu ON pd.id_purchase = pu.id_purchase
-      JOIN Vendor v ON pu.id_vendor = v.id_vendor
-      JOIN Project pr ON pu.no_project = pr.no_project
-      JOIN Network n ON pu.network = n.network
-      WHERE s.id_stock IS NOT NULL
-      ORDER BY s.date_entry DESC`;
+        pu.po
+      FROM stock s
+      JOIN product p ON s.no_part = p.no_part
+      JOIN purchase_detail pd ON s.no_part = pd.no_part
+      JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+      JOIN bom_project bp
+        ON bp.no_project = pu.no_project
+       AND bp.no_part = pd.no_part
+      JOIN vendor v ON pu.id_vendor = v.id_vendor
+      JOIN project pr ON pu.no_project = pr.no_project
+      JOIN network n ON pu.network = n.network
+      ORDER BY s.date_entry DESC
+    `;
+
     const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
-    console.error("Error en consulta SQL:", error.message);
-    res.status(500).json({ error: "Error fetching stock data", details: error.message });
+    console.error(error);
+    res.status(500).json({ error: "Error fetching stock data" });
   }
 });
 
@@ -529,10 +541,11 @@ app.post("/api/bom", upload.single("file"), async (req, res) => {
 
       // Insertar en bom_project
       if (quantity_p !== null) {
+        const status = "Quoted";
         await client.query(
-          `INSERT INTO bom_project (no_project, quantity_project, no_part)
-           VALUES ($1, $2, $3)`,
-          [no_project, quantity_p, no_part]
+          `INSERT INTO bom_project (no_project, quantity_project, no_part, status)
+           VALUES ($1, $2, $3, $4)`,
+          [no_project, quantity_p, no_part, "Quoted"]
         );
       }
     }
@@ -552,8 +565,8 @@ app.get('/api/bomView', async (req, res) => {
   console.log('/api/bomView called with no_project=', noProject);
 
   try {
-    let query = 
-          `SELECT 
+    let query =
+      `SELECT 
               pr.name_project,
               bp.quantity_project AS quantity_requested,
               p.type_p,
@@ -569,11 +582,11 @@ app.get('/api/bomView', async (req, res) => {
     const queryParams = [];
 
     if (noProject) {
-      query +=  ` WHERE pr.no_project::text = $1`;
+      query += ` WHERE pr.no_project::text = $1`;
       queryParams.push(String(noProject));
     }
 
-    query +=  ` ORDER BY pr.name_project, p.no_part`;
+    query += ` ORDER BY pr.name_project, p.no_part`;
 
     const result = await pool.query(query, queryParams);
     res.json(result.rows);
@@ -613,75 +626,40 @@ app.get('/api/trackingCards', async (req, res) => {
   try {
     const { projectId } = req.query;
 
-    let sql;
-    let params = [];
-
-    if (projectId) {
-      sql = 
-        `WITH finance_data AS (
-          SELECT 
-            COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado,
-            COALESCE((
-              SELECT SUM(n.balance) FROM network n
-              WHERE n.network IN (
-                SELECT DISTINCT pu.network FROM purchase pu WHERE pu.no_project = $1
-              )
-            ), 0) AS balance_actual
-          FROM purchase_detail pd
-          INNER JOIN purchase pu ON pd.id_purchase = pu.id_purchase
-          WHERE pu.no_project = $1
-        )
+    let sql = `
+      WITH finance_data AS (
         SELECT 
-          COUNT(*) FILTER (WHERE pd.status = 'PO') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_po,
-          COUNT(*) FILTER (WHERE pd.status = 'PR') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_pr,
-          COUNT(*) FILTER (WHERE pd.status = 'Shopping cart') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_shopping,
-          COUNT(*) FILTER (WHERE pd.status = 'Delivered to BRK') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_entregado,
-          COUNT(*) FILTER (WHERE pd.status = 'Quoted') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_cotizado,
-          (fd.total_gastado * 100.0 / NULLIF((fd.total_gastado + fd.balance_actual), 0)) AS porcentaje_gastado,
-          fd.total_gastado AS total_gastado,
-          fd.balance_actual AS balance_actual
-        FROM purchase pu
-        INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
-        CROSS JOIN finance_data fd
-        WHERE pu.no_project = $1
-        GROUP BY fd.total_gastado, fd.balance_actual;`;
-      params = [projectId];
-    } else {
-      sql = 
-        `WITH finance_data AS (
-          SELECT 
-            COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado,
-            COALESCE((SELECT SUM(balance) FROM network), 0) AS balance_actual
-          FROM purchase_detail pd
-          INNER JOIN purchase pu ON pd.id_purchase = pu.id_purchase
-        )
-        SELECT 
-          COUNT(*) FILTER (WHERE pd.status = 'PO') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_po,
-          COUNT(*) FILTER (WHERE pd.status = 'PR') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_pr,
-          COUNT(*) FILTER (WHERE pd.status = 'Shopping cart') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_shopping,
-          COUNT(*) FILTER (WHERE pd.status = 'Delivered to BRK') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_entregado,
-          COUNT(*) FILTER (WHERE pd.status = 'Quoted') * 100.0 / NULLIF(COUNT(*), 0) AS porcentaje_cotizado,
-          (fd.total_gastado * 100.0 / NULLIF((fd.total_gastado + fd.balance_actual), 0)) AS porcentaje_gastado,
-          fd.total_gastado AS total_gastado,
-          fd.balance_actual AS balance_actual
-        FROM purchase pu
-        INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
-        CROSS JOIN finance_data fd
-        GROUP BY fd.total_gastado, fd.balance_actual;`;
-      params = [];
-    }
+          COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado,
+          COALESCE(SUM(n.balance), 0) AS balance_actual
+        FROM purchase_detail pd
+        JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+        JOIN network n ON pu.network = n.network
+        ${projectId ? 'WHERE pu.no_project = $1' : ''}
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE bp.status = 'PO') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_po,
+        COUNT(*) FILTER (WHERE bp.status = 'PR') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_pr,
+        COUNT(*) FILTER (WHERE bp.status = 'Shopping cart') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_shopping,
+        COUNT(*) FILTER (WHERE bp.status = 'Delivered to BRK') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_entregado,
+        COUNT(*) FILTER (WHERE bp.status = 'Quoted') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_cotizado,
+        (fd.total_gastado * 100.0 / NULLIF(fd.total_gastado + fd.balance_actual,0)) AS porcentaje_gastado,
+        fd.total_gastado,
+        fd.balance_actual
+      FROM purchase pu
+      JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
+      JOIN bom_project bp
+        ON bp.no_project = pu.no_project
+       AND bp.no_part = pd.no_part
+      CROSS JOIN finance_data fd
+      ${projectId ? 'WHERE pu.no_project = $1' : ''}
+      GROUP BY fd.total_gastado, fd.balance_actual
+    `;
 
+    const params = projectId ? [projectId] : [];
     const result = await pool.query(sql, params);
-    const row = result.rows[0] || {};
-    
-    if (row.total_gastado !== undefined) row.total_gastado = Number(row.total_gastado);
-    if (row.balance_actual !== undefined) row.balance_actual = Number(row.balance_actual);
-    if (row.porcentaje_gastado !== undefined) row.porcentaje_gastado = Number(row.porcentaje_gastado);
-    
-    res.json(row);
-
+    res.json(result.rows[0] || {});
   } catch (error) {
-    console.error('Error fetching percentages:', error);
+    console.error(error);
     res.status(500).json({ error: 'Error al cargar porcentajes' });
   }
 });
@@ -691,7 +669,7 @@ app.get('/api/bomView/debug', async (req, res) => {
   const noProject = req.query.no_project;
   console.log('/api/bomView/debug called with no_project=', noProject);
   try {
-    let query = 
+    let query =
       `SELECT 
         pr.no_project,
         pr.name_project,
@@ -702,10 +680,10 @@ app.get('/api/bomView/debug', async (req, res) => {
       JOIN project pr ON bp.no_project = pr.no_project`;
     const params = [];
     if (noProject) {
-      query +=  ` WHERE pr.no_project::text = $1`;
+      query += ` WHERE pr.no_project::text = $1`;
       params.push(String(noProject));
     }
-    query +=  ` ORDER BY pr.no_project, p.no_part`;
+    query += ` ORDER BY pr.no_project, p.no_part`;
 
     const result = await pool.query(query, params);
     res.json({ received: noProject ?? null, count: result.rows.length, sample: result.rows.slice(0, 5) });
