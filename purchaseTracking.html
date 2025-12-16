@@ -309,6 +309,7 @@
           const data = await response.json();
           console.log("Datos filtrados recibidos:", data);
           displayPurchasesData(data);
+          updateCumulativePercentages(data);
         } catch (error) {
           console.error('Error loading filtered purchases:', error);
           document.getElementById('purchasesTableBody').innerHTML =
@@ -316,7 +317,7 @@
         }
       }
 
-      // Funciones existentes (sin modificaciones)
+      // Funciones existentes (ajustadas para conservar solo gasto desde backend)
       async function loadPercentages(projectId) {
         try {
           // Fetch percentage breakdowns (existing behavior)
@@ -328,12 +329,7 @@
             const n = Number(v);
             return Number.isFinite(n) ? n.toFixed(1) : '0.0';
           };
-
-          document.getElementById("percentPO").innerText = `${formatPercent(data.porcentaje_po)}%`;
-          document.getElementById("percentPR").innerText = `${formatPercent(data.porcentaje_pr)}%`;
-          document.getElementById("percentShopping").innerText = `${formatPercent(data.porcentaje_shopping)}%`;
-          document.getElementById("percentEntregado").innerText = `${formatPercent(data.porcentaje_entregado)}%`;
-          document.getElementById("percentCotizado").innerText = `${formatPercent(data.porcentaje_cotizado)}%`;
+          // Mantener solo tarjetas de gasto desde backend
           document.getElementById("percentGastado").innerText = `${formatPercent(data.porcentaje_gastado)}%`;
 
           // Use backend-provided total_gastado (numeric amount) to populate the spent amount card
@@ -356,6 +352,7 @@
           const data = await response.json();
           console.log("Datos recibidos:", data);
           displayPurchasesData(data);
+          updateCumulativePercentages(data);
         } catch (error) {
           console.error('Error loading purchases:', error);
           document.getElementById('purchasesTableBody').innerHTML =
@@ -373,23 +370,173 @@
 
         tbody.innerHTML = '';
 
-        data.forEach(purchase => {
+        data.forEach((purchase, index) => {
+          if (purchase.status == null) {
+            console.warn('Purchase with null status detected for debugging:', purchase);
+          }
           const statusClass = getStatusClass(purchase.status);
-          const deliveryDate = new Date(purchase.time_delivered_product).toLocaleDateString();
+          const deliveryDate = purchase.time_delivered_product
+            ? new Date(purchase.time_delivered_product).toLocaleDateString()
+            : '';
+          const supplier = purchase.vendor_name || '';
 
           const row = `
           <tr>
             <td>${purchase.project_name}</td>
             <td>${purchase.no_part}</td>
             <td>${purchase.description}</td>
-            <td>${purchase.vendor_name}</td>
+            <td>${supplier}</td>
             <td>${purchase.quantity}</td>
-            <td><span class="badge ${statusClass}">${purchase.status}</span></td>
+            <td class="status-cell" data-index="${index}" data-part="${purchase.no_part}" data-project="${purchase.project_name}" style="cursor: pointer;"><span class="badge ${statusClass}">${purchase.status}</span></td>
             <td>${deliveryDate}</td>
           </tr>
         `;
           tbody.innerHTML += row;
         });
+
+        // Agregar evento de doble clic a las celdas de status
+        document.querySelectorAll('.status-cell').forEach(cell => {
+          cell.addEventListener('dblclick', function() {
+            const index = this.dataset.index;
+            const purchase = data[index];
+            openStatusEditor(this, purchase, data);
+          });
+        });
+      }
+
+      function openStatusEditor(cell, purchase, allData) {
+        const currentStatus = purchase.status;
+
+        // Definir opciones válidas según el estado actual
+        let options = [];
+        if (currentStatus === 'PR') {
+          options = ['PO', 'Shopping cart', 'Delivered'];
+        } else if (currentStatus === 'PO') {
+          options = ['Shopping cart', 'Delivered'];
+        } else if (currentStatus === 'Shopping cart') {
+          options = ['Delivered'];
+        } else {
+          // Para 'Quoted' y 'Delivered' no se permite editar (no mostrar select)
+          return;
+        }
+
+        const html = `
+          <select class="form-select form-select-sm status-select">
+            <option value="" disabled selected>${currentStatus}</option>
+            ${options.map(o => `<option value="${o}">${o}</option>`).join('')}
+          </select>
+        `;
+
+        cell.innerHTML = html;
+        const select = cell.querySelector('.status-select');
+        select.focus();
+
+        select.addEventListener('change', async (e) => {
+          const newStatus = e.target.value;
+          if (newStatus === currentStatus) {
+            displayPurchasesData(allData);
+            return;
+          }
+
+          // Confirmación antes de actualizar
+          const confirmado = confirm(`¿Confirmas actualizar el estado de ${purchase.no_part} de "${currentStatus}" a "${newStatus}"?`);
+          if (!confirmado) {
+            displayPurchasesData(allData);
+            return;
+          }
+
+          // Guardar el cambio en el backend
+          try {
+            const response = await fetch(`${BASE}/purchases/status`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                no_project: purchase.no_project,
+                no_part: purchase.no_part,
+                status: newStatus
+              })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+              alert(`Error al actualizar status: ${result.message}`);
+              displayPurchasesData(allData);
+              return;
+            }
+
+            // Actualizar el objeto en memoria
+            purchase.status = newStatus;
+            updateCumulativePercentages(allData);
+            displayPurchasesData(allData);
+            alert('Status actualizado exitosamente');
+          } catch (err) {
+            console.error('Error updating status:', err);
+            alert('Error al actualizar el status');
+            displayPurchasesData(allData);
+          }
+        });
+
+        select.addEventListener('blur', () => {
+          displayPurchasesData(allData);
+        });
+      }
+      // Normaliza estados a etapas canónicas para porcentajes/tabla
+      function normalizeStage(status) {
+        if (!status || String(status).toLowerCase() === 'null') return null;
+        switch (status) {
+          case 'Quoted':
+            return 'Quoted';
+          case 'PR':
+            return 'PR';
+          case 'PO':
+            return 'PO';
+          case 'Shopping cart':
+            return 'Shopping cart';
+          case 'Delivered':
+          case 'Delivered to BRK':
+          case 'Reviewed and imported':
+          case 'Delivered to HW US':
+          case 'In the process of delivery to HW US':
+            return 'Delivered';
+          default:
+            return null;
+        }
+      }
+
+      // Calcula porcentajes acumulativos por etapa y actualiza cards
+      function updateCumulativePercentages(purchases) {
+        const stages = ['Quoted', 'PR', 'PO', 'Shopping cart', 'Delivered'];
+        const total = Array.isArray(purchases) ? purchases.length : 0;
+
+        if (!total) {
+          document.getElementById("percentCotizado").innerText = '0%';
+          document.getElementById("percentPR").innerText = '0%';
+          document.getElementById("percentPO").innerText = '0%';
+          document.getElementById("percentShopping").innerText = '0%';
+          document.getElementById("percentEntregado").innerText = '0%';
+          return;
+        }
+
+        // Obtener índices de etapa para cada item
+        const stageIndexes = purchases.map(p => {
+          const normalized = normalizeStage(p.status);
+          return stages.indexOf(normalized);
+        });
+
+        // Calcular porcentajes: para cada etapa, contar items en esa etapa o posterior
+        const percents = stages.map((_, stageIdx) => {
+          const num = stageIndexes.filter(ix => ix >= stageIdx).length;
+          return ((num / total) * 100);
+        });
+
+        const fmt = (v) => `${Number(v).toFixed(1)}%`;
+
+        document.getElementById("percentCotizado").innerText = fmt(percents[0]);
+        document.getElementById("percentPR").innerText = fmt(percents[1]);
+        document.getElementById("percentPO").innerText = fmt(percents[2]);
+        document.getElementById("percentShopping").innerText = fmt(percents[3]);
+        document.getElementById("percentEntregado").innerText = fmt(percents[4]);
       }
 
       function getStatusClass(status) {
@@ -409,6 +556,7 @@
           case 'Reviewed and imported':
             return 'bg-warning text-dark';
           case 'Delivered to BRK':
+          case 'Delivered':
             return 'bg-success';
           default:
             return 'bg-secondary';

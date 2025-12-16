@@ -228,45 +228,39 @@ app.get('/api/networks', async (req, res) => {
 app.get('/api/purchases', async (req, res) => {
   try {
     const { projectId } = req.query;
-    /*let query =
-      `SELECT 
-        pr.name_project as project_name,
-        p.no_part,
-        p.description as description,
-        v.name_vendor as vendor_name,
-        pd.quantity,
-        pd.price_unit,
-        (pd.quantity * pd.price_unit) as total_amount,
-        pd.status,
-        pd.time_delivered_product,
-        pu.time_delivered
-      FROM purchase pu
-      INNER JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
-      INNER JOIN project pr ON pu.no_project = pr.no_project
-      INNER JOIN vendor v ON pu.id_vendor = v.id_vendor
-      INNER JOIN product p ON pd.no_part = p.no_part`;*/
 
-
+    // Traer TODOS los items del BOM (incluyendo Quoted sin compra)
+    // y agregar datos de compra si existe
     let query = `
-      SELECT 
+      SELECT
         pr.name_project AS project_name,
+        pr.no_project AS no_project,
         p.no_part,
         p.description,
         v.name_vendor AS vendor_name,
-        pd.quantity,
-        pd.price_unit,
-        (pd.quantity * pd.price_unit) AS total_amount,
+        COALESCE(pd.quantity, bp.quantity_project) AS quantity,
         bp.status,
         pd.time_delivered_product,
-        pu.time_delivered
-      FROM purchase pu
-      JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
-      JOIN bom_project bp 
-        ON bp.no_project = pu.no_project
-       AND bp.no_part = pd.no_part
-      JOIN project pr ON pu.no_project = pr.no_project
-      JOIN vendor v ON pu.id_vendor = v.id_vendor
-      JOIN product p ON pd.no_part = p.no_part
+        COALESCE(pd.price_unit, 0) AS price_unit,
+        COALESCE(pd.total_amount, 0) AS total_amount
+      FROM bom_project bp
+      JOIN project pr ON bp.no_project = pr.no_project
+      JOIN product p ON bp.no_part = p.no_part
+      LEFT JOIN LATERAL (
+        SELECT 
+          pd.quantity,
+          pd.time_delivered_product,
+          pd.price_unit,
+          (pd.quantity * pd.price_unit) AS total_amount,
+          pu.id_vendor
+        FROM purchase_detail pd
+        JOIN purchase pu ON pu.id_purchase = pd.id_purchase
+        WHERE pu.no_project = bp.no_project
+          AND pd.no_part = bp.no_part
+        ORDER BY pu.id_purchase DESC
+        LIMIT 1
+      ) pd ON TRUE
+      LEFT JOIN vendor v ON pd.id_vendor = v.id_vendor
     `;
 
     const params = [];
@@ -275,13 +269,41 @@ app.get('/api/purchases', async (req, res) => {
       params.push(projectId);
     }
 
-    query += ` ORDER BY pu.id_purchase DESC`;
+    query += ` ORDER BY pr.no_project, p.no_part`;
 
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error al cargar las compras' });
+  }
+});
+
+// Endpoint para actualizar el status de un item en bom_project
+app.put('/api/purchases/status', async (req, res) => {
+  const { no_project, no_part, status } = req.body;
+
+  if (!no_project || !no_part || !status) {
+    return res.status(400).json({ message: 'no_project, no_part y status son requeridos' });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE bom_project 
+       SET status = $1 
+       WHERE no_project = $2 AND no_part = $3
+       RETURNING *`,
+      [status, no_project, no_part]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Item no encontrado' });
+    }
+
+      res.json({ message: 'Status actualizado exitosamente', item: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating status:', error);
+    res.status(500).json({ message: 'Error al actualizar el status', error: error.message });
   }
 });
 
@@ -333,23 +355,6 @@ app.post('/api/purchases', async (req, res) => {
       currency, time_delivered, pr || null, shopping, po || null, no_project, id_vendor, network
     ]);
     const id_purchase = purchaseResult.rows[0].id_purchase;
-
-    /* Insertar cada producto en purchase_detail
-    for (const producto of productos) {
-      const { no_part, quantity, price_unit, time_delivered_product } = producto;
-
-      const detailQuery =
-        `INSERT INTO purchase_detail (quantity, price_unit, status, id_purchase, no_part, time_delivered_product) 
-        VALUES ($1, $2, $3, $4, $5, $6)`;
-      await client.query(detailQuery, [
-        Number.isFinite(parseFloat(quantity)) ? parseFloat(quantity) : 0,
-        parseFloat(price_unit),
-        status,
-        id_purchase,
-        no_part,
-        time_delivered_product
-      ]);
-    }*/
 
 
     // Insertar cada producto en purchase_detail
@@ -509,46 +514,48 @@ function pick(rowObj, names) {
   return null;
 }
 
-// Ruta para BOM - obtener proyectos 
+// Ruta para obtener proyectos activos
 app.get("/api/projects/active", async (req, res) => {
   try {
     const result = await pool.query("SELECT no_project, name_project FROM Project WHERE status ILIKE 'active'");
     res.json(result.rows);
-  } catch (err) {
-    console.error("Error obtaining projects:", err);
-    res.status(500).json({ message: "Error obtaining projects" });
+  } catch (error) {
+    console.error('Error fetching active projects:', error);
+    res.status(500).json({ error: 'Error al cargar proyectos activos' });
   }
 });
-app.post('/api/projects', async (req, res) => {
-  try {
-    const { no_project, name_project, status } = req.body;
 
+// Ruta POST para crear un nuevo proyecto
+app.post("/api/projects", async (req, res) => {
+  const { no_project, name_project, status } = req.body;
+  
+  if (!no_project || !name_project) {
+    return res.status(400).json({ message: "no_project y name_project son requeridos" });
+  }
+
+  try {
     const result = await pool.query(
       `INSERT INTO project (no_project, name_project, status)
        VALUES ($1, $2, $3)
-       RETURNING *`,
-      [no_project, name_project, status || "active"]
+       RETURNING no_project, name_project, status`,
+      [no_project, name_project, status || 'Active']
     );
-
-    res.json({
-      success: true,
-      project: result.rows[0]
-    });
-
+    res.json({ message: "Proyecto creado exitosamente", project: result.rows[0] });
   } catch (error) {
-    console.error("Error inserting project:", error);
-    res.status(500).json({ error: "Error inserting project" });
+    console.error('Error creating project:', error);
+    res.status(500).json({ message: "Error al crear el proyecto", error: error.message });
   }
 });
 
-
-// Ruta para BOM - subir archivo Excel
-app.post("/api/bom", upload.single("file"), async (req, res) => {
+// Ruta POST para subir BOM (archivo Excel)
+app.post('/api/bom', upload.single('file'), async (req, res) => {
   const client = await pool.connect();
+  const { no_project } = req.body;
+  if (!no_project) return res.status(400).json({ message: "Select a project" });
+  if (!req.file) return res.status(400).json({ message: "No file was uploaded" });
+
   try {
-    const { no_project } = req.body;
-    if (!no_project) return res.status(400).json({ message: "Select a project" });
-    if (!req.file) return res.status(400).json({ message: "No file was uploaded" });
+    await client.query('BEGIN');
 
     const workbook = xlsx.readFile(req.file.path);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -591,9 +598,8 @@ app.post("/api/bom", upload.single("file"), async (req, res) => {
         [no_part, brand, description, quantity, unit, type_p]
       );
 
-      // Insertar en bom_project// cambioss
+      // Insertar en bom_project
       if (quantity_p !== null) {
-        const status = "Quoted";
         await client.query(
           `INSERT INTO bom_project (no_project, quantity_project, no_part, status)
            VALUES ($1, $2, $3, $4)`,
@@ -602,8 +608,10 @@ app.post("/api/bom", upload.single("file"), async (req, res) => {
       }
     }
 
+    await client.query('COMMIT');
     res.json({ message: `File processed successfully for the project ${no_project}` });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error("ERROR:", err);
     res.status(500).json({ message: "Error processing file", error: String(err) });
   } finally {

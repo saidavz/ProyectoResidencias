@@ -113,7 +113,6 @@ body {
   filter: drop-shadow(0 6px 12px rgba(255, 59, 48, 0.5));
 }
 
-/* Texto de botones */
 .btn-title {
   font-size: 1.5rem;
   font-weight: 700;
@@ -159,7 +158,6 @@ body {
   letter-spacing: 1px;
 }
 
-/* CARD DEL TOTAL MEJORADO - SIN ICONO */
 .total-material-card {
   background: linear-gradient(135deg, rgba(255, 59, 48, 0.2), rgba(0, 0, 0, 0.9));
   padding: 2rem 2.5rem;
