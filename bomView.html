@@ -12,7 +12,6 @@
 </head>
 
 <body>
-
     <nav class="navbar navbar-expand-lg navbar-dark bg-gradient">
         <div class="container-fluid px-4">
             <a href="index.html" class="p-0 me-4">
@@ -82,7 +81,6 @@
                             <th>Total Quantity Required</th>
                         </tr>
                     </thead>
-
                     <tbody id="bomTableBody">
                         <tr>
                             <td colspan="9" class="text-center">Cargando datos...</td>
@@ -104,7 +102,6 @@
             const projectSearchInput = document.getElementById('projectSearchBomView');
             const projectSuggestions = document.getElementById('projectSuggestionsBomView');
             let allProjects = [];
-
             // Función para normalizar acentos y convertir a minúsculas
             function normalizeText(text) {
                 return text
@@ -112,7 +109,6 @@
                     .normalize('NFD')
                     .replace(/[\u0300-\u036f]/g, ''); // Elimina marcas diacríticas
             }
-
             // Cargar todos los proyectos al iniciar
             async function loadAllProjects() {
                 try {
@@ -122,18 +118,15 @@
                     console.error('Error loading projects:', err);
                 }
             }
-
             // Buscador de proyectos
             projectSearchInput.addEventListener('input', () => {
                 const term = normalizeText(projectSearchInput.value.trim());
-
                 if (!term) {
                     projectSuggestions.style.display = 'none';
                     loadAllBOMData(); // Mostrar todos los BOMs si no hay búsqueda
                     return;
                 }
-
-                // Filtrar proyectos excluyendo "Sin asignar"
+                // Filtrar proyectos excluyendo los que no tengan proyecto asignado
                 const filtered = allProjects.filter(p => {
                     const pname = normalizeText(p.name_project || '');
                     const pid = normalizeText((p.no_project || '').toString());
@@ -147,18 +140,14 @@
                 const filteredProjects = filtered.sort((a, b) => {
                     const aname = normalizeText(a.name_project || '');
                     const bname = normalizeText(b.name_project || '');
-
                     const aStartsWith = aname.startsWith(term);
                     const bStartsWith = bname.startsWith(term);
-
                     // Si uno empieza y el otro no, poner primero al que empieza
                     if (aStartsWith && !bStartsWith) return -1;
                     if (!aStartsWith && bStartsWith) return 1;
-
                     // Si ambos empiezan (o ninguno), mantener orden alfabético
                     return aname.localeCompare(bname);
                 });
-
                 projectSuggestions.innerHTML = '';
                 filteredProjects.forEach(project => {
                     const div = document.createElement('div');
@@ -181,30 +170,24 @@
                     });
                     projectSuggestions.appendChild(div);
                 });
-
                 projectSuggestions.style.display = filteredProjects.length ? 'block' : 'none';
             });
-
             // Ocultar sugerencias al hacer click fuera
             document.addEventListener('click', (e) => {
                 if (e.target !== projectSearchInput && !projectSuggestions.contains(e.target)) {
                     projectSuggestions.style.display = 'none';
                 }
             });
-
             // Cargar BOM filtrado por proyecto
             async function loadBOMDataByProject(noProject) {
                 let url = `${BASE}/bomView`;
                 const params = new URLSearchParams();
-
                 if (noProject) {
                     params.append('no_project', noProject);
                 }
-
                 if (params.toString()) {
                     url += '?' + params.toString();
                 }
-
                 try {
                     console.log('Fetching BOM URL:', url);
                     const response = await fetch(url);
@@ -220,11 +203,9 @@
                         '<tr><td colspan="9" class="text-center text-danger">Error al cargar los datos</td></tr>';
                 }
             }
-
             // Cargar todos los BOM al inicio
             async function loadAllBOMData() {
                 let url = `${BASE}/bomView`;
-
                 try {
                     console.log('Fetching all BOM URL:', url);
                     const response = await fetch(url);
@@ -240,15 +221,13 @@
                         '<tr><td colspan="9" class="text-center text-danger">Error al cargar los datos</td></tr>';
                 }
             }
-
             function displayBOMData(data) {
                 const tbody = document.getElementById('bomTableBody');
 
                 if (!data || data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="text-center">No se encontraron materiales</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" class="text-center">No materials were found.</td></tr>';
                     return;
                 }
-
                 const rows = data.map(item => {
                     const uploadDate = item.upload_date ? new Date(item.upload_date).toLocaleDateString() : 'N/A';
                     return `
@@ -268,7 +247,6 @@
 
                 tbody.innerHTML = rows;
             }
-
             // Cargar proyectos y BOMs al iniciar
             loadAllProjects();
             loadAllBOMData();

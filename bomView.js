@@ -6,24 +6,20 @@
     try {
       const response = await fetch('http://localhost:3000/api/bomView'); 
       const data = await response.json();
-      console.log("Datos recibidos:", data); 
       displayBOMData(data);
     } catch (error) {
-      console.error('Error loading BOM:', error);
       document.getElementById('bomTableBody').innerHTML = 
         '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
     }
   }
 
-
   function displayBOMData(data) {
     const tbody = document.getElementById('bomTableBody');
-    
     if (data.length === 0) {
       tbody.innerHTML = '<tr><td colspan=7" class="text-center">No BOM found</td></tr>';
       return;
     }
-  // URL explícita al backend
+  // URL del backend
   const BASE = 'http://localhost:3000/api';
 
   //Funcion para cargar proyectos en el select
@@ -35,11 +31,9 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const projects = await res.json();
       projectSelect.innerHTML = '<option value="">-- Select project --</option>';
-      // En bom.js, dentro de la función loadProjects:
             projects.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.no_project;
-                // CORREGIDO: Usar p.name en lugar de p.name_project
                 opt.textContent = `${p.no_project} - ${p.name}`; 
                 projectSelect.appendChild(opt);
               });
@@ -50,9 +44,7 @@
       projectSelect.innerHTML = '<option value="">Error loading projects</option>';
     }
   }
-
     tbody.innerHTML = '';
-
     data.forEach(item => {
       const row = `
         <tr>

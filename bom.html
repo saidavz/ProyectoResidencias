@@ -11,7 +11,7 @@
 
 <body>
 
-    <!-- Barra de navegación (SIN CAMBIOS) -->
+    <!-- Barra de navegación -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-gradient">
         <div class="container-fluid px-4">
             <a href="index.html" class="p-0 me-4" title="Go to Home Page">
@@ -39,7 +39,7 @@
                 </ul>
             </div>
             <div class="d-flex align-items-center">
-                <i class="bi bi-geo-alt-fill fs-4 me-2 text-white"></i>
+                <i class="bi bi-file-earmark-arrow-up fs-4 me-2 text-white"></i>
                 <span class="h4 mb-0 text-white">Upload BOM</span>
             </div>
         </div>
@@ -48,36 +48,33 @@
     <div id="result"></div>
 
     <div class="container mt-4">
-        <!-- Contenedor del nuevo diseño de tarjeta -->
+        <!-- Contenedor de la tarjeta -->
         <div class="row justify-content-center">
-            <!-- CONTENEDOR MÁS GRANDE: col-lg-10 col-xl-8 -->
+            <!-- Contenedor más grande -->
             <div class="col-lg-10 col-xl-8">
                 <div class="card p-4 p-md-5">
                     <h2 class="mb-4 text-center">Load Bill of Materials</h2>
 
-                    <!-- FORMULARIO UNIFICADO — Register Project & Upload BOM -->
+                    <!-- Formulario del registro de proyecto y del BOM -->
                     <form id="uploadForm" class="mb-3">
-
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label class="form-label">Project Number</label>
                                 <input type="text" id="no_project" class="form-control" placeholder="Enter number"
                                     required>
                             </div>
-
                             <div class="col-md-6">
                                 <label class="form-label">Project Name</label>
                                 <input type="text" id="name_project" class="form-control"
-                                    placeholder="Enter project name" required>
+                                placeholder="Enter project name" required>
                             </div>
                         </div>
-                        <!-- Subir archivo BOM -->
+                        <!-- Apartado para subir el archivo del BOM -->
                         <div class="mb-3">
                             <label for="fileinput" class="form-label">File .xlsx</label>
 
                             <div class="upload-area-wrapper">
                                 <input type="file" id="fileinput" accept=".xlsx" class="original-file-input" required />
-
                                 <div class="upload-design-overlay text-center"
                                     onclick="document.getElementById('fileinput').click();">
                                     <i class="bi bi-cloud-arrow-up-fill upload-icon mb-3"></i>
@@ -89,13 +86,13 @@
                                     </a>
                                 </div>
                             </div>
-
+                            <!-- Indicación del tipo de archivo aceptado -->
                             <div class="d-flex justify-content-between align-items-center mt-2 file-info">
                                 <span class="accepted-types">Accepted File Type: **.xlsx** only</span>
                                 <span class="secure-text"><i class="bi bi-lock-fill me-1"></i> Secure</span>
                             </div>
                         </div>
-
+                        <!-- Botón para guardar formulario -->
                         <button type="submit" class="btn btn-primary btn-lg w-100">Upload</button>
                         <div id="uploadMessage" class="mt-2"></div>
                     </form>
