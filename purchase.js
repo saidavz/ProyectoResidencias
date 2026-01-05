@@ -300,7 +300,7 @@ app.put('/api/purchases/status', async (req, res) => {
       return res.status(404).json({ message: 'Item no encontrado' });
     }
 
-      res.json({ message: 'Status actualizado exitosamente', item: result.rows[0] });
+    res.json({ message: 'Status actualizado exitosamente', item: result.rows[0] });
   } catch (error) {
     console.error('Error updating status:', error);
     res.status(500).json({ message: 'Error al actualizar el status', error: error.message });
@@ -528,7 +528,7 @@ app.get("/api/projects/active", async (req, res) => {
 // Ruta POST para crear un nuevo proyecto
 app.post("/api/projects", async (req, res) => {
   const { no_project, name_project, status } = req.body;
-  
+
   if (!no_project || !name_project) {
     return res.status(400).json({ message: "no_project y name_project son requeridos" });
   }
@@ -546,6 +546,17 @@ app.post("/api/projects", async (req, res) => {
     res.status(500).json({ message: "Error al crear el proyecto", error: error.message });
   }
 });
+
+function normalizeText(value) {
+  if (value === null || value === undefined) return null;
+
+  return value
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+}
 
 // Ruta POST para subir BOM (archivo Excel)
 app.post('/api/bom', upload.single('file'), async (req, res) => {
@@ -580,14 +591,14 @@ app.post('/api/bom', upload.single('file'), async (req, res) => {
 
     // Procesar cada fila
     for (const rowObj of data) {
-      const no_part = pick(rowObj, ["no_parte", "numero_de_parte", "part_number"]);
+      const no_part = normalizeText(pick(rowObj, ["no_parte", "numero_de_parte", "part_number"]));
       if (!no_part) continue;
 
-      const brand = pick(rowObj, ["marca", "brand"]);
-      const description = pick(rowObj, ["producto", "description", "descripcion"]);
+      const brand = normalizeText(pick(rowObj, ["marca", "brand"]));
+      const description = normalizeText(pick(rowObj, ["producto", "description", "descripcion"]));
       const quantity = toInt(pick(rowObj, ["cantidad_venta", "quantity", "qty"]));
-      const unit = pick(rowObj, ["unidad", "unit"]);
-      const type_p = pick(rowObj, ["tipo", "type"]);
+      const unit = normalizeText(pick(rowObj, ["unidad", "unit"]));
+      const type_p = normalizeText(pick(rowObj, ["tipo", "type"]));
       const quantity_p = toInt(pick(rowObj, ["cantidad_solicitada", "cantidad_proyecto"]));
 
       // Insertar producto si no existe
@@ -621,7 +632,7 @@ app.post('/api/bom', upload.single('file'), async (req, res) => {
 // Eliminar BOM de un proyecto
 app.delete("/api/bom/:no_project", async (req, res) => {
   const { no_project } = req.params;
-  
+
   try {
     await pool.query('DELETE FROM bom_project WHERE no_project = $1', [no_project]);
     res.json({ message: `BOM deleted successfully for project ${no_project}` });
