@@ -21,7 +21,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim',
+  password: 'automationdb',
   port: 5432,
 });
 //probando que si funciona conla otra cuneta
