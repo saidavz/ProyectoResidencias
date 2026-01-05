@@ -86,7 +86,7 @@
                       <option value="">Loading vendors...</option>
                     </select>
                   </div>
-                <!-- Select de networks -->
+                  <!-- Select de networks -->
                   <div class="col-md-6 mb-3">
                     <label class="form-label">Network</label>
                     <select class="form-select bg-secondary text-light" name="network" id="networkSelect" required>
@@ -108,7 +108,7 @@
                         <option value="MXN">MXN</option>
                       </select>
                     </div>
-                  <!-- Campo para ingresar PR -->
+                    <!-- Campo para ingresar PR -->
                     <div class="col-md-6 mb-3">
                       <label class="form-label">PR</label>
                       <input type="text" class="form-control bg-secondary text-light" name="pr" required>
@@ -139,7 +139,7 @@
                         </tr>
                       </thead>
                       <tbody>
-                      <!-- Los productos se agregan a la tabla dinámicamente -->
+                        <!-- Los productos se agregan a la tabla dinámicamente -->
                       </tbody>
                       <tfoot>
                         <tr class="total-row">
@@ -161,8 +161,8 @@
       </div>
     </div>
   </main>
-  <footer class="text-center py-3 text-danger bg-dark">
-    Automation Purchase - BRK. Resideo.
+  <footer class="text-center py-3 text-white bg-gradient mt-5">
+    Purchase-Inventory Management System - BRK. Resideo.
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
@@ -171,7 +171,7 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const baseURL = 'http://localhost:3000/api';
-      let productosEnTabla = []; 
+      let productosEnTabla = [];
 
       // Función para calcular y actualizar el total 
       function actualizarTotal() {
@@ -345,14 +345,14 @@
           return [];
         }
       }
-      
+
       // Función para agregar producto con cálculo aplicado
       function agregarProductoConCalculo(producto) {
         const tablaBody = document.querySelector("#tablaProductos tbody");
         if (!tablaBody) return;
 
         // Usar quantity_calculated del backend (quantity_project / quantity)
-                const quantityFinal = Math.ceil(producto.quantity_calculated || 0);
+        const quantityFinal = Math.ceil(producto.quantity_calculated || 0);
 
         // Escapar texto
         const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -473,7 +473,7 @@
         // Manejo del input de fecha
         const dateInput = nuevaFila.querySelector('.time-delivered');
         dateInput.addEventListener('change', () => {
-          productoObj.time_delivered = dateInput.value;   
+          productoObj.time_delivered = dateInput.value;
         });
 
       }
@@ -556,7 +556,7 @@
 
         // Insertar las fechas al array productosEnTabla
         const filas = document.querySelectorAll("#tablaProductos tbody tr");
-        const fechaTotal= obtenerFechaMasTardia();
+        const fechaTotal = obtenerFechaMasTardia();
 
         filas.forEach((fila, index) => {
           const fecha = fila.querySelector(".time-delivered").value || null;
@@ -604,9 +604,9 @@
         }));
 
         const no_project = document.querySelector('.no_project').value.trim();
-        formData.time_delivered= fechaTotal;
-        formData.no_project= no_project;
-        formData.status= "PR";
+        formData.time_delivered = fechaTotal;
+        formData.no_project = no_project;
+        formData.status = "PR";
 
 
         const button = form.querySelector('button[type="submit"]');
