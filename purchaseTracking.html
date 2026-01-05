@@ -11,7 +11,7 @@
 </head>
 
 <body>
-
+  <!-- Barra de navegación -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-gradient">
     <div class="container-fluid px-4">
       <a href="index.html" class="p-0 me-4" title="Go to Home Page">
@@ -48,11 +48,9 @@
       </div>
     </div>
   </nav>
-
   <main class="container my-5">
     <h2 class="text-center text-white mb-4">Purchase Tracking</h2>
-
-    <!-- Buscador agregado aquí -->
+    <!-- Buscador por proyecto -->
     <div class="card p-4 mb-4 static-filter-card" style="position: relative; z-index: 1010; overflow: visible;">
       <div class="row d-flex justify-content-center">
         <div class="col-md-8" style="position: relative; z-index: 1010; overflow: visible;">
@@ -65,7 +63,6 @@
                 style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 2000; border: 1px solid #ccc; display: none; max-height: 300px; overflow-y: auto; border-radius: 4px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); background-color: white;">
               </div>
             </div>
-
             <!-- Boton para colapso -->
             <div style="white-space: nowrap;">
               <button id="btnGeneral" class="btn btn-primary" type="button" aria-expanded="false"
@@ -77,7 +74,6 @@
         </div>
       </div>
     </div>
-
     <!-- Cards colapsadas -->
     <div style="min-height: 120px;">
       <div class="collapse collapse-vertical" id="collapse">
@@ -88,28 +84,24 @@
               <h5 id="percentCotizado" style="text-align: center; font-size: 40px;">0%</h5>
             </div>
           </div>
-
           <div class="card mb-3" style="width: 12rem;">
             <div class="card-header" style="text-align: center; font-size: 20px;">% PR</div>
             <div class="card-body">
               <h5 id="percentPR" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
             </div>
           </div>
-
           <div class="card mb-3 bg-purple-soft" style="width: 12rem;">
             <div class="card-header" style="text-align: center; font-size: 20px;">% PO</div>
             <div class="card-body">
               <h5 id="percentPO" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
             </div>
           </div>
-
           <div class="card bg-red-soft mb-3" style="width: 12rem;">
             <div class="card-header text-danger" style="text-align: center; font-size: 20px;">% Shopping Cart</div>
             <div class="card-body text-danger">
               <h5 id="percentShopping" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
             </div>
           </div>
-
           <div class="card bg-green-soft mb-3" style="width: 12rem;">
             <div class="card-header text-success" style="text-align: center; font-size: 20px;">% Delivered</div>
             <div class="card-body text-success">
@@ -124,7 +116,6 @@
               <h5 id="percentGastado" style="text-align: center; font-size: 40px; color: white;">0%</h5>
             </div>
           </div>
-
           <div class="card bg-white-soft mb-3" style="width: 12rem;">
             <div class="card-header" style="text-align: center; font-size: 16px; color: white;">Spended Amount</div>
             <div class="card-body">
@@ -157,7 +148,6 @@
       </table>
     </div>
   </main>
-
   <footer class="text-center py-3 text-white bg-gradient mt-5">
     Purchase-Inventory Management System - BRK. Resideo.
   </footer>
@@ -176,7 +166,6 @@
         btnGeneral.addEventListener('click', function (e) {
           if (!projectSearchInput || !projectSearchInput.dataset.noProject) {
             e.preventDefault();
-            // mostrar mensaje temporal debajo del input
             const cont = projectSearchInput && projectSearchInput.parentElement;
             if (cont) {
               let msg = cont.querySelector('.temp-msg');
@@ -192,8 +181,6 @@
             }
             return;
           }
-
-          //NOTA: Sai, aquí hay que mandar a llamar el collapse desde la seleccion en la tabla
           // Si hay proyecto seleccionado, toggleamos el collapse explícitamente
           try {
             const collapseEl = document.getElementById('collapse');
@@ -209,16 +196,14 @@
           }
         });
       }
-
-      // Función para normalizar acentos y convertir a minúsculas
+      // Función para normalizar
       function normalizeText(text) {
         return text
           .toLowerCase()
           .normalize('NFD')
           .replace(/[\u0300-\u036f]/g, '');
       }
-
-      // Cargar todos los proyectos al iniciar
+      // Cargar todos los proyectos al inicio
       async function loadAllProjects() {
         try {
           const res = await fetch(`${BASE}/projects/all`);
@@ -245,7 +230,6 @@
         const filtered = allProjects.filter(p => {
           const pname = normalizeText(p.name_project || '');
           const pid = normalizeText((p.no_project || '').toString());
-          // Excluir "Sin asignar"
           if (pname.includes('sin asignar')) return false;
           // Incluir si contiene el término en nombre o en no_project
           return pname.includes(term) || pid.includes(term);
@@ -306,7 +290,6 @@
           if (noProject) {
             url += `?projectId=${encodeURIComponent(noProject)}`;
           }
-
           const response = await fetch(url);
           const data = await response.json();
           console.log("Datos filtrados recibidos:", data);
@@ -319,14 +302,14 @@
         }
       }
 
-      // Funciones existentes (ajustadas para conservar solo gasto desde backend)
+      // Funciones existentes
       async function loadPercentages(projectId) {
         try {
-          // Fetch percentage breakdowns (existing behavior)
+          // Fetch para los porcentajes
           const res = await fetch(`http://localhost:3000/api/trackingCards?projectId=${encodeURIComponent(projectId)}`);
           const data = await res.json();
 
-          // Helper to format percentages with one decimal place
+          // Formato a los porcentajes
           const formatPercent = (v) => {
             const n = Number(v);
             return Number.isFinite(n) ? n.toFixed(1) : '0.0';
@@ -334,12 +317,10 @@
           // Mantener solo tarjetas de gasto desde backend
           document.getElementById("percentGastado").innerText = `${formatPercent(data.porcentaje_gastado)}%`;
 
-          // Use backend-provided total_gastado (numeric amount) to populate the spent amount card
           try {
             const spent = Number(data.total_gastado || 0);
             document.getElementById('spentAmount').textContent = `$${spent.toFixed(2)}`;
           } catch (errSet) {
-            console.error('Error setting spent amount from trackingCards:', errSet);
             document.getElementById('spentAmount').textContent = '$0.00';
           }
 
@@ -347,21 +328,19 @@
           console.error("Error loading percentages:", error);
         }
       }
-
+      //Funcion para cargar los porcentajes
       async function loadPurchasesData() {
         try {
           const response = await fetch('http://localhost:3000/api/purchases');
           const data = await response.json();
-          console.log("Datos recibidos:", data);
           displayPurchasesData(data);
           updateCumulativePercentages(data);
         } catch (error) {
-          console.error('Error loading purchases:', error);
           document.getElementById('purchasesTableBody').innerHTML =
             '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
         }
       }
-
+      //Funcion para cargar los seguimientos de las compras
       function displayPurchasesData(data) {
         const tbody = document.getElementById('purchasesTableBody');
 
@@ -396,7 +375,7 @@
           tbody.innerHTML += row;
         });
 
-        // Agregar evento de doble clic a las celdas de status
+        // Evento de doble clic a las celdas de status
         document.querySelectorAll('.status-cell').forEach(cell => {
           cell.addEventListener('dblclick', function () {
             const index = this.dataset.index;
@@ -418,7 +397,7 @@
         } else if (currentStatus === 'Shopping cart') {
           options = ['Delivered'];
         } else {
-          // Para 'Quoted' y 'Delivered' no se permite editar (no mostrar select)
+          //'Quoted' y 'Delivered' se cambian automaticamente
           return;
         }
 
@@ -441,7 +420,7 @@
           }
 
           // Confirmación antes de actualizar
-          const confirmado = confirm(`¿Confirmas actualizar el estado de ${purchase.no_part} de "${currentStatus}" a "${newStatus}"?`);
+          const confirmado = confirm(`Would you like to update the status of ${purchase.no_part} from "${currentStatus}" to "${newStatus}"?`);
           if (!confirmado) {
             displayPurchasesData(allData);
             return;
@@ -462,7 +441,7 @@
             const result = await response.json();
 
             if (!response.ok) {
-              alert(`Error al actualizar status: ${result.message}`);
+              alert(`Error updating status: ${result.message}`);
               displayPurchasesData(allData);
               return;
             }
@@ -471,10 +450,9 @@
             purchase.status = newStatus;
             updateCumulativePercentages(allData);
             displayPurchasesData(allData);
-            alert('Status actualizado exitosamente');
+            alert('Status successfully updated');
           } catch (err) {
-            console.error('Error updating status:', err);
-            alert('Error al actualizar el status');
+            alert('Error updating status');
             displayPurchasesData(allData);
           }
         });
@@ -483,7 +461,7 @@
           displayPurchasesData(allData);
         });
       }
-      // Normaliza estados a etapas canónicas para porcentajes/tabla
+      // Normaliza estados a etapas para porcentajes
       function normalizeStage(status) {
         if (!status || String(status).toLowerCase() === 'null') return null;
         switch (status) {
@@ -506,7 +484,7 @@
         }
       }
 
-      // Calcula porcentajes acumulativos por etapa y actualiza cards
+      // Calcular porcentajes acumulativos por etapa y actualiza cards
       function updateCumulativePercentages(purchases) {
         const stages = ['Quoted', 'PR', 'PO', 'Shopping cart', 'Delivered'];
         const total = Array.isArray(purchases) ? purchases.length : 0;
@@ -526,7 +504,7 @@
           return stages.indexOf(normalized);
         });
 
-        // Calcular porcentajes: para cada etapa, contar items en esa etapa o posterior
+        // Calcular porcentajes
         const percents = stages.map((_, stageIdx) => {
           const num = stageIndexes.filter(ix => ix >= stageIdx).length;
           return ((num / total) * 100);
@@ -564,7 +542,6 @@
             return 'bg-secondary';
         }
       }
-
       // Inicializar
       loadAllProjects();
       loadPurchasesData();
