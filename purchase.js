@@ -20,11 +20,10 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
   password: 'automationdb',
   port: 5432,
 });
-//probando que si funciona conla otra cuneta
 // RUTAS DEL SERVIRDOR 1 (purchase.js) 
 
 app.get('/api/products', async (req, res) => {
@@ -81,7 +80,7 @@ app.get("/api/products/bom-calculation", async (req, res) => {
     const bomItems = bomResult.rows;
     const bomNoParts = bomItems.map(item => item.no_part);
 
-    // 2. Buscar productos que coincidan con type_p Y estén en BOM
+    // 2. Buscar productos que coincidan conel tipo de producto Y estén en BOM
     const productResult = await pool.query(
       `SELECT no_part, brand, description, quantity, unit, type_p 
        FROM product 
@@ -110,7 +109,7 @@ app.get("/api/products/bom-calculation", async (req, res) => {
   }
 });
 
-//OBTENER PRODUCTOS POR TYPE_P (MANTENGO POR COMPATIBILIDAD)
+//Obtener productos por tipo
 app.get("/api/products/byType", async (req, res) => {
   try {
     const { type_p } = req.query;
@@ -200,7 +199,7 @@ app.get('/api/projects/all', async (req, res) => {
     res.status(500).json({ error: 'Error al cargar proyectos' });
   }
 });
-// Verificar si un proyecto existe//agregacion nueva
+// Verificar si un proyecto existe
 app.get('/api/projects/check/:no_project', async (req, res) => {
   try {
     const { no_project } = req.params;
@@ -229,8 +228,6 @@ app.get('/api/purchases', async (req, res) => {
   try {
     const { projectId } = req.query;
 
-    // Traer TODOS los items del BOM (incluyendo Quoted sin compra)
-    // y agregar datos de compra si existe
     let query = `
       SELECT
         pr.name_project AS project_name,
@@ -307,7 +304,7 @@ app.put('/api/purchases/status', async (req, res) => {
   }
 });
 
-// RUTA MODIFICADA PARA MÚLTIPLES PRODUCTOS Y ACTUALIZAR BALANCE
+//  Multiples productos en una compra
 app.post('/api/purchases', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -406,7 +403,7 @@ app.post('/api/purchases', async (req, res) => {
   }
 });
 
-// Ruta para obtener el balance de una network específica
+// Ruta para obtener el balance de una network 
 app.get('/api/network/balance/:network', async (req, res) => {
   try {
     const { network } = req.params;
@@ -474,7 +471,6 @@ app.get("/api/stock", async (req, res) => {
 });
 
 // RUTAS DEL SERVIRDOR 2 
-
 // Funciones auxiliares para BOM
 function normalizeHeader(h) {
   if (h === null || h === undefined) return "";
@@ -748,7 +744,6 @@ app.get('/api/trackingCards', async (req, res) => {
   }
 });
 
-// Endpoint de diagnóstico para comprobar qué recibe el servidor y cuántas filas devuelve
 app.get('/api/bomView/debug', async (req, res) => {
   const noProject = req.query.no_project;
   console.log('/api/bomView/debug called with no_project=', noProject);
@@ -778,16 +773,5 @@ app.get('/api/bomView/debug', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`SERVIDOR  ejecutándose en http://localhost:${PORT}`);
-  console.log(`Todas las rutas funcionando:`);
-  console.log(`   - /api/projects/all (Register Purchase)`);
-  console.log(`   - /api/projects/search (NUEVO - Búsqueda proyectos)`);
-  console.log(`   - /api/projects/active (BOM)`);
-  console.log(`   - /api/products/types (NUEVO - Búsqueda tipos)`);
-  console.log(`   - /api/products/byType (NUEVO - Obtener productos por tipo)`);
-  console.log(`   - /api/products/bom-calculation (NUEVO - Cálculo BOM + Product)`);
-  console.log(`   - /api/bom (Subir archivos BOM)`);
-  console.log(`   - /api/stock (Inventory)`);
-  console.log(`   - /api/purchases (MULTIPLE PRODUCTS SUPPORT + BALANCE UPDATE)`);
-  console.log(`   - /api/network/balance/:network (GET NETWORK BALANCE)`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

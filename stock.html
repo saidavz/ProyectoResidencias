@@ -38,7 +38,18 @@
           </li>
           <li class="nav-item"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
           <li class="nav-item"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
-          <li class="nav-item"><a class="nav-link active" href="stock.html">Inventory</a></li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle active" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Inventory
+            </a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="stockR.html">Register Inventory</a></li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li><a class="dropdown-item" href="stock.html">View Inventory</a></li>
+            </ul>
+          </li>
         </ul>
       </div>
       <div class="d-flex align-items-center">
@@ -124,28 +135,3 @@
 </body>
 
 </html>
-
-
-<!-- 
-              <th>Fecha de Entrada</th>
-              <th>Status</th>
-              <th>Subtotal</th>
-              <th>Balance</th>
-              <th>Moneda</th>
-              <th>Fecha Entrega</th>
-              <th>Cantidad</th>
-              <th>Cantidad Entrada</th>
-              <th>Precio Unitario</th>
-
-              script:
-              
-            <td>${item.date_entry ? new Date(item.date_entry).toLocaleDateString() : ''}</td>
-            <td>${safeValue(item.price_unit)}</td>
-            <td>${safeValue(item.quantity)}</td>
-            <td>${safeValue(item.cantidad_entrada)}</td>
-            <td>${safeValue(item.subtotal)}</td>
-            <td>${safeValue(item.status)}</td>
-            <td>${safeValue(item.balance)}</td>
-            <td>${safeValue(item.currency)}</td>
-            <td>${item.time_delivered ? new Date(item.time_delivered).toLocaleDateString() : ''}</td>
--->

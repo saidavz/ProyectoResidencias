@@ -5,6 +5,60 @@ document.addEventListener('DOMContentLoaded', () => {
   // URL del backend
   const BASE = 'http://localhost:3000/api';
 
+  // Cargar proyectos existentes para autocompletado
+  let existingProjects = [];
+
+  async function loadExistingProjects() {
+    try {
+      const response = await fetch(`${BASE}/projects/all`);
+      if (response.ok) {
+        existingProjects = await response.json();
+        console.log('Proyectos cargados:', existingProjects.length);
+      } else {
+        console.error('Error al obtener proyectos, status:', response.status);
+      }
+    } catch (err) {
+      console.error('Error loading projects:', err);
+    }
+  }
+
+  // Actualizar sugerencias del datalist
+  function updateProjectSuggestions(searchText) {
+    const datalist = document.getElementById('projectNumberList');
+    datalist.innerHTML = '';
+
+    if (searchText.length > 0) {
+      const filtered = existingProjects.filter(p => 
+        p.no_project.toLowerCase().startsWith(searchText.toLowerCase())
+      );
+
+      console.log('Buscando:', searchText, 'Encontrados:', filtered.length);
+
+      filtered.forEach(project => {
+        const option = document.createElement('option');
+        option.value = project.no_project;
+        option.textContent = `${project.no_project} - ${project.name_project}`;
+        datalist.appendChild(option);
+      });
+    }
+  }
+
+  // Event listener para el campo de número de proyecto
+  const noProjectInput = document.getElementById('no_project');
+  noProjectInput.addEventListener('input', (e) => {
+    const value = e.target.value;
+    updateProjectSuggestions(value);
+
+    // Buscar proyecto coincidente y autocompletar nombre
+    const matchedProject = existingProjects.find(p => p.no_project === value);
+    if (matchedProject) {
+      document.getElementById('name_project').value = matchedProject.name_project;
+    }
+  });
+
+  // Cargar proyectos al iniciar
+  loadExistingProjects();
+
   // Subir el BOM y registrar el proyecto
   document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -59,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
       }
+      
       // Subir el archivo del BOM
       const formData = new FormData();
       formData.append('file', file);
@@ -70,14 +125,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const bomText = await bomRes.text();
       let bomData;
       try { bomData = JSON.parse(bomText); } catch { bomData = { message: bomText }; }
+      
       if (!bomRes.ok) {
         uploadMessage.innerHTML = `
           <div class="alert alert-danger py-1">Error loading the BOM: ${bomData.message}</div>`;
         return;
       }
+      
       uploadMessage.innerHTML = `
         <div class="alert alert-success py-1">The data has been successfully uploaded!</div>`;
-      //Limpiar el formulario después de 3 segundos
+      
+      // Limpiar el formulario 
       setTimeout(() => {
         document.getElementById('no_project').value = '';
         document.getElementById('name_project').value = '';
@@ -93,7 +151,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <a href="#" class="browse-link" onclick="event.preventDefault(); document.getElementById('fileinput').click();">Browse files</a>
           `;
         }
-        uploadMessage.innerHTML = '';
+        // Recargar lista de proyectos 
+        loadExistingProjects();
       }, 3000);
     } catch (err) {
       uploadMessage.innerHTML = `
