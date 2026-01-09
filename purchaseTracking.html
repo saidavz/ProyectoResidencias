@@ -126,6 +126,17 @@
         <br>
       </div>
     </div>
+    <!-- Filtro Dinámico -->
+    <div class="d-flex justify-content-end mb-3" style="gap: 10px;">
+      <select id="filterSelect" class="form-select" style="width: 250px;">
+        <option value="">Filter by...</option>
+        <option value="status">Status</option>
+        <option value="supplier">Supplier</option>
+      </select>
+      <button id="btnClearFilters" class="btn btn-outline-secondary" style="white-space: nowrap;">
+        <i class="bi bi-x-circle"></i> Clear
+      </button>
+    </div>
     <div class="table-responsive">
       <table class="table table-striped table-bordered table-hover align-middle bg-white">
         <thead class="table-dark">
@@ -158,6 +169,8 @@
       const projectSearchInput = document.getElementById('projectSearchTracking');
       const projectSuggestions = document.getElementById('projectSuggestionsTracking');
       let allProjects = [];
+      let allPurchasesData = []; // Guardar todos los datos para filtrado
+      let uniqueSuppliers = new Set(); // Proveedores únicos
 
       // Botón General Tracking
       const btnGeneral = document.getElementById('btnGeneral');
@@ -292,8 +305,9 @@
           const response = await fetch(url);
           const data = await response.json();
           console.log("Datos filtrados recibidos:", data);
-          displayPurchasesData(data);
-          updateCumulativePercentages(data);
+          allPurchasesData = data; // Guardar datos globalmente
+          populateSupplierFilter(data); // Poblar filtro de proveedores
+          applyFilters(); // Aplicar filtros actuales
         } catch (error) {
           console.error('Error loading filtered purchases:', error);
           document.getElementById('purchasesTableBody').innerHTML =
@@ -332,6 +346,8 @@
         try {
           const response = await fetch('http://localhost:3000/api/purchases');
           const data = await response.json();
+          allPurchasesData = data; // Guardar datos globalmente
+          populateSupplierFilter(data); // Poblar filtro de proveedores
           displayPurchasesData(data);
           updateCumulativePercentages(data);
         } catch (error) {
@@ -541,6 +557,105 @@
             return 'bg-secondary';
         }
       }
+
+      // Poblar filtro de proveedores
+      function populateSupplierFilter(data) {
+        uniqueSuppliers.clear();
+        data.forEach(purchase => {
+          if (purchase.vendor_name && purchase.vendor_name.trim()) {
+            uniqueSuppliers.add(purchase.vendor_name.trim());
+          }
+        });
+      }
+
+      // Variable para rastrear el tipo de filtro actual
+      let currentFilterType = '';
+      let currentFilterValue = '';
+
+      // Actualizar el dropdown según la selección
+      function updateFilterDropdown() {
+        const filterSelect = document.getElementById('filterSelect');
+        const selectedValue = filterSelect.value;
+
+        // Si seleccionó "status", cambiar a opciones de status
+        if (selectedValue === 'status') {
+          currentFilterType = 'status';
+          filterSelect.innerHTML = `
+            <option value="back">← Back to filters</option>
+            <option value="">All Status</option>
+            <option value="Quoted">Quoted</option>
+            <option value="PR">PR</option>
+            <option value="PO">PO</option>
+            <option value="Shopping cart">Shopping cart</option>
+            <option value="Delivered">Delivered</option>
+          `;
+        } 
+        // Si seleccionó "supplier", cambiar a opciones de proveedores
+        else if (selectedValue === 'supplier') {
+          currentFilterType = 'supplier';
+          let options = '<option value="back">← Back to filters</option><option value="">All Suppliers</option>';
+          Array.from(uniqueSuppliers).sort().forEach(supplier => {
+            options += `<option value="${supplier}">${supplier}</option>`;
+          });
+          filterSelect.innerHTML = options;
+        }
+        // Si seleccionó "back", volver al menú principal
+        else if (selectedValue === 'back') {
+          resetFilterDropdown();
+        }
+        // Si seleccionó un valor específico (Quoted, PR, etc. o un proveedor)
+        else if (currentFilterType && selectedValue) {
+          currentFilterValue = selectedValue;
+          applyFilters();
+        }
+        // Si seleccionó "" (All Status o All Suppliers), limpiar filtro
+        else if (currentFilterType && selectedValue === '') {
+          currentFilterValue = '';
+          applyFilters();
+        }
+      }
+
+      // Resetear dropdown al estado inicial
+      function resetFilterDropdown() {
+        const filterSelect = document.getElementById('filterSelect');
+        filterSelect.innerHTML = `
+          <option value="">Filter by...</option>
+          <option value="status">Status</option>
+          <option value="supplier">Supplier</option>
+        `;
+        currentFilterType = '';
+        currentFilterValue = '';
+        applyFilters();
+      }
+
+      // Aplicar filtros
+      function applyFilters() {
+        let filteredData = [...allPurchasesData];
+
+        if (currentFilterType && currentFilterValue) {
+          if (currentFilterType === 'status') {
+            filteredData = filteredData.filter(purchase => {
+              const normalizedStatus = normalizeStage(purchase.status);
+              return normalizedStatus === currentFilterValue;
+            });
+          } else if (currentFilterType === 'supplier') {
+            filteredData = filteredData.filter(purchase => {
+              return purchase.vendor_name && purchase.vendor_name.trim() === currentFilterValue;
+            });
+          }
+        }
+
+        displayPurchasesData(filteredData);
+        updateCumulativePercentages(filteredData);
+      }
+
+      // Event listeners para filtros
+      document.getElementById('filterSelect').addEventListener('change', updateFilterDropdown);
+
+      document.getElementById('btnClearFilters').addEventListener('click', () => {
+        resetFilterDropdown();
+      });
+
       // Inicializar
       loadAllProjects();
       loadPurchasesData();
