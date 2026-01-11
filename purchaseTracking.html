@@ -171,6 +171,8 @@
       let allProjects = [];
       let allPurchasesData = []; // Guardar todos los datos para filtrado
       let uniqueSuppliers = new Set(); // Proveedores únicos
+      let currentPurchase = null;
+      let currentAllData = null;
 
       // Botón General Tracking
       const btnGeneral = document.getElementById('btnGeneral');
@@ -412,69 +414,49 @@
         } else if (currentStatus === 'Shopping cart') {
           options = ['Delivered'];
         } else {
-          //'Quoted' y 'Delivered' se cambian automaticamente
           return;
         }
 
-        const html = `
-          <select class="form-select form-select-sm status-select">
-            <option value="" disabled selected>${currentStatus}</option>
-            ${options.map(o => `<option value="${o}">${o}</option>`).join('')}
-          </select>
-        `;
+        // Variables globales para el estado actual
+        currentPurchase = purchase;
+        currentAllData = allData;
 
-        cell.innerHTML = html;
-        const select = cell.querySelector('.status-select');
-        select.focus();
+        // Actualizar offcanvas con datos actuales
+        document.getElementById('currentStatusDisplay').textContent = currentStatus;
+        const statusSelect = document.getElementById('statusSelect');
+        statusSelect.innerHTML = `<option value="" disabled selected>Select new status</option>` +
+          options.map(o => `<option value="${o}">${o}</option>`).join('');
 
-        select.addEventListener('change', async (e) => {
-          const newStatus = e.target.value;
-          if (newStatus === currentStatus) {
-            displayPurchasesData(allData);
-            return;
+        // Reset inputs adicionales
+        document.getElementById('poSection').style.display = 'none';
+        document.getElementById('scSection').style.display = 'none';
+        document.getElementById('poNumber').value = '';
+        document.getElementById('scId').value = '';
+
+        // Remover event listener previo si existe
+        if (statusSelect.changeHandler) {
+          statusSelect.removeEventListener('change', statusSelect.changeHandler);
+        }
+
+        // Agregar nuevo event listener
+        statusSelect.changeHandler = function() {
+          const selected = this.value;
+          if (selected === 'PO') {
+            document.getElementById('poSection').style.display = 'block';
+            document.getElementById('scSection').style.display = 'none';
+          } else if (selected === 'Shopping cart') {
+            document.getElementById('poSection').style.display = 'none';
+            document.getElementById('scSection').style.display = 'block';
+          } else {
+            document.getElementById('poSection').style.display = 'none';
+            document.getElementById('scSection').style.display = 'none';
           }
+        };
+        statusSelect.addEventListener('change', statusSelect.changeHandler);
 
-          // Confirmación antes de actualizar
-          const confirmado = confirm(`Would you like to update the status of ${purchase.no_part} from "${currentStatus}" to "${newStatus}"?`);
-          if (!confirmado) {
-            displayPurchasesData(allData);
-            return;
-          }
-
-          // Guardar el cambio en el backend
-          try {
-            const response = await fetch(`${BASE}/purchases/status`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                no_project: purchase.no_project,
-                no_part: purchase.no_part,
-                status: newStatus
-              })
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-              alert(`Error updating status: ${result.message}`);
-              displayPurchasesData(allData);
-              return;
-            }
-
-            // Actualizar el objeto en memoria
-            purchase.status = newStatus;
-            updateCumulativePercentages(allData);
-            displayPurchasesData(allData);
-            alert('Status successfully updated');
-          } catch (err) {
-            alert('Error updating status');
-            displayPurchasesData(allData);
-          }
-        });
-
-        select.addEventListener('blur', () => {
-          displayPurchasesData(allData);
-        });
+        // Mostrar offcanvas
+        const offcanvas = new bootstrap.Offcanvas(document.getElementById('statusOffcanvas'));
+        offcanvas.show();
       }
       // Normaliza estados a etapas para porcentajes
       function normalizeStage(status) {
@@ -656,12 +638,118 @@
         resetFilterDropdown();
       });
 
+      // Guardar cambios de estado
+      document.getElementById('saveStatusBtn').addEventListener('click', async () => {
+        const newStatus = document.getElementById('statusSelect').value;
+        if (!newStatus) {
+          alert('Please select a new status.');
+          return;
+        }
+        const currentStatus = currentPurchase.status;
+        if (newStatus === currentStatus) {
+          //Cerrar offcanvas si no hay cambio
+          const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('statusOffcanvas'));
+          offcanvas.hide();
+          return;
+        }
+
+        // Validar campos adicionales según el nuevo estado
+        let poNumber = null;
+        let scId = null;
+        if (newStatus === 'PO') {
+          poNumber = document.getElementById('poNumber').value.trim();
+          if (!poNumber) {
+            alert('Please enter the PO Number.');
+            return;
+          }
+        } else if (newStatus === 'Shopping cart') {
+          scId = document.getElementById('scId').value.trim();
+          if (!scId) {
+            alert('Please enter the Shopping Cart ID.');
+            return;
+          }
+        }
+
+        // Confirmación antes de actualizar
+        const confirmado = confirm(`Would you like to update the status of ${currentPurchase.no_part} and others items from the same purchase from "${currentStatus}" to "${newStatus}"?`);
+        if (!confirmado) {
+          return;
+        }
+
+        // Datos a enviar
+        const dataToSend = {
+          no_project: currentPurchase.no_project,
+          no_part: currentPurchase.no_part,
+          status: newStatus,
+          id_purchase: currentPurchase.id_purchase
+        };
+        if (poNumber) dataToSend.po = poNumber;
+        if (scId) dataToSend.shopping = scId;
+
+        // Guardar el cambio en el backend
+        try {
+          const response = await fetch(`${BASE}/purchases/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dataToSend)
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            alert(`Error updating status: ${result.message}`);
+            return;
+          }
+
+          // Actualizar el objeto en memoria
+          currentPurchase.status = newStatus;
+          if (poNumber) currentPurchase.po = poNumber;
+          if (scId) currentPurchase.shopping = scId;
+          updateCumulativePercentages(currentAllData);
+          // Refrescar la tabla
+          await loadPurchasesData();
+          alert('Status successfully updated');
+          // Cerrar offcanvas
+          const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('statusOffcanvas'));
+          offcanvas.hide();
+        } catch (err) {
+          alert('Error updating status');
+        }
+      });
+
       // Inicializar
       loadAllProjects();
       loadPurchasesData();
       loadPercentages("");
     });
   </script>
+
+  <!-- Offcanvas para edición de estado -->
+  <div class="offcanvas offcanvas-start" data-bs-backdrop="static" tabindex="-1" id="statusOffcanvas" aria-labelledby="statusOffcanvasLabel">
+    <div class="offcanvas-header bg-dark text-white">
+      <h5 class="offcanvas-title" id="statusOffcanvasLabel">Edit Status</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body bg-dark text-white">
+      <p>Current Status: <span id="currentStatusDisplay"></span></p>
+      <label for="statusSelect" class="form-label">New Status:</label>
+      <select id="statusSelect" class="form-select">
+        <!-- Opciones para el estado -->
+      </select>
+      <div id="poSection" style="display: none; margin-top: 10px;">
+        <label for="poNumber" class="form-label">PO Number:</label>
+        <input type="text" id="poNumber" class="form-control" placeholder="Enter PO Number">
+      </div>
+      <div id="scSection" style="display: none; margin-top: 10px;">
+        <label for="scId" class="form-label">Shopping Cart ID:</label>
+        <input type="text" id="scId" class="form-control" placeholder="Enter Shopping Cart ID">
+      </div>
+      <div class="mt-3">
+        <button id="saveStatusBtn" class="btn btn-primary">Save</button>
+        <button class="btn btn-secondary" data-bs-dismiss="offcanvas">Cancel</button>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>

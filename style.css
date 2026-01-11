@@ -620,11 +620,24 @@ body {
   transition: var(--transition);
 }
 
+.btn-secondary {
+  background: linear-gradient(135deg, var(--medium-gray), var(--dark-gray));
+  border: none;
+  border-radius: 12px;
+  padding: 1rem 2rem;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
 .btn-primary:hover {
   background: linear-gradient(135deg, var(--dark-red), var(--primary-red));
   transform: translateY(-2px);
 }
 
+.btn-secondary:hover {
+  background: linear-gradient(135deg, var(--dark-gray), var(--medium-gray));
+  transform: translateY(-2px);
+}
 /* ===== FOOTER ===== */
 footer {
   background: linear-gradient(135deg, var(--pure-black), var(--charcoal));

@@ -20,8 +20,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb',
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: '150403kim',
   port: 5432,
 });
 // RUTAS DEL SERVIRDOR 1 (purchase.js) 
@@ -276,28 +276,42 @@ app.get('/api/purchases', async (req, res) => {
   }
 });
 
-// Endpoint para actualizar el status de un item en bom_project
+// Endpoint para actualizar el status de un item en bom_project y campos en purchase
 app.put('/api/purchases/status', async (req, res) => {
-  const { no_project, no_part, status } = req.body;
+  const { no_project, no_part, status, po, shopping, id_purchase } = req.body;
 
-  if (!no_project || !no_part || !status) {
-    return res.status(400).json({ message: 'no_project, no_part y status son requeridos' });
+  if (!no_project || !no_part || !status || !id_purchase) {
+    return res.status(400).json({ message: 'no_project, no_part, status e id_purchase son requeridos' });
   }
 
   try {
-    const result = await pool.query(
-      `UPDATE bom_project 
-       SET status = $1 
-       WHERE no_project = $2 AND no_part = $3
-       RETURNING *`,
+    // Actualizar status en bom_project
+    const bomResult = await pool.query(
+      `UPDATE bom_project SET status = $1 WHERE no_project = $2 AND no_part = $3 RETURNING *`,
       [status, no_project, no_part]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Item no encontrado' });
+    if (bomResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Item no encontrado en bom_project' });
     }
 
-    res.json({ message: 'Status actualizado exitosamente', item: result.rows[0] });
+    // Actualizar po en purchase si se proporciona
+    if (po !== undefined) {
+      await pool.query(
+        `UPDATE purchase SET po = $1 WHERE id_purchase = $2`,
+        [po, id_purchase]
+      );
+    }
+
+    // Actualizar shopping en purchase si se proporciona
+    if (shopping !== undefined) {
+      await pool.query(
+        `UPDATE purchase SET shopping = $1 WHERE id_purchase = $2`,
+        [shopping, id_purchase]
+      );
+    }
+
+    res.json({ message: 'Status y campos actualizados exitosamente', item: bomResult.rows[0] });
   } catch (error) {
     console.error('Error updating status:', error);
     res.status(500).json({ message: 'Error al actualizar el status', error: error.message });
