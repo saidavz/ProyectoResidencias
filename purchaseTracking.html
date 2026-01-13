@@ -405,6 +405,12 @@
       function openStatusEditor(cell, purchase, allData) {
         const currentStatus = purchase.status;
 
+        // Verificar si hay id_purchase
+        if (!purchase.id_purchase) {
+          alert('This item does not have an associated purchase. Please create a purchase first.');
+          return;
+        }
+
         // Definir opciones válidas según el estado actual
         let options = [];
         if (currentStatus === 'PR') {
@@ -671,7 +677,7 @@
         }
 
         // Confirmación antes de actualizar
-        const confirmado = confirm(`Would you like to update the status of ${currentPurchase.no_part} and others items from the same purchase from "${currentStatus}" to "${newStatus}"?`);
+        const confirmado = confirm(`Would you like to update the status of ${currentPurchase.no_part} from "${currentStatus}" to "${newStatus}"?`);
         if (!confirmado) {
           return;
         }
@@ -725,12 +731,12 @@
   </script>
 
   <!-- Offcanvas para edición de estado -->
-  <div class="offcanvas offcanvas-start" data-bs-backdrop="static" tabindex="-1" id="statusOffcanvas" aria-labelledby="statusOffcanvasLabel">
-    <div class="offcanvas-header bg-dark text-white">
+  <div class="offcanvas offcanvas-start bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="statusOffcanvas" aria-labelledby="statusOffcanvasLabel">
+    <div class="offcanvas-header">
       <h5 class="offcanvas-title" id="statusOffcanvasLabel">Edit Status</h5>
-      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
-    <div class="offcanvas-body bg-dark text-white">
+    <div class="offcanvas-body">
       <p>Current Status: <span id="currentStatusDisplay"></span></p>
       <label for="statusSelect" class="form-label">New Status:</label>
       <select id="statusSelect" class="form-select">

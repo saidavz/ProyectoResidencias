@@ -428,11 +428,11 @@ body {
 }
 
 #tablaProductos.table-custom tbody tr:nth-child(even) {
-  background: rgba(0,0,0,0.02);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 #tablaProductos.table-custom tbody tr:hover {
-  background: rgba(0,0,0,0.035);
+  background: rgba(0, 0, 0, 0.035);
 }
 
 #tablaProductos.table-custom .price {
@@ -469,12 +469,16 @@ body {
 }
 
 @media (max-width: 768px) {
+
   #tablaProductos.table-custom thead th,
   #tablaProductos.table-custom tbody td {
     padding: 0.45rem 0.5rem;
     font-size: 0.9rem;
   }
-  #tablaProductos.table-custom .price { width: 70px; }
+
+  #tablaProductos.table-custom .price {
+    width: 70px;
+  }
 }
 
 /* Celdas */
@@ -638,6 +642,7 @@ body {
   background: linear-gradient(135deg, var(--dark-gray), var(--medium-gray));
   transform: translateY(-2px);
 }
+
 /* ===== FOOTER ===== */
 footer {
   background: linear-gradient(135deg, var(--pure-black), var(--charcoal));
@@ -800,6 +805,7 @@ h1 {
   background-color: rgba(255, 255, 255, 0.15);
   color: #ffffff;
 }
+
 .producto-item {
   transition: all 0.3s ease;
 }
@@ -808,17 +814,21 @@ h1 {
   max-height: 400px;
   overflow-y: auto;
 }
+
 .sugerencias-no-part {
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
+
 .sugerencias-no-part div:hover {
   background-color: #495057;
 }
+
 .total-row {
   background-color: #495057 !important;
   font-weight: bold;
   font-size: 1.1em;
 }
+
 .balance-info {
   background: linear-gradient(45deg, #28a745, #20c997);
   color: white;
@@ -826,6 +836,7 @@ h1 {
   border-radius: 5px;
   margin-bottom: 15px;
 }
+
 .table-custom {
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
   border-radius: 10px;
@@ -940,6 +951,7 @@ h1 {
   font-weight: 600;
   transition: var(--transition);
 }
+
 .btn.btn-agregar-tabla:hover {
   background: rgba(146, 12, 12, 0.95);
   color: var(--pure-white) !important;
@@ -949,49 +961,89 @@ h1 {
   background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
   color: white;
 }
+
 input:focus {
   outline: none !important;
-  box-shadow: none !important;}
+  box-shadow: none !important;
+}
 
-  .home-btn-dropdown button.home-btn {
-    color: white;
-    width: 350px;        /* mismo ancho que tus botones */
-    height: 275px;       /* misma altura */
-    border-radius: 12px; /* igual que el resto */
-    transition: 0.2s;
-  }
-  
-  .home-btn-dropdown button.home-btn:hover {
-    transform: scale(1.03);
-    background: #111;       /* igual al hover de los otros */
-    border-color: red;
-  }
-  
-  .home-btn-dropdown .dropdown-menu {
-    background: #202020;
-    border: 1px solid red;
-  }
-  
-  .home-btn-dropdown .dropdown-item {
-    color: white;
-  }
-  
-  .home-btn-dropdown .dropdown-item:hover {
-    background: red;
-    color: white;
-  }
-  .home-buttons-container {
-    display: grid;
-    grid-template-columns: repeat(2, auto); /* columnas según el tamaño de los botones */
-    gap: 20px;
-    justify-content: center; /* centra toda la cuadrícula horizontalmente */
-  }
-  
-  .home-btn,
-  .home-btn-dropdown button.home-btn {
-    width: 350px;        /* mismo ancho que tus botones */
-    height: 275px; 
-    flex-shrink: 0; /* evita que se encojan */
-  }
-  
-  
+.home-btn-dropdown button.home-btn {
+  color: white;
+  width: 350px;
+  /* mismo ancho que tus botones */
+  height: 275px;
+  /* misma altura */
+  border-radius: 12px;
+  /* igual que el resto */
+  transition: 0.2s;
+}
+
+.home-btn-dropdown button.home-btn:hover {
+  transform: scale(1.03);
+  background: #111;
+  /* igual al hover de los otros */
+  border-color: red;
+}
+
+.home-btn-dropdown .dropdown-menu {
+  background: #202020;
+  border: 1px solid red;
+}
+
+.home-btn-dropdown .dropdown-item {
+  color: white;
+}
+
+.home-btn-dropdown .dropdown-item:hover {
+  background: red;
+  color: white;
+}
+
+.home-buttons-container {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  /* columnas según el tamaño de los botones */
+  gap: 20px;
+  justify-content: center;
+  /* centra toda la cuadrícula horizontalmente */
+}
+
+.home-btn,
+.home-btn-dropdown button.home-btn {
+  width: 350px;
+  /* mismo ancho que tus botones */
+  height: 275px;
+  flex-shrink: 0;
+  /* evita que se encojan */
+}
+
+.offcanvas.bg-dark {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+.offcanvas.bg-dark .offcanvas-header,
+.offcanvas.bg-dark .offcanvas-body {
+  color: #fff;
+}
+
+.offcanvas.bg-dark .form-control {
+  background-color: #1a1a1a;
+  color: #fff;
+  border-color: #333;
+}
+
+.offcanvas.bg-dark .form-control::placeholder {
+  color: #bbb;
+  opacity: 1;
+}
+
+.offcanvas.bg-dark .form-select {
+  background-color: #1a1a1a;
+  color: #fff;
+  border-color: #333;
+}
+
+.offcanvas.bg-dark .btn-close {
+  filter: invert(1) grayscale(1);
+}

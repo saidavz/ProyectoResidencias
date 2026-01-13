@@ -80,7 +80,7 @@ app.get("/api/products/bom-calculation", async (req, res) => {
     const bomItems = bomResult.rows;
     const bomNoParts = bomItems.map(item => item.no_part);
 
-    // 2. Buscar productos que coincidan conel tipo de producto Y estén en BOM
+    // 2. Buscar productos que coincidan con el tipo de producto Y estén en BOM
     const productResult = await pool.query(
       `SELECT no_part, brand, description, quantity, unit, type_p 
        FROM product 
@@ -239,7 +239,10 @@ app.get('/api/purchases', async (req, res) => {
         bp.status,
         pd.time_delivered_product,
         COALESCE(pd.price_unit, 0) AS price_unit,
-        COALESCE(pd.total_amount, 0) AS total_amount
+        COALESCE(pd.total_amount, 0) AS total_amount,
+        pd.id_purchase,
+        pd.po,
+        pd.shopping
       FROM bom_project bp
       JOIN project pr ON bp.no_project = pr.no_project
       JOIN product p ON bp.no_part = p.no_part
@@ -249,7 +252,10 @@ app.get('/api/purchases', async (req, res) => {
           pd.time_delivered_product,
           pd.price_unit,
           (pd.quantity * pd.price_unit) AS total_amount,
-          pu.id_vendor
+          pu.id_vendor,
+          pu.id_purchase,
+          pu.po AS po,
+          pu.shopping AS shopping
         FROM purchase_detail pd
         JOIN purchase pu ON pu.id_purchase = pd.id_purchase
         WHERE pu.no_project = bp.no_project
@@ -285,17 +291,21 @@ app.put('/api/purchases/status', async (req, res) => {
   }
 
   try {
-    // Actualizar status en bom_project
+    // Actualizar status en bom_project para todos los ítems relacionados a la compra
     const bomResult = await pool.query(
-      `UPDATE bom_project SET status = $1 WHERE no_project = $2 AND no_part = $3 RETURNING *`,
-      [status, no_project, no_part]
+      `UPDATE bom_project SET status = $1 
+       WHERE no_project = $2 
+         AND no_part IN (SELECT no_part FROM purchase_detail WHERE id_purchase = $3)
+       RETURNING *`,
+      [status, no_project, id_purchase]
     );
 
+    // Si no hubo coincidencias, informar pero no romper la operación
     if (bomResult.rows.length === 0) {
-      return res.status(404).json({ message: 'Item no encontrado en bom_project' });
+      console.warn('No bom_project items updated for purchase', id_purchase, no_project);
     }
 
-    // Actualizar po en purchase si se proporciona
+    // Actualizar po en purchase (por compra) si se proporciona
     if (po !== undefined) {
       await pool.query(
         `UPDATE purchase SET po = $1 WHERE id_purchase = $2`,
@@ -303,7 +313,7 @@ app.put('/api/purchases/status', async (req, res) => {
       );
     }
 
-    // Actualizar shopping en purchase si se proporciona
+    // Actualizar shopping en purchase (por compra) si se proporciona
     if (shopping !== undefined) {
       await pool.query(
         `UPDATE purchase SET shopping = $1 WHERE id_purchase = $2`,
