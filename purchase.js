@@ -494,6 +494,65 @@ app.get("/api/stock", async (req, res) => {
   }
 });
 
+// Endpoint para crear entrada en stock y generar QR
+app.post("/api/stock/entry", async (req, res) => {
+  const { rack, no_part, no_project } = req.body;
+
+  // Validar que se recibieron todos los datos necesarios
+  if (!rack || !no_part || !no_project) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Faltan datos requeridos (rack, no_part, no_project)' 
+    });
+  }
+
+  try {
+    // Obtener el último número de QR code para generar el siguiente
+    const lastQrQuery = `
+      SELECT qr_code FROM stock 
+      WHERE qr_code LIKE 'STOCK%' 
+      ORDER BY id_stock DESC 
+      LIMIT 1
+    `;
+    const lastQrResult = await pool.query(lastQrQuery);
+    
+    let nextNumber = 400; // Número inicial
+    if (lastQrResult.rows.length > 0 && lastQrResult.rows[0].qr_code) {
+      // Extraer el número del último código (ej: "STOCK400" -> 400)
+      const lastCode = lastQrResult.rows[0].qr_code;
+      const lastNumber = parseInt(lastCode.replace('STOCK', ''));
+      if (!isNaN(lastNumber)) {
+        nextNumber = lastNumber + 1;
+      }
+    }
+    
+    const qrCode = `STOCK${nextNumber}`;
+
+    // Insertar en la tabla stock
+    // date_entry se genera automáticamente con CURRENT_TIMESTAMP
+    // id_stock se genera automáticamente (SERIAL)
+    const query = `
+      INSERT INTO stock (rack, date_entry, no_part, no_project, qr_code)
+      VALUES ($1, CURRENT_TIMESTAMP, $2, $3, $4)
+      RETURNING id_stock, rack, date_entry, no_part, no_project, qr_code
+    `;
+
+    const result = await pool.query(query, [rack, no_part, no_project, qrCode]);
+
+    res.json({
+      success: true,
+      message: 'Entrada en stock registrada exitosamente',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating stock entry:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Error al crear entrada en stock: ' + error.message 
+    });
+  }
+});
+
 // RUTAS DEL SERVIRDOR 2 
 // Funciones auxiliares para BOM
 function normalizeHeader(h) {

@@ -88,6 +88,7 @@
                                             <tr>
                                                 <th>No. Part</th>
                                                 <th>Description</th>
+                                                <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody id="projectProductsBody">
@@ -175,6 +176,13 @@
                     tr.innerHTML = `
                         <td>${safe(r.no_part)}</td>
                         <td>${safe(r.description)}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm text-white" 
+                                    style="background-color: #9333ea; border-color: #9333ea;" 
+                                    onclick="generateQR('${safe(r.no_part)}')">
+                                <i class="bi bi-qr-code me-1"></i>Generar QR
+                            </button>
+                        </td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -208,6 +216,51 @@
                         emptyState.classList.add('show');
                     });
             });
+
+            // Función para generar QR y guardar en stock
+            window.generateQR = function(noPart) {
+                const rackSelect = document.querySelector('select[name="rackNumber"]');
+                const rack = rackSelect.value;
+                const noProject = projectSelect.value;
+
+                if (!rack) {
+                    alert('Por favor selecciona un Rack Number');
+                    return;
+                }
+
+                if (!noProject) {
+                    alert('Por favor selecciona un proyecto');
+                    return;
+                }
+
+                // Preparar datos para enviar
+                const data = {
+                    rack: rack,
+                    no_part: noPart,
+                    no_project: noProject
+                };
+
+                // Enviar al servidor
+                fetch(`${baseURL}/api/stock/entry`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(res => res.json())
+                .then(result => {
+                    if (result.success) {
+                        alert(`QR generado exitosamente para ${noPart}`);
+                    } else {
+                        alert('Error al generar QR: ' + (result.error || 'Error desconocido'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Error generating QR:', err);
+                    alert('Error al conectar con el servidor');
+                });
+            };
         });
     </script>
       
