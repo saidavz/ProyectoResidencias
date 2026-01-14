@@ -21,7 +21,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim',
+  password: 'postgresql',
   port: 5432,
 });
 // RUTAS DEL SERVIRDOR 1 (purchase.js) 
@@ -767,6 +767,25 @@ app.get('/api/trackingCards', async (req, res) => {
     res.status(500).json({ error: 'Error al cargar porcentajes' });
   }
 });
+// Obtener solo proyectos que ya tienen compras registradas
+app.get('/api/projects-with-purchase', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT
+        pr.no_project,
+        pr.name_project
+      FROM project pr
+      INNER JOIN purchase pu ON pu.no_project = pr.no_project
+      ORDER BY pr.name_project
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching projects with purchases:', error);
+    res.status(500).json({ error: 'Failed to fetch projects' });
+  }
+});
+
 
 app.get('/api/bomView/debug', async (req, res) => {
   const noProject = req.query.no_project;
