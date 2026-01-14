@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 
 <body>
@@ -98,6 +99,13 @@
                                 <div class="entry-empty-state" id="projectEmptyState">
                                     <i class="bi bi-inbox"></i>
                                     <p class="mt-0 mb-0">No hay productos para el proyecto seleccionado.</p>
+                                </div>
+                                <!-- Sección de QR Codes Generados -->
+                                <div class="mt-4" id="qrCodesSection" style="display: none;">
+                                    <h5 class="text-white mb-3">Códigos QR Generados</h5>
+                                    <div class="row" id="qrCodesContainer">
+                                        <!-- Los QR codes se insertarán aquí dinámicamente -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -251,7 +259,11 @@
                 .then(res => res.json())
                 .then(result => {
                     if (result.success) {
-                        alert(`QR generado exitosamente para ${noPart}`);
+                        // Mostrar mensaje de éxito
+                        alert(`QR generado exitosamente: ${result.data.qr_code}`);
+                        
+                        // Crear y mostrar el código QR visual
+                        displayQRCode(result.data);
                     } else {
                         alert('Error al generar QR: ' + (result.error || 'Error desconocido'));
                     }
@@ -261,6 +273,43 @@
                     alert('Error al conectar con el servidor');
                 });
             };
+
+            // Función para mostrar el código QR visual
+            function displayQRCode(stockData) {
+                const qrSection = document.getElementById('qrCodesSection');
+                const qrContainer = document.getElementById('qrCodesContainer');
+                
+                // Mostrar la sección de QR
+                qrSection.style.display = 'block';
+
+                // Crear un div único para este QR
+                const qrId = `qr-${stockData.qr_code}`;
+                const qrDiv = document.createElement('div');
+                qrDiv.className = 'col-md-4 col-lg-3 mb-4';
+                qrDiv.innerHTML = `
+                    <div class="card bg-dark text-white p-3 text-center">
+                        <div id="${qrId}" class="mb-2 d-flex justify-content-center"></div>
+                        <h6 class="mb-1">${stockData.qr_code}</h6>
+                        <small class="text-muted">No. Part: ${stockData.no_part}</small>
+                        <small class="text-muted">Rack: ${stockData.rack}</small>
+                        <small class="text-muted">Proyecto: ${stockData.no_project}</small>
+                    </div>
+                `;
+                
+                qrContainer.appendChild(qrDiv);
+
+                // Generar el QR code visual usando la librería QRCode.js
+                setTimeout(() => {
+                    new QRCode(document.getElementById(qrId), {
+                        text: stockData.qr_code,
+                        width: 150,
+                        height: 150,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                }, 100);
+            }
         });
     </script>
       
