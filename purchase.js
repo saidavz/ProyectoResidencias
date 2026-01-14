@@ -20,8 +20,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'postgresql',
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb',
   port: 5432,
 });
 // RUTAS DEL SERVIRDOR 1 (purchase.js) 
@@ -775,13 +775,42 @@ app.get('/api/projects-with-purchase', async (req, res) => {
         pr.no_project,
         pr.name_project
       FROM project pr
-      INNER JOIN purchase pu ON pu.no_project = pr.no_project
+      WHERE EXISTS (
+        SELECT 1
+        FROM purchase pu
+        INNER JOIN purchase_detail pd ON pd.id_purchase = pu.id_purchase
+        WHERE pu.no_project = pr.no_project
+          AND pd.no_part IS NOT NULL
+      )
       ORDER BY pr.name_project
     `);
 
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching projects with purchases:', error);
+    res.status(500).json({ error: 'Failed to fetch projects' });
+  }
+});
+
+// Obtener proyectos que tienen productos en status "Shopping cart"
+app.get('/api/projects-shopping-cart', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT
+        pr.no_project,
+        pr.name_project
+      FROM project pr
+      INNER JOIN purchase pu ON pu.no_project = pr.no_project
+      INNER JOIN purchase_detail pd ON pd.id_purchase = pu.id_purchase
+      INNER JOIN bom_project bp ON bp.no_project = pr.no_project AND bp.no_part = pd.no_part
+      WHERE bp.status ILIKE 'Shopping cart'
+        AND pd.no_part IS NOT NULL
+      ORDER BY pr.name_project
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching shopping cart projects:', error);
     res.status(500).json({ error: 'Failed to fetch projects' });
   }
 });

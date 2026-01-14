@@ -19,7 +19,7 @@
             </a>
             <div class="collapse navbar-collapse" id="navbarMenu">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link active" href="index.html">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
@@ -41,7 +41,7 @@
                             Inventory
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#">Register Inventory</a></li>
+                            <li><a class="dropdown-item" href="entry.html">Register Inventory</a></li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
@@ -60,7 +60,7 @@
                     <div class="mb-4">
                         <div class="producto-item card p-4 p-md-5">
                             <div class="row">
-                                <!-- Nuevo campo de selección de proyecto -->
+                                <!-- Select de proyecto con productos en Shopping cart -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label" for="projectSelect">Selecciona un proyecto</label>
                                     <select class="form-select bg-secondary text-light" id="projectSelect" name="project" required>
@@ -80,6 +80,25 @@
                                     </select>
                                 </div>
                             </div>
+                            <!-- Tabla de productos por proyecto Shopping cart) -->
+                            <div class="mt-4">
+                                <div class="entry-table-wrapper hidden" id="projectTableWrapper">
+                                    <table class="table entry-products-table" id="projectProductsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>No. Part</th>
+                                                <th>Description</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="projectProductsBody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="entry-empty-state" id="projectEmptyState">
+                                    <i class="bi bi-inbox"></i>
+                                    <p class="mt-0 mb-0">No hay productos para el proyecto seleccionado.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -91,24 +110,106 @@
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Resaltar navbar según la página actual
         document.addEventListener('DOMContentLoaded', () => {
-          fetch('/api/projects-with-purchase')
-            .then(res => res.json())
-            .then(proyectos => {
-              const select = document.getElementById('projectSelect');
-      
-              proyectos.forEach(proj => {
-                const option = document.createElement('option');
-                option.value = proj.no_project;
-                option.textContent = proj.name_project;
-                select.appendChild(option);
-              });
-            })
-            .catch(error => {
-              console.error('Error loading projects:', error);
+            const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+            
+            if (currentPage === 'entry.html' || currentPage === '') {
+                // Resaltar Inventory cuando estamos en entry.html
+                const inventoryLinks = document.querySelectorAll('a[href="entry.html"]');
+                inventoryLinks.forEach(link => {
+                    link.parentElement.parentElement.querySelector('.dropdown-toggle').classList.add('active');
+                });
+            }
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const baseURL = 'http://localhost:3000';
+            const projectSelect = document.getElementById('projectSelect');
+            const tableWrapper = document.getElementById('projectTableWrapper');
+            const tbody = document.getElementById('projectProductsBody');
+            const emptyState = document.getElementById('projectEmptyState');
+            
+            let allRows = [];
+
+            // Cargar proyectos que tienen productos en Shopping cart
+            fetch(`${baseURL}/api/projects-shopping-cart`)
+                .then(res => res.json())
+                .then(data => {
+                    const options = Array.isArray(data) ? data : [];
+                    options.forEach(proj => {
+                        const option = document.createElement('option');
+                        option.value = proj.no_project;
+                        option.textContent = proj.name_project;
+                        projectSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading projects:', error);
+                });
+
+            // Render helper
+            function safe(v) {
+                return (v === null || v === undefined || v === '') ? '-' : String(v);
+            }
+
+            function renderRows(rows) {
+                tbody.innerHTML = '';
+                const filteredRows = rows.filter(r => {
+                    // Solo productos en status "Shopping cart" con datos válidos
+                    const hasData = r.no_part && r.description;
+                    const statusVal = String(r.status || '').trim().toLowerCase();
+                    const isShopping = statusVal === 'shopping cart';
+                    return hasData && isShopping;
+                });
+
+                if (filteredRows.length === 0) {
+                    tableWrapper.classList.add('hidden');
+                    emptyState.classList.add('show');
+                    return;
+                }
+
+                filteredRows.forEach(r => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${safe(r.no_part)}</td>
+                        <td>${safe(r.description)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                tableWrapper.classList.remove('hidden');
+                emptyState.classList.remove('show');
+            }
+            projectSelect.addEventListener('change', () => {
+                const pid = projectSelect.value;
+                tbody.innerHTML = '';
+                
+                if (!pid) {
+                    tableWrapper.classList.add('hidden');
+                    emptyState.classList.remove('show');
+                    return;
+                }
+
+                fetch(`${baseURL}/api/purchases?projectId=${encodeURIComponent(pid)}`)
+                    .then(res => res.json())
+                    .then(rows => {
+                        allRows = rows;
+                        if (Array.isArray(rows) && rows.length > 0) {
+                            renderRows(rows);
+                        } else {
+                            tableWrapper.classList.add('hidden');
+                            emptyState.classList.add('show');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error loading project purchases:', err);
+                        tableWrapper.classList.add('hidden');
+                        emptyState.classList.add('show');
+                    });
             });
         });
-      </script>
+    </script>
       
       
 </body>
