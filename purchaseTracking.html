@@ -405,6 +405,12 @@
       function openStatusEditor(cell, purchase, allData) {
         const currentStatus = purchase.status;
 
+        // Solo permitir editar si el status es PR, PO o Shopping cart
+        const editableStatuses = ['PR', 'PO', 'Shopping cart'];
+        if (!editableStatuses.includes(currentStatus)) {
+          return;
+        }
+
         // Verificar si hay id_purchase
         if (!purchase.id_purchase) {
           alert('This item does not have an associated purchase. Please create a purchase first.');
