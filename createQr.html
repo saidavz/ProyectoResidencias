@@ -10,6 +10,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        /* Resalta el último QR mostrado o regenerado */
+        .qr-card-highlight {
+            outline: 2px solid #c0c0c0;
+            box-shadow: 0 0 12px rgba(192, 192, 192, 0.6);
+        }
+    </style>
 </head>
 
 <body>
@@ -92,6 +99,7 @@
                                             <tr>
                                                 <th>No. Part</th>
                                                 <th>Description</th>
+                                                <th>QR Code ID</th>
                                                 <th>Action</th>
                                             </tr>
                                         </thead>
@@ -120,6 +128,30 @@
             </div>
         </div>
     </main>
+
+    <!-- Modal de confirmación para regenerar QR -->
+    <div class="modal fade" id="confirmQRModal" tabindex="-1" aria-labelledby="confirmQRModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmQRModalLabel">Regenerar QR</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Deseas volver a generar el QR?</p>
+                    <p class="text-muted"><small>El código QR permanecerá igual, solo se volverá a mostrar para imprimir.</small></p>
+                    <div id="existingQRInfo" class="alert alert-info">
+                        <strong>QR Code ID:</strong> <span id="existingQRId"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmRegenerateBtn">Sí, volver a generar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer class="text-center py-3 text-white bg-gradient mt-5">
         Purchase-Inventory Management System - BRK. Resideo.
     </footer>
@@ -146,6 +178,8 @@
             const tableWrapper = document.getElementById('projectTableWrapper');
             const tbody = document.getElementById('projectProductsBody');
             const emptyState = document.getElementById('projectEmptyState');
+            const confirmQRModal = new bootstrap.Modal(document.getElementById('confirmQRModal'));
+            let currentQRAction = null; // Para guardar la acción pendiente del QR
 
             let allRows = [];
 
@@ -170,6 +204,18 @@
                 return (v === null || v === undefined || v === '') ? '-' : String(v);
             }
 
+            // Función para obtener QR previo de un producto
+            async function getExistingQR(noPart, noProject, rack) {
+                try {
+                    const response = await fetch(`${baseURL}/api/stock/qr-code?no_part=${encodeURIComponent(noPart)}&no_project=${encodeURIComponent(noProject)}&rack=${rack}`);
+                    const data = await response.json();
+                    return data.qr_code || null;
+                } catch (error) {
+                    console.error('Error getting existing QR:', error);
+                    return null;
+                }
+            }
+
             function renderRows(rows) {
                 tbody.innerHTML = '';
                 const filteredRows = rows.filter(r => {
@@ -188,9 +234,22 @@
 
                 filteredRows.forEach(r => {
                     const tr = document.createElement('tr');
+                    const rackSelect = document.querySelector('select[name="rackNumber"]');
+                    const rack = rackSelect?.value || '';
+                    
+                    // Obtener QR existente de forma asíncrona
+                    getExistingQR(r.no_part, projectSelect.value, rack).then(existingQR => {
+                        const qrIdCell = tr.querySelector('td:nth-child(3)');
+                        if (qrIdCell) {
+                            qrIdCell.textContent = existingQR ? existingQR : '-';
+                            qrIdCell.classList.add(existingQR ? 'text-success' : 'text-muted');
+                        }
+                    });
+
                     tr.innerHTML = `
                         <td>${safe(r.no_part)}</td>
                         <td>${safe(r.description)}</td>
+                        <td>-</td>
                         <td>
                             <button type="button" class="btn btn-sm text-white" 
                                     style="background-color: #9333ea; border-color: #9333ea;" 
@@ -204,15 +263,37 @@
                 tableWrapper.classList.remove('hidden');
                 emptyState.classList.remove('show');
             }
+
             projectSelect.addEventListener('change', () => {
                 const pid = projectSelect.value;
                 tbody.innerHTML = '';
+                const rackSelect = document.querySelector('select[name="rackNumber"]');
 
                 if (!pid) {
                     tableWrapper.classList.add('hidden');
                     emptyState.classList.remove('show');
+                    rackSelect.disabled = false;
                     return;
                 }
+
+                // Obtener el rack usado por primera vez en este proyecto
+                fetch(`${baseURL}/api/stock/first-rack?no_project=${encodeURIComponent(pid)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.rack) {
+                            // Proyecto ya tiene QRs - rellenar y deshabilitar
+                            rackSelect.value = data.rack;
+                            rackSelect.disabled = true;
+                        } else {
+                            // Proyecto nuevo - permitir seleccionar rack
+                            rackSelect.disabled = false;
+                            rackSelect.value = '';
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error getting first rack:', err);
+                        rackSelect.disabled = false;
+                    });
 
                 fetch(`${baseURL}/api/purchases?projectId=${encodeURIComponent(pid)}`)
                     .then(res => res.json())
@@ -232,6 +313,15 @@
                     });
             });
 
+            // Evento para regenerar QR
+            document.getElementById('confirmRegenerateBtn').addEventListener('click', () => {
+                if (currentQRAction) {
+                    confirmQRModal.hide();
+                    displayExistingQRCode(currentQRAction);
+                    currentQRAction = null;
+                }
+            });
+
             // Función para generar QR y guardar en stock
             window.generateQR = function (noPart) {
                 const rackSelect = document.querySelector('select[name="rackNumber"]');
@@ -248,6 +338,27 @@
                     return;
                 }
 
+                // Verificar si ya existe un QR previo
+                getExistingQR(noPart, noProject, rack).then(existingQR => {
+                    if (existingQR) {
+                        // Si existe QR previo, mostrar confirmación
+                        currentQRAction = {
+                            qr_code: existingQR,
+                            no_part: noPart,
+                            rack: rack,
+                            no_project: noProject
+                        };
+                        document.getElementById('existingQRId').textContent = existingQR;
+                        confirmQRModal.show();
+                    } else {
+                        // Si no existe, crear uno nuevo
+                        createNewQR(noPart, rack, noProject);
+                    }
+                });
+            };
+
+            // Función para crear un nuevo QR
+            function createNewQR(noPart, rack, noProject) {
                 // Preparar datos para enviar
                 const data = {
                     rack: rack,
@@ -269,6 +380,9 @@
                             // Mostrar mensaje de éxito
                             alert(`QR generado exitosamente: ${result.data.qr_code}`);
 
+                            // Actualizar la tabla para mostrar el nuevo QR
+                            updateTableQRColumn(noPart, result.data.qr_code);
+
                             // Crear y mostrar el código QR visual
                             displayQRCode(result.data);
                         } else {
@@ -279,7 +393,36 @@
                         console.error('Error generating QR:', err);
                         alert('Error al conectar con el servidor');
                     });
-            };
+            }
+
+            // Función para actualizar la columna QR en la tabla
+            function updateTableQRColumn(noPart, qrCode) {
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const partCell = row.querySelector('td:first-child');
+                    if (partCell && partCell.textContent === noPart) {
+                        const qrCell = row.querySelector('td:nth-child(3)');
+                        if (qrCell) {
+                            qrCell.textContent = qrCode;
+                            qrCell.classList.remove('text-muted');
+                            qrCell.classList.add('text-success');
+                        }
+                    }
+                });
+            }
+
+            // Resaltar el último QR generado o re-generado
+            function highlightCard(cardId) {
+                document.querySelectorAll('.qr-card-highlight').forEach(card => {
+                    card.classList.remove('qr-card-highlight');
+                });
+
+                const cardEl = document.getElementById(cardId);
+                if (cardEl) {
+                    cardEl.classList.add('qr-card-highlight');
+                    cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
 
             // Función para mostrar el código QR visual
             function displayQRCode(stockData) {
@@ -291,10 +434,11 @@
 
                 // Crear un div único para este QR
                 const qrId = `qr-${stockData.qr_code}`;
+                const cardId = `card-${stockData.qr_code}`;
                 const qrDiv = document.createElement('div');
                 qrDiv.className = 'col-md-4 col-lg-3 mb-4';
                 qrDiv.innerHTML = `
-                    <div class="card bg-dark text-white p-3 text-center">
+                    <div class="card bg-dark text-white p-3 text-center" id="${cardId}">
                         <div id="${qrId}" class="mb-2 d-flex justify-content-center"></div>
                         <h6 class="mb-1">${stockData.qr_code}</h6>
                         <small class="text-muted">No. Part: ${stockData.no_part}</small>
@@ -316,6 +460,58 @@
                         correctLevel: QRCode.CorrectLevel.H
                     });
                 }, 100);
+
+                // Resaltar este QR como el último mostrado
+                highlightCard(cardId);
+            }
+
+            // Función para mostrar un QR existente
+            function displayExistingQRCode(stockData) {
+                const qrSection = document.getElementById('qrCodesSection');
+                const qrContainer = document.getElementById('qrCodesContainer');
+
+                // Mostrar la sección de QR
+                qrSection.style.display = 'block';
+
+                // Verificar si el QR ya está mostrado
+                const existingQRId = `qr-${stockData.qr_code}`;
+                const existingCard = document.getElementById(existingQRId)?.closest('.card');
+                if (existingCard) {
+                    // Si ya existe, solo resaltarlo y scrollear hacia él
+                    highlightCard(existingCard.id);
+                    return;
+                }
+
+                // Crear un div único para este QR
+                const cardId = `card-${stockData.qr_code}`;
+                const qrDiv = document.createElement('div');
+                qrDiv.className = 'col-md-4 col-lg-3 mb-4';
+                qrDiv.innerHTML = `
+                    <div class="card bg-dark text-white p-3 text-center" id="${cardId}">
+                        <div id="${existingQRId}" class="mb-2 d-flex justify-content-center"></div>
+                        <h6 class="mb-1">${stockData.qr_code}</h6>
+                        <small class="text-muted">No. Part: ${stockData.no_part}</small>
+                        <small class="text-muted">Rack: ${stockData.rack}</small>
+                        <small class="text-muted">Proyecto: ${stockData.no_project}</small>
+                    </div>
+                `;
+
+                qrContainer.appendChild(qrDiv);
+
+                // Generar el QR code visual usando la librería QRCode.js
+                setTimeout(() => {
+                    new QRCode(document.getElementById(existingQRId), {
+                        text: stockData.qr_code,
+                        width: 150,
+                        height: 150,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                }, 100);
+
+                // Resaltar este QR como el último mostrado
+                highlightCard(cardId);
             }
         });
     </script>

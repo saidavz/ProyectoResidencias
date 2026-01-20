@@ -20,8 +20,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim',
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb',
   port: 5432,
 });
 // RUTAS DEL SERVIRDOR 1 (purchase.js) 
@@ -494,11 +494,72 @@ app.get("/api/stock", async (req, res) => {
   }
 });
 
-// Endpoint para crear entrada en stock y generar QR
+
+app.get("/api/stock/qr-code", async (req, res) => {
+  const { no_part, no_project, rack } = req.query;
+
+  if (!no_part || !no_project || !rack) {
+    return res.status(400).json({
+      error: 'Parámetros requeridos: no_part, no_project, rack'
+    });
+  }
+
+  try {
+    const query = `
+      SELECT id_stock, qr_code, no_part, no_project, rack, date_entry
+      FROM stock
+      WHERE no_part = $1 AND no_project = $2 AND rack = $3
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [no_part, no_project, parseInt(rack)]);
+
+    if (result.rows.length > 0) {
+      res.json(result.rows[0]);
+    } else {
+      res.json({ qr_code: null });
+    }
+  } catch (error) {
+    console.error('Error getting QR code:', error);
+    res.status(500).json({ error: 'Error al obtener el código QR' });
+  }
+});
+
+// Endpoint para obtener el primer rack usado en un proyecto
+app.get("/api/stock/first-rack", async (req, res) => {
+  const { no_project } = req.query;
+
+  if (!no_project) {
+    return res.status(400).json({
+      error: 'Parámetro requerido: no_project'
+    });
+  }
+
+  try {
+    const query = `
+      SELECT rack
+      FROM stock
+      WHERE no_project = $1
+      ORDER BY date_entry ASC
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [no_project]);
+
+    if (result.rows.length > 0) {
+      res.json({ rack: result.rows[0].rack });
+    } else {
+      res.json({ rack: null });
+    }
+  } catch (error) {
+    console.error('Error getting first rack:', error);
+    res.status(500).json({ error: 'Error al obtener el rack' });
+  }
+});
+
 app.post("/api/stock/entry", async (req, res) => {
   const { rack, no_part, no_project } = req.body;
 
-  // Validar que se recibieron todos los datos necesarios
   if (!rack || !no_part || !no_project) {
     return res.status(400).json({ 
       success: false, 
@@ -507,7 +568,24 @@ app.post("/api/stock/entry", async (req, res) => {
   }
 
   try {
-    // Obtener el último número consecutivo para este proyecto
+    const checkQuery = `
+      SELECT * FROM stock
+      WHERE no_part = $1 AND no_project = $2 AND rack = $3
+      LIMIT 1
+    `;
+
+    const existingResult = await pool.query(checkQuery, [no_part, no_project, parseInt(rack)]);
+
+    if (existingResult.rows.length > 0) {
+      console.log(`QR existente encontrado para ${no_part} en proyecto ${no_project}`);
+      
+      return res.json({
+        success: true,
+        message: 'QR ya existía, se retorna el existente',
+        data: existingResult.rows[0]
+      });
+    }
+
     const lastQrQuery = `
       SELECT qr_code FROM stock 
       WHERE qr_code LIKE $1
@@ -515,13 +593,11 @@ app.post("/api/stock/entry", async (req, res) => {
       LIMIT 1
     `;
     
-    // Patrón para buscar códigos de este proyecto (ej: "I%-AUT-2026-00")
     const pattern = `I%-${no_project}`;
     const lastQrResult = await pool.query(lastQrQuery, [pattern]);
     
-    let nextNumber = 1; // Número inicial
+    let nextNumber = 1; 
     if (lastQrResult.rows.length > 0 && lastQrResult.rows[0].qr_code) {
-      // Extraer el número del último código (ej: "I0015-AUT-2026-00" -> 15)
       const lastCode = lastQrResult.rows[0].qr_code;
       const match = lastCode.match(/^I(\d+)-/);
       if (match && match[1]) {
