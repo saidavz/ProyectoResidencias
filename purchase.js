@@ -507,26 +507,34 @@ app.post("/api/stock/entry", async (req, res) => {
   }
 
   try {
-    // Obtener el último número de QR code para generar el siguiente
+    // Obtener el último número consecutivo para este proyecto
     const lastQrQuery = `
       SELECT qr_code FROM stock 
-      WHERE qr_code LIKE 'STOCK%' 
+      WHERE qr_code LIKE $1
       ORDER BY id_stock DESC 
       LIMIT 1
     `;
-    const lastQrResult = await pool.query(lastQrQuery);
     
-    let nextNumber = 400; // Número inicial
+    // Patrón para buscar códigos de este proyecto (ej: "I%-AUT-2026-00")
+    const pattern = `I%-${no_project}`;
+    const lastQrResult = await pool.query(lastQrQuery, [pattern]);
+    
+    let nextNumber = 1; // Número inicial
     if (lastQrResult.rows.length > 0 && lastQrResult.rows[0].qr_code) {
-      // Extraer el número del último código (ej: "STOCK400" -> 400)
+      // Extraer el número del último código (ej: "I0015-AUT-2026-00" -> 15)
       const lastCode = lastQrResult.rows[0].qr_code;
-      const lastNumber = parseInt(lastCode.replace('STOCK', ''));
-      if (!isNaN(lastNumber)) {
-        nextNumber = lastNumber + 1;
+      const match = lastCode.match(/^I(\d+)-/);
+      if (match && match[1]) {
+        const lastNumber = parseInt(match[1]);
+        if (!isNaN(lastNumber)) {
+          nextNumber = lastNumber + 1;
+        }
       }
     }
     
-    const qrCode = `STOCK${nextNumber}`;
+    // Generar código en formato: I0001-AUT-2026-00
+    const consecutivo = String(nextNumber).padStart(4, '0');
+    const qrCode = `I${consecutivo}-${no_project}`;
 
     // Insertar en la tabla stock
     // date_entry se genera automáticamente con CURRENT_TIMESTAMP

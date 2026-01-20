@@ -36,10 +36,26 @@
               <li><a class="dropdown-item" href="bomView.html">View BOM</a></li>
             </ul>
           </li>
-          <li class="nav-item"><a class="nav-link" href="http://localhost:3000/recordPurchase.html">Register
+          <li class="nav-item"><a class="nav-link" href="recordPurchase.html">Register
               Purchase</a></li>
           <li class="nav-item"><a class="nav-link active" href="#">Purchase Tracking</a></li>
-          <li class="nav-item"><a class="nav-link" href="http://localhost:3000/stock.html">Inventory</a></li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Inventory
+            </a>
+            <ul class="dropdown-menu w-100 text-center" aria-labelledby="dropdownBom">
+              <li><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li><a class="dropdown-item" href="entry.html">Register Inventory</a></li>
+              <li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li><a class="dropdown-item" href="stock.html">View Inventory</a></li>
+            </ul>
+          </li>
         </ul>
       </div>
       <div class="d-flex align-items-center">
@@ -451,7 +467,7 @@
         }
 
         // Agregar nuevo event listener
-        statusSelect.changeHandler = function() {
+        statusSelect.changeHandler = function () {
           const selected = this.value;
           if (selected === 'PO') {
             document.getElementById('poSection').style.display = 'block';
@@ -583,7 +599,7 @@
             <option value="Shopping cart">Shopping cart</option>
             <option value="Delivered">Delivered</option>
           `;
-        } 
+        }
         // Si seleccionó "supplier", cambiar a opciones de proveedores
         else if (selectedValue === 'supplier') {
           currentFilterType = 'supplier';
@@ -737,7 +753,8 @@
   </script>
 
   <!-- Offcanvas para edición de estado -->
-  <div class="offcanvas offcanvas-start bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="statusOffcanvas" aria-labelledby="statusOffcanvasLabel">
+  <div class="offcanvas offcanvas-start bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="statusOffcanvas"
+    aria-labelledby="statusOffcanvasLabel">
     <div class="offcanvas-header">
       <h5 class="offcanvas-title" id="statusOffcanvasLabel">Edit Status</h5>
       <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>

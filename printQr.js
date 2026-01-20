@@ -10,7 +10,7 @@ window.printQRCodes = function () {
     const doc = printWindow.document;
 
     doc.open();
-    doc.write('<!DOCTYPE html><html><head><title>Imprimir QRs</title></head><body></body></html>');
+    doc.write('<!DOCTYPE html><html><head><title>Print QR Codes</title></head><body></body></html>');
     doc.close();
 
     const style = doc.createElement('style');
