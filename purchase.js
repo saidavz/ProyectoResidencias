@@ -20,8 +20,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb',
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: '150403kim',
   port: 5432,
 });
 // RUTAS DEL SERVIRDOR 1 (purchase.js) 
@@ -143,9 +143,16 @@ app.get('/api/projects/search', async (req, res) => {
        FROM project 
        WHERE (no_project::text ILIKE $1 OR name_project ILIKE $2)
          AND name_project NOT ILIKE '%Sin asignar%'
-       ORDER BY name_project 
+       ORDER BY 
+         CASE 
+           WHEN no_project::text ILIKE $3 THEN 1
+           WHEN name_project ILIKE $3 THEN 2
+           WHEN no_project::text ILIKE $1 THEN 3
+           ELSE 4
+         END,
+         name_project 
        LIMIT 10`,
-      [`%${term}%`, `%${term}%`]
+      [`%${term}%`, `%${term}%`, `${term}%`]
     );
     res.json(result.rows);
   } catch (err) {
@@ -752,11 +759,15 @@ app.post('/api/bom', upload.single('file'), async (req, res) => {
       data.push(obj);
     }
 
+    // Recolectar los números de parte del nuevo BOM
+    const newPartNumbers = [];
+
     // Procesar cada fila
     for (const rowObj of data) {
       const no_part = normalizeText(pick(rowObj, ["no_parte", "numero_de_parte", "part_number"]));
       if (!no_part) continue;
 
+      newPartNumbers.push(no_part);
       const brand = normalizeText(pick(rowObj, ["marca", "brand"]));
       const description = normalizeText(pick(rowObj, ["producto", "description", "descripcion"]));
       const quantity = toInt(pick(rowObj, ["cantidad_venta", "quantity", "qty"]));
@@ -772,14 +783,45 @@ app.post('/api/bom', upload.single('file'), async (req, res) => {
         [no_part, brand, description, quantity, unit, type_p]
       );
 
-      // Insertar en bom_project
-      if (quantity_p !== null) {
+      // Verificar si la parte ya existe en el BOM del proyecto
+      const existingPart = await client.query(
+        `SELECT * FROM bom_project WHERE no_project = $1 AND no_part = $2`,
+        [no_project, no_part]
+      );
+
+      if (existingPart.rows.length > 0) {
+        // Parte ya existe: actualizar solo quantity_project, mantener el status
         await client.query(
-          `INSERT INTO bom_project (no_project, quantity_project, no_part, status)
-           VALUES ($1, $2, $3, $4)`,
-          [no_project, quantity_p, no_part, "Quoted"]
+          `UPDATE bom_project 
+           SET quantity_project = $1
+           WHERE no_project = $2 AND no_part = $3`,
+          [quantity_p, no_project, no_part]
         );
+      } else {
+        // Parte nueva: insertarla
+        if (quantity_p !== null) {
+          await client.query(
+            `INSERT INTO bom_project (no_project, quantity_project, no_part, status)
+             VALUES ($1, $2, $3, $4)`,
+            [no_project, quantity_p, no_part, "Quoted"]
+          );
+        }
       }
+    }
+
+    // Eliminar partes que NO están en el nuevo BOM
+    if (newPartNumbers.length > 0) {
+      await client.query(
+        `DELETE FROM bom_project 
+         WHERE no_project = $1 AND no_part != ALL($2::text[])`,
+        [no_project, newPartNumbers]
+      );
+    } else {
+      // Si el nuevo BOM está vacío, eliminar todo el BOM anterior
+      await client.query(
+        `DELETE FROM bom_project WHERE no_project = $1`,
+        [no_project]
+      );
     }
 
     await client.query('COMMIT');

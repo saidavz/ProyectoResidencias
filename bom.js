@@ -87,18 +87,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const checkData = await checkRes.json();
       if (checkData.exists) {
         //Verifica si el proyecto ya tiene un BOM asociado
-        const confirmReplace = confirm(
-          `This project already has a saved BOM. Do you want to replace it?`
+        const confirmUpdate = confirm(
+          `This project already has a saved BOM. Do you want to update it?\n\nNew parts will be added, existing parts will be updated, and parts not in the new file will be removed.`
         );
-        if (!confirmReplace) {
+        if (!confirmUpdate) {
           uploadMessage.innerHTML = `
             <div class="alert alert-info py-1">Canceled upload</div>`;
           return;
         }
-        // Eliminación del BOM anterior antes de subir el nuevo
-        await fetch(`${BASE}/bom/${encodeURIComponent(no_project)}`, {
-          method: 'DELETE'
-        });
       } else {
         // Si no existe, registrar el proyecto primero
         const projectRes = await fetch(`${BASE}/projects`, {
