@@ -198,23 +198,6 @@
       const btnGeneral = document.getElementById('btnGeneral');
       if (btnGeneral) {
         btnGeneral.addEventListener('click', function (e) {
-          if (!projectSearchInput || !projectSearchInput.dataset.noProject) {
-            e.preventDefault();
-            const cont = projectSearchInput && projectSearchInput.parentElement;
-            if (cont) {
-              let msg = cont.querySelector('.temp-msg');
-              if (!msg) {
-                msg = document.createElement('div');
-                msg.className = 'temp-msg text-danger small mt-1';
-                cont.appendChild(msg);
-              }
-              msg.textContent = 'Please select a project from suggestions first.';
-              setTimeout(() => { if (msg) msg.remove(); }, 2200);
-            } else {
-              alert('Please select a project from suggestions first.');
-            }
-            return;
-          }
           // Si hay proyecto seleccionado, toggleamos el collapse explícitamente
           try {
             const collapseEl = document.getElementById('collapse');
@@ -738,8 +721,14 @@
           if (poNumber) currentPurchase.po = poNumber;
           if (scId) currentPurchase.shopping = scId;
           updateCumulativePercentages(currentAllData);
-          // Refrescar la tabla
-          await loadPurchasesData();
+          // Refrescar la tabla manteniendo el proyecto seleccionado (si existe)
+          if (projectSearchInput && projectSearchInput.dataset.noProject) {
+            await loadPurchasesDataByProject(projectSearchInput.dataset.noProject);
+            await loadPercentages(projectSearchInput.dataset.noProject);
+          } else {
+            await loadPurchasesData();
+            await loadPercentages("");
+          }
           alert('Status successfully updated');
           // Cerrar offcanvas
           const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('statusOffcanvas'));
