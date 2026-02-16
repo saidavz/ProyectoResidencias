@@ -1032,3 +1032,65 @@ app.get('/api/bomView/debug', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+// ======================================================
+// INBOUND - ESCANEO QR
+// Busca el QR en stock y registra movimiento INBOUND
+// ======================================================
+app.post("/api/inbound", async (req, res) => {
+  try {
+    const { qr_code } = req.body;
+
+    if (!qr_code || qr_code.trim() === "") {
+      return res.status(400).json({
+        ok: false,
+        message: "QR vacío"
+      });
+    }
+
+    const qrClean = qr_code.trim().toUpperCase();
+
+    // 1) Buscar QR en stock
+    const stockQuery = `
+      SELECT id_stock, rack, date_entry, no_part, no_project, qr_code
+      FROM stock
+      WHERE qr_code = $1
+      LIMIT 1
+    `;
+
+    const stockResult = await pool.query(stockQuery, [qrClean]);
+
+    if (stockResult.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        message: `QR no encontrado en Stock: ${qrClean}`
+      });
+    }
+
+    const stockRow = stockResult.rows[0];
+
+    // 2) Insertar movimiento INBOUND
+    const movementQuery = `
+      INSERT INTO movement (date_movement, type_movement, id_stock, pid)
+      VALUES (NOW(), 'INBOUND', $1, NULL)
+      RETURNING id_movement, date_movement, type_movement, id_stock, pid
+    `;
+
+    const movementResult = await pool.query(movementQuery, [stockRow.id_stock]);
+
+    return res.json({
+      ok: true,
+      message: "Entrada registrada correctamente",
+      stock: stockRow,
+      movement: movementResult.rows[0]
+    });
+
+  } catch (error) {
+    console.error("ERROR /api/inbound:", error);
+
+    return res.status(500).json({
+      ok: false,
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
