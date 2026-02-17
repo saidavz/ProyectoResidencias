@@ -21,7 +21,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim', //verifica bien al cambiarlo
+  password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
 // RUTAS DEL SERVIRDOR 1 (purchase.js) 
@@ -1070,7 +1070,7 @@ app.post("/api/inbound", async (req, res) => {
 
     // 2) Insertar movimiento INBOUND
     const movementQuery = `
-      INSERT INTO movement (date_movement, type_movement, id_stock, pid)
+      INSERT INTO movements (date_movement, type_movement, id_stock, pid)
       VALUES (NOW(), 'INBOUND', $1, NULL)
       RETURNING id_movement, date_movement, type_movement, id_stock, pid
     `;
@@ -1079,7 +1079,7 @@ app.post("/api/inbound", async (req, res) => {
 
     return res.json({
       ok: true,
-      message: "Entrada registrada correctamente",
+      message: "Movimiento registrado correctamente",
       stock: stockRow,
       movement: movementResult.rows[0]
     });
