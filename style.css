@@ -1,3 +1,7 @@
+/* Highlight row on hover in inventory table */
+#tablaInventario tbody tr:hover {
+  background: #e0e0e0 !important;
+}
 :root {
   --primary-red: #ff3b30;
   --dark-red: #b51313;

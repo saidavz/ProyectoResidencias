@@ -20,7 +20,7 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
   password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
@@ -451,8 +451,34 @@ app.get('/api/network/balance/:network', async (req, res) => {
   }
 });
 
-app.get("/api/stock", async (req, res) => {
+// ======================================================
+// PROJECTS - obtener proyectos con movimientos
+// ======================================================
+app.get('/api/projects/with-movements', async (req, res) => {
   try {
+    const query = `
+      SELECT DISTINCT s.no_project
+      FROM movements m
+      JOIN stock s ON m.id_stock = s.id_stock
+      WHERE s.no_project IS NOT NULL
+      ORDER BY s.no_project
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows.map(r => r.no_project));
+  } catch (error) {
+    console.error('/api/projects/with-movements error', error);
+    res.status(500).json({ error: "Error fetching projects" });
+  }
+});
+
+// ======================================================
+// STOCK - por proyecto (desglosado, solo INBOUND)
+// ======================================================
+app.get('/api/stock/by-project', async (req, res) => {
+  try {
+    const { no_project } = req.query;
+    if (!no_project) return res.status(400).json({ error: 'no_project requerido' });
+
     const query = `
       SELECT
         s.id_stock,
@@ -478,19 +504,170 @@ app.get("/api/stock", async (req, res) => {
         pu.shopping,
         pu.po,
         pd.quantity AS cantidad_entrada,
-        COALESCE((SELECT SUM(o.quantity) FROM output_inventory o WHERE o.id_stock = s.id_stock), 0) AS cantidad_salida,
-        (p.quantity - COALESCE((SELECT SUM(o.quantity) FROM output_inventory o WHERE o.id_stock = s.id_stock), 0)) AS cantidad_disponible
+        (SELECT COUNT(*) FROM movements m 
+         WHERE m.id_stock = s.id_stock AND m.type_movement = 'INBOUND') AS cantidad_disponible
       FROM stock s
       JOIN product p ON s.no_part = p.no_part
-      JOIN purchase_detail pd ON s.no_part = pd.no_part
-      JOIN purchase pu ON pd.id_purchase = pu.id_purchase
-      JOIN bom_project bp
-        ON bp.no_project = pu.no_project
-       AND bp.no_part = pd.no_part
-      JOIN vendor v ON pu.id_vendor = v.id_vendor
-      JOIN project pr ON pu.no_project = pr.no_project
-      JOIN network n ON pu.network = n.network
+      LEFT JOIN purchase_detail pd ON s.no_part = pd.no_part
+      LEFT JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+      LEFT JOIN bom_project bp ON bp.no_project = pu.no_project AND bp.no_part = pd.no_part
+      LEFT JOIN vendor v ON pu.id_vendor = v.id_vendor
+      LEFT JOIN project pr ON pu.no_project = pr.no_project
+      LEFT JOIN network n ON pu.network = n.network
+      WHERE s.no_project = $1
+        AND EXISTS (
+          SELECT 1 FROM movements m 
+          WHERE m.id_stock = s.id_stock AND m.type_movement = 'INBOUND'
+        )
       ORDER BY s.date_entry DESC
+    `;
+    const result = await pool.query(query, [no_project]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('/api/stock/by-project error', error);
+    res.status(500).json({ error: "Error fetching stock by project" });
+  }
+});
+
+// ======================================================
+// STOCK - distinct filters from stock table (projects, vendors, parts, brands)
+// ======================================================
+app.get('/api/stock/distinct-filters', async (req, res) => {
+  try {
+    // projects from stock joined to purchase->project when available
+    const projectsQuery = `
+      SELECT DISTINCT s.no_project, pr.name_project
+      FROM stock s
+      LEFT JOIN project pr ON s.no_project = pr.no_project
+      WHERE s.no_project IS NOT NULL
+      ORDER BY pr.name_project NULLS LAST, s.no_project
+    `;
+    const vendorsQuery = `
+      SELECT DISTINCT v.name_vendor
+      FROM purchase pu
+      JOIN purchase_detail pd ON pd.id_purchase = pu.id_purchase
+      JOIN vendor v ON pu.id_vendor = v.id_vendor
+      JOIN stock s ON pd.no_part = s.no_part
+      WHERE v.name_vendor IS NOT NULL
+      ORDER BY v.name_vendor
+    `;
+    const partsQuery = `
+      SELECT DISTINCT s.no_part
+      FROM stock s
+      WHERE s.no_part IS NOT NULL
+      ORDER BY s.no_part
+    `;
+    const brandsQuery = `
+      SELECT DISTINCT p.brand
+      FROM stock s
+      JOIN product p ON s.no_part = p.no_part
+      WHERE p.brand IS NOT NULL
+      ORDER BY p.brand
+    `;
+
+    const [projectsRes, vendorsRes, partsRes, brandsRes] = await Promise.all([
+      pool.query(projectsQuery),
+      pool.query(vendorsQuery),
+      pool.query(partsQuery),
+      pool.query(brandsQuery)
+    ]);
+
+    res.json({
+      projects: projectsRes.rows.map(r => ({ no_project: r.no_project, name_project: r.name_project })),
+      vendors: vendorsRes.rows.map(r => r.name_vendor),
+      parts: partsRes.rows.map(r => r.no_part),
+      brands: brandsRes.rows.map(r => r.brand)
+    });
+  } catch (error) {
+    console.error('/api/stock/distinct-filters error', error);
+    res.status(500).json({ error: 'Error fetching distinct stock filters' });
+  }
+});
+
+// ======================================================
+// STOCK - resumen por no_part (solo con movimientos)
+// Cantidad disponible = INBOUND - OUTBOUND global
+// ======================================================
+app.get('/api/stock/summary', async (req, res) => {
+  try {
+    const query = `
+      SELECT
+        p.no_part,
+        p.brand,
+        p.description,
+        p.quantity AS product_quantity,
+        p.unit,
+        p.type_p,
+        COUNT(DISTINCT s.id_stock) AS total_records,
+        COALESCE(
+          COUNT(CASE WHEN m.type_movement = 'INBOUND' THEN 1 END) -
+          COUNT(CASE WHEN m.type_movement = 'OUTBOUND' THEN 1 END),
+          0
+        )::INTEGER AS cantidad_disponible,
+        NULL AS price_unit,
+        NULL AS pd_quantity,
+        NULL AS subtotal,
+        NULL AS status,
+        NULL AS network,
+        NULL AS balance,
+        NULL AS name_vendor,
+        NULL AS name_project,
+        NULL AS currency,
+        NULL AS time_delivered,
+        NULL AS pr,
+        NULL AS shopping,
+        NULL AS po,
+        NULL AS cantidad_entrada,
+        MIN(s.id_stock) AS id_stock,
+        MIN(s.rack) AS rack,
+        MIN(s.date_entry) AS date_entry
+      FROM movements m
+      JOIN stock s ON m.id_stock = s.id_stock
+      JOIN product p ON s.no_part = p.no_part
+      GROUP BY p.no_part, p.brand, p.description, p.quantity, p.unit, p.type_p
+      ORDER BY MAX(m.date_movement) DESC
+    `;
+
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('/api/stock/summary error', error);
+    res.status(500).json({ error: "Error fetching stock summary" });
+  }
+});
+
+app.get("/api/stock", async (req, res) => {
+  try {
+    const query = `
+      SELECT
+        MIN(s.id_stock) AS id_stock,
+        MIN(s.rack) AS rack,
+        MIN(s.date_entry) AS date_entry,
+        p.no_part,
+        p.brand,
+        p.description,
+        p.quantity AS product_quantity,
+        p.unit,
+        p.type_p,
+        COUNT(s.id_stock)::INTEGER AS cantidad_disponible,
+        NULL AS price_unit,
+        NULL AS pd_quantity,
+        NULL AS subtotal,
+        NULL AS status,
+        NULL AS network,
+        NULL AS balance,
+        NULL AS name_vendor,
+        NULL AS name_project,
+        NULL AS currency,
+        NULL AS time_delivered,
+        NULL AS pr,
+        NULL AS shopping,
+        NULL AS po,
+        NULL AS cantidad_entrada
+      FROM stock s
+      JOIN product p ON s.no_part = p.no_part
+      GROUP BY p.no_part, p.brand, p.description, p.quantity, p.unit, p.type_p
+      ORDER BY MIN(s.date_entry) DESC
     `;
 
     const result = await pool.query(query);
@@ -1033,6 +1210,41 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
 // ======================================================
+// STOCK - obtener cantidad disponible (INBOUND - OUTBOUND)
+// ======================================================
+app.get('/api/stock/available/:qr_code', async (req, res) => {
+  try {
+    const qr = (req.params.qr_code || '').toString().trim().toUpperCase();
+    if (!qr) return res.status(400).json({ message: 'qr_code requerido' });
+
+    // Buscar stock por qr_code
+    const stockQ = `SELECT id_stock, no_part, no_project FROM stock WHERE qr_code = $1 LIMIT 1`;
+    const stockR = await pool.query(stockQ, [qr]);
+    if (stockR.rows.length === 0) return res.status(404).json({ message: 'QR no encontrado' });
+    const stock = stockR.rows[0];
+
+    // Contar INBOUND y OUTBOUND para ese no_part en ese proyecto
+    const movQ = `
+      SELECT 
+        COUNT(CASE WHEN m.type_movement = 'INBOUND' THEN 1 END) as inbound_count,
+        COUNT(CASE WHEN m.type_movement = 'OUTBOUND' THEN 1 END) as outbound_count
+      FROM movements m
+      JOIN stock s ON m.id_stock = s.id_stock
+      WHERE s.no_part = $1 AND s.no_project = $2
+    `;
+    const movR = await pool.query(movQ, [stock.no_part, stock.no_project]);
+    const inbound = parseInt(movR.rows[0].inbound_count) || 0;
+    const outbound = parseInt(movR.rows[0].outbound_count) || 0;
+    const available = inbound - outbound;
+
+    res.json({ no_part: stock.no_part, no_project: stock.no_project, inbound, outbound, available });
+  } catch (err) {
+    console.error('/api/stock/available error', err);
+    res.status(500).json({ message: 'Error en servidor', error: String(err) });
+  }
+});
+
+// ======================================================
 // INBOUND - ESCANEO QR
 // Busca el QR en stock y registra movimiento INBOUND
 // ======================================================
@@ -1092,5 +1304,80 @@ app.post("/api/inbound", async (req, res) => {
       message: "Error en el servidor",
       error: error.message
     });
+  }
+});
+ 
+// ======================================================
+// MOVEMENTS - obtener último movimiento por qr_code
+// ======================================================
+app.get('/api/movements/last', async (req, res) => {
+  try {
+    const qr_code = (req.query.qr_code || '').toString().trim().toUpperCase();
+    if (!qr_code) return res.status(400).json({ message: 'qr_code requerido' });
+
+    // Buscar stock
+    const stockQ = `SELECT id_stock, qr_code, no_part, no_project, rack FROM stock WHERE qr_code = $1 LIMIT 1`;
+    const stockR = await pool.query(stockQ, [qr_code]);
+    if (stockR.rows.length === 0) return res.status(404).json({ message: 'QR no encontrado' });
+    const stock = stockR.rows[0];
+
+    const movQ = `SELECT id_movement, date_movement, type_movement, id_stock, pid FROM movements WHERE id_stock = $1 ORDER BY date_movement DESC LIMIT 1`;
+    const movR = await pool.query(movQ, [stock.id_stock]);
+    if (movR.rows.length === 0) return res.status(404).json({ message: 'Sin movimientos previos' });
+
+    return res.json({ movement: movR.rows[0], stock });
+  } catch (err) {
+    console.error('/api/movements/last error', err);
+    res.status(500).json({ message: 'Error en servidor', error: String(err) });
+  }
+});
+
+// ======================================================
+// MOVEMENTS - registrar movimiento genérico (INBOUND/OUTBOUND)
+// ======================================================
+app.post('/api/movements', async (req, res) => {
+  try {
+    const { qr_code, type } = req.body;
+    const t = (type || '').toString().trim().toUpperCase();
+    if (!qr_code) return res.status(400).json({ ok: false, message: 'qr_code requerido' });
+    if (!t || (t !== 'INBOUND' && t !== 'OUTBOUND')) return res.status(400).json({ ok: false, message: 'type debe ser INBOUND u OUTBOUND' });
+
+    const qr = qr_code.trim().toUpperCase();
+    const stockQ = `SELECT id_stock, rack, date_entry, no_part, no_project, qr_code FROM stock WHERE qr_code = $1 LIMIT 1`;
+    const stockR = await pool.query(stockQ, [qr]);
+    if (stockR.rows.length === 0) return res.status(404).json({ ok: false, message: `QR no encontrado en Stock: ${qr}` });
+    const stockRow = stockR.rows[0];
+
+    const movementQuery = `INSERT INTO movements (date_movement, type_movement, id_stock, pid) VALUES (NOW(), $1, $2, NULL) RETURNING id_movement, date_movement, type_movement, id_stock, pid`;
+    const movementResult = await pool.query(movementQuery, [t, stockRow.id_stock]);
+
+    return res.json({ ok: true, message: 'Movimiento registrado', stock: stockRow, movement: movementResult.rows[0] });
+  } catch (err) {
+    console.error('/api/movements POST error', err);
+    res.status(500).json({ ok: false, message: 'Error en el servidor', error: String(err) });
+  }
+});
+
+// ======================================================
+// OUTBOUND - legacy fallback endpoint
+// ======================================================
+app.post('/api/outbound', async (req, res) => {
+  try {
+    const { qr_code } = req.body;
+    if (!qr_code) return res.status(400).json({ ok: false, message: 'qr_code requerido' });
+    const qr = qr_code.trim().toUpperCase();
+
+    const stockQ = `SELECT id_stock, rack, date_entry, no_part, no_project, qr_code FROM stock WHERE qr_code = $1 LIMIT 1`;
+    const stockR = await pool.query(stockQ, [qr]);
+    if (stockR.rows.length === 0) return res.status(404).json({ ok: false, message: `QR no encontrado en Stock: ${qr}` });
+    const stockRow = stockR.rows[0];
+
+    const movementQuery = `INSERT INTO movements (date_movement, type_movement, id_stock, pid) VALUES (NOW(), 'OUTBOUND', $1, NULL) RETURNING id_movement, date_movement, type_movement, id_stock, pid`;
+    const movementResult = await pool.query(movementQuery, [stockRow.id_stock]);
+
+    return res.json({ ok: true, message: 'Salida registrada', stock: stockRow, movement: movementResult.rows[0] });
+  } catch (err) {
+    console.error('/api/outbound error', err);
+    res.status(500).json({ ok: false, message: 'Error en servidor', error: String(err) });
   }
 });

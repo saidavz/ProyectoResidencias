@@ -80,6 +80,7 @@
               <th>ID Movement</th>
               <th>Date</th>
               <th>Status</th>
+              <th>Cantidad Disponible</th>
             </tr>
           </thead>
           <tbody id="scanTable"></tbody>
@@ -106,39 +107,77 @@
     }
 
     function showToast(message, type = "success", details = "") {
-      toast.className = `alert alert-${type}`;
+      toast.classList.remove("d-none");
+      toast.classList.remove("alert-success", "alert-danger", "alert-info", "alert-warning");
+      toast.classList.add(`alert`, `alert-${type}`);
       const safeMessage = escapeHtml(message);
       const safeDetails = details ? escapeHtml(details) : "";
       toast.innerHTML = `<div>${safeMessage}</div>` + (safeDetails ? `<small class="d-block text-monospace mt-1" style="opacity:.85; white-space:pre-wrap;">${safeDetails}</small>` : '');
-      toast.classList.remove("d-none");
 
       setTimeout(() => {
         toast.classList.add("d-none");
       }, 4000);
     }
 
-    async function registerInbound(qr_code) {
-      // Usar API_BASE para evitar ERR_CONNECTION_REFUSED cuando el HTML se abre desde file:// u otro servidor
-      const res = await fetch(`${API_BASE}/api/inbound`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ qr_code })
-      });
-
-      const _text = await res.text();
-      let data;
+    async function fetchLastMovement(qr_code) {
       try {
-        data = _text ? JSON.parse(_text) : {};
+        const res = await fetch(`${API_BASE}/api/movements/last?qr_code=${encodeURIComponent(qr_code)}`);
+        if (res.status === 404) return null;
+        const txt = await res.text();
+        if (!res.ok) {
+          // no hay endpoint o error — no tratamos como fatal aquí
+          console.warn('fetchLastMovement non-ok', res.status, txt);
+          return null;
+        }
+        try {
+          return txt ? JSON.parse(txt) : null;
+        } catch (e) {
+          console.warn('fetchLastMovement parse error', e);
+          return null;
+        }
       } catch (e) {
-        // Si la respuesta no es JSON, mantén el texto bruto en message para mostrar un error útil
-        data = { message: _text || String(e) };
+        console.warn('fetchLastMovement failed', e);
+        return null;
+      }
+    }
+
+    async function registerMovement(qr_code, movementType) {
+      // Intentar endpoint genérico primero
+      const payload = { qr_code, type: movementType };
+
+      async function tryPost(url, body) {
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const text = await r.text();
+        let data;
+        try { data = text ? JSON.parse(text) : {}; } catch (e) { data = { message: text || String(e) }; }
+        if (!r.ok && r.status !== 201) {
+          const err = new Error(data.message || `HTTP ${r.status}`);
+          err.res = r; err.data = data; throw err;
+        }
+        return data;
       }
 
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || `HTTP ${res.status}`);
+      // Try generic /api/movements
+      try {
+        return await tryPost(`${API_BASE}/api/movements`, payload);
+      } catch (err) {
+        console.warn('/api/movements failed, trying fallbacks', err.message);
       }
 
-      return data;
+      // Fallbacks: try legacy endpoints if present
+      try {
+        if (movementType === 'INBOUND') return await tryPost(`${API_BASE}/api/inbound`, { qr_code });
+        if (movementType === 'OUTBOUND') return await tryPost(`${API_BASE}/api/outbound`, { qr_code });
+      } catch (err) {
+        console.warn('fallback endpoints failed', err.message);
+        throw err;
+      }
+
+      throw new Error('No endpoint available to register movement');
     }
 
     async function handleScan() {
@@ -160,34 +199,84 @@
         <td>...</td>
         <td>...</td>
         <td class="fw-bold text-warning">Searching...</td>
+        <td>-</td>
       `;
       scanTable.prepend(row);
 
       try {
-        const result = await registerInbound(qr);
+        const last = await fetchLastMovement(qr);
 
-        row.cells[2].textContent = result.stock.id_stock;
-        row.cells[3].textContent = result.stock.no_part;
-        row.cells[4].textContent = result.stock.no_project;
-        row.cells[5].textContent = result.stock.rack;
+        let movementType;
+        // Normalizar posibles campos: 'type', 'type_movement' o dentro de movement
+        function extractType(obj) {
+          if (!obj) return null;
+          if (obj.type) return String(obj.type).toUpperCase();
+          if (obj.type_movement) return String(obj.type_movement).toUpperCase();
+          return null;
+        }
+        const lastType = extractType(last) || extractType(last && last.movement) || null;
 
-        row.cells[6].textContent = result.movement.id_movement;
-        row.cells[7].textContent = new Date(result.movement.date_movement).toLocaleString();
+        if (!lastType) {
+          movementType = 'INBOUND';
+        } else if (lastType === 'INBOUND') {
+          movementType = 'OUTBOUND';
+        } else if (lastType === 'OUTBOUND') {
+          const cont = window.confirm('Este producto ya tiene una salida registrada. ¿Desea ingresarlo nuevamente? (Aceptar = registrar ENTRADA)');
+          if (!cont) {
+            row.cells[8].textContent = 'Cancelled';
+            row.cells[8].className = 'fw-bold text-secondary';
+            row.cells[9].textContent = '-';
+            showToast('Operación cancelada', 'info');
+            return;
+          }
+          movementType = 'INBOUND';
+        } else {
+          movementType = 'INBOUND';
+        }
 
-        row.cells[8].textContent = "Registered";
-        row.cells[8].className = "fw-bold text-success";
+        const result = await registerMovement(qr, movementType);
 
-        showToast("Entry registered successfully", "success");
+        // defensivas: soportar distintas formas de respuesta
+        const stock = result.stock || (result.data && result.data.stock) || null;
+        const movement = result.movement || (result.data && result.data.movement) || { id_movement: result.id_movement, date_movement: result.date_movement, type: movementType };
+
+        row.cells[2].textContent = stock && stock.id_stock ? stock.id_stock : (result.id_stock || 'N/A');
+        row.cells[3].textContent = stock && stock.no_part ? stock.no_part : (result.no_part || 'N/A');
+        row.cells[4].textContent = stock && stock.no_project ? stock.no_project : (result.no_project || 'N/A');
+        row.cells[5].textContent = stock && stock.rack ? stock.rack : (result.rack || 'N/A');
+
+        row.cells[6].textContent = movement && (movement.id_movement || movement.id) ? (movement.id_movement || movement.id) : 'N/A';
+        row.cells[7].textContent = movement && movement.date_movement ? new Date(movement.date_movement).toLocaleString() : (new Date().toLocaleString());
+
+        row.cells[8].textContent = movementType === 'INBOUND' ? 'INBOUND' : 'OUTBOUND';
+        row.cells[8].className = movementType === 'INBOUND' ? 'fw-bold text-success' : 'fw-bold text-danger';
+
+        // Consultar cantidad disponible
+        try {
+          const availRes = await fetch(`${API_BASE}/api/stock/available/${qr}`);
+          if (availRes.ok) {
+            const availData = await availRes.json();
+            row.cells[9].textContent = availData.available || 0;
+          } else {
+            row.cells[9].textContent = '-';
+          }
+        } catch (err) {
+          console.warn('fetchAvailable error', err);
+          row.cells[9].textContent = '-';
+        }
+
+        showToast(`Movimiento ${movementType} registrado`, 'success');
 
       } catch (err) {
-        console.error('registerInbound error:', err);
+        console.error('registerMovement error:', err);
         row.cells[8].textContent = "Not registered";
         row.cells[8].className = "fw-bold text-danger";
+        row.cells[9].textContent = '-';
 
         const msg = (err && err.message) ? err.message : String(err || 'Unknown error');
         let userMsg = msg;
         if (String(msg).toLowerCase().includes('failed to fetch')) {
-          userMsg += ' — Please check if the backend server is running and accessible.';
+          userMsg += ' — Por favor verifica que el servidor backend esté en ejecución y accesible.';
         }
         const details = err && err.stack ? err.stack : (typeof err === 'object' ? JSON.stringify(err, Object.getOwnPropertyNames(err), 2) : '');
         showToast(`${userMsg}`, "danger", details);
