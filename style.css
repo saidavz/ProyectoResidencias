@@ -151,16 +151,6 @@ body {
   box-shadow: var(--shadow-medium);
 }
 
-.inventory-title {
-  color: var(--pure-white);
-  font-weight: 800;
-  font-size: 3.0rem;
-  margin: 0;
-  text-align: center;
-  flex: 1;
-  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-  letter-spacing: 1px;
-}
 
 .total-material-card {
   background: linear-gradient(135deg, rgba(255, 59, 48, 0.2), rgba(0, 0, 0, 0.9));
@@ -680,10 +670,6 @@ footer {
     flex-direction: column;
     gap: 1.5rem;
     text-align: center;
-  }
-
-  .inventory-title {
-    font-size: 2.5rem;
   }
 
   .total-material-number {
