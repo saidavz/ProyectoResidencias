@@ -65,11 +65,22 @@
       </div>
     </div>
   </nav>
-    </div>
+  </div>
   </nav>
 
   <div class="container py-4">
     <h2 class="text-center text-white mb-4" style="font-weight: bold;">Inbound And Outbound</h2>
+
+    <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
+      <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
+      <label class="btn btn-outline-danger" for="btnradio1">          
+        <i class="bi bi-box fs-4 me-2 text-white"></i>
+          <i class="bi bi-arrow-right fs-4 me-2 text-white"></i>Inbound</label>
+      <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
+      <label class="btn btn-outline-danger" for="btnradio2">
+          <i class="bi bi-arrow-left fs-4 me-2 text-white"></i>
+            <i class="bi bi-box fs-4 me-2 text-white"></i>Outbound</label>
+    </div><br><br>
 
     <div class="card shadow-sm p-3 mb-4">
       <label class="form-label fw-bold">Scan the QR code</label>
@@ -154,7 +165,9 @@
 
     async function registerMovement(qr_code, movementType) {
       // Intentar endpoint genérico primero
-      const payload = { qr_code, type: movementType };
+      // Ahora acepta cantidad
+      let cantidad = arguments.length > 2 ? arguments[2] : 1;
+      const payload = { qr_code, type: movementType, cantidad };
 
       async function tryPost(url, body) {
         const r = await fetch(url, {
@@ -215,37 +228,24 @@
       scanTable.prepend(row);
 
       try {
-        const last = await fetchLastMovement(qr);
+        // Determinar tipo de movimiento según btn-group
+        const inboundChecked = document.getElementById('btnradio1').checked;
+        const outboundChecked = document.getElementById('btnradio2').checked;
+        let movementType = inboundChecked ? 'INBOUND' : outboundChecked ? 'OUTBOUND' : 'INBOUND';
 
-        let movementType;
-        // Normalizar posibles campos: 'type', 'type_movement' o dentro de movement
-        function extractType(obj) {
-          if (!obj) return null;
-          if (obj.type) return String(obj.type).toUpperCase();
-          if (obj.type_movement) return String(obj.type_movement).toUpperCase();
-          return null;
-        }
-        const lastType = extractType(last) || extractType(last && last.movement) || null;
-
-        if (!lastType) {
-          movementType = 'INBOUND';
-        } else if (lastType === 'INBOUND') {
-          movementType = 'OUTBOUND';
-        } else if (lastType === 'OUTBOUND') {
-          const cont = window.confirm('Este producto ya tiene una salida registrada. ¿Desea ingresarlo nuevamente? (Aceptar = registrar ENTRADA)');
-          if (!cont) {
-            row.cells[8].textContent = 'Cancelled';
-            row.cells[8].className = 'fw-bold text-secondary';
-            row.cells[9].textContent = '-';
-            showToast('Operación cancelada', 'info');
-            return;
-          }
-          movementType = 'INBOUND';
-        } else {
-          movementType = 'INBOUND';
+        // Pedir cantidad
+        let cantidad = prompt('Ingrese la cantidad para el movimiento:', '1');
+        cantidad = cantidad ? parseInt(cantidad, 10) : 1;
+        if (isNaN(cantidad) || cantidad <= 0) {
+          row.cells[8].textContent = 'Cantidad inválida';
+          row.cells[8].className = 'fw-bold text-secondary';
+          row.cells[9].textContent = '-';
+          showToast('Cantidad inválida', 'info');
+          return;
         }
 
-        const result = await registerMovement(qr, movementType);
+        // Registrar movimiento ignorando historial
+        const result = await registerMovement(qr, movementType, cantidad);
 
         // defensivas: soportar distintas formas de respuesta
         const stock = result.stock || (result.data && result.data.stock) || null;
