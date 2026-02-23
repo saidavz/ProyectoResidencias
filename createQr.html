@@ -25,6 +25,10 @@
             <a href="index.html" class="p-0 me-4">
                 <img src="/logo.png" alt="Logo" height="40">
             </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu"
+                aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             <div class="collapse navbar-collapse" id="navbarMenu">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
@@ -48,7 +52,7 @@
                             aria-expanded="false">
                             Inventory
                         </a>
-                        <ul class="dropdown-menu w-100 text-center" aria-labelledby="dropdownBom">
+                        <ul class="dropdown-menu text-center" aria-labelledby="dropdownBom">
                             <li><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="io.html">Register Inbound And Outbound</a></li><li>
@@ -57,6 +61,10 @@
                         </ul>
                     </li>
                 </ul>
+                <div class="d-flex align-items-center ms-auto">
+                    <i class="bi bi-qr-code fs-4 me-2 text-white"></i>
+                    <span class="h4 mb-0 text-white">Create QR Codes</span>
+                </div>
             </div>
         </div>
     </nav>
@@ -315,7 +323,33 @@
             document.getElementById('confirmRegenerateBtn').addEventListener('click', () => {
                 if (currentQRAction) {
                     confirmQRModal.hide();
-                    displayExistingQRCode(currentQRAction);
+                    // Enviar solicitud a /api/stock/entry para incrementar disponible
+                    const data = {
+                        rack: currentQRAction.rack,
+                        no_part: currentQRAction.no_part,
+                        no_project: currentQRAction.no_project
+                    };
+                    fetch(`${baseURL}/api/stock/entry`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    })
+                        .then(res => res.json())
+                        .then(result => {
+                            if (result.success) {
+                                console.log('Disponible incrementado:', result.data.available);
+                                displayExistingQRCode(result.data);
+                            } else {
+                                console.error('Error incrementando disponible:', result.error);
+                                displayExistingQRCode(currentQRAction);
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error:', err);
+                            displayExistingQRCode(currentQRAction);
+                        });
                     currentQRAction = null;
                 }
             });
