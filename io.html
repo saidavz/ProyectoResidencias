@@ -95,13 +95,12 @@
             <tr>
               <th>#</th>
               <th>QR Code</th>
-              <th>ID Stock</th>
               <th>No. Part</th>
               <th>Proyecto</th>
               <th>Rack</th>
-              <th>ID Movement</th>
               <th>Date</th>
               <th>Status</th>
+              <th>Cantidad I/O</th>
               <th>Cantidad Disponible</th>
             </tr>
           </thead>
@@ -221,8 +220,7 @@
         <td>...</td>
         <td>...</td>
         <td>...</td>
-        <td>...</td>
-        <td class="fw-bold text-warning">Searching...</td>
+        <td><input type="text" class="form-control form-control-sm price" value="1" autocomplete="off" style="width: 100px"></td>
         <td>-</td>
       `;
       scanTable.prepend(row);
@@ -244,6 +242,44 @@
           return;
         }
 
+        // Consultar cantidad disponible y datos de stock
+        let stockData = null;
+        let available = 0;
+        let no_part = null;
+        let no_project = null;
+        try {
+          const availRes = await fetch(`${API_BASE}/api/stock/available/${qr}`);
+          if (availRes.ok) {
+            const availData = await availRes.json();
+            available = availData.available || 0;
+            no_part = availData.no_part;
+            no_project = availData.no_project;
+            stockData = availData;
+          }
+        } catch (err) {
+          console.warn('fetchAvailable error', err);
+        }
+
+        // Si es INBOUND, validar contra paquetes-calculados
+        if (movementType === 'INBOUND' && no_part && no_project) {
+          try {
+            const paquetesRes = await fetch(`${API_BASE}/api/paquetes-calculados?no_project=${encodeURIComponent(no_project)}&no_part=${encodeURIComponent(no_part)}`);
+            if (paquetesRes.ok) {
+              const paquetesData = await paquetesRes.json();
+              const cantidad_calculada = paquetesData.cantidad_calculada || 0;
+              if ((available + cantidad) > cantidad_calculada) {
+                row.cells[8].textContent = 'Límite superado';
+                row.cells[8].className = 'fw-bold text-danger';
+                row.cells[9].textContent = available;
+                showToast('No se puede registrar: el stock disponible más la cantidad ingresada supera el máximo permitido de paquetes para este proyecto.', 'warning', `Máximo permitido: ${cantidad_calculada}, Disponible: ${available}, Intento de entrada: ${cantidad}`);
+                return;
+              }
+            }
+          } catch (err) {
+            console.warn('fetch paquetes-calculados error', err);
+          }
+        }
+
         // Registrar movimiento ignorando historial
         const result = await registerMovement(qr, movementType, cantidad);
 
@@ -251,29 +287,27 @@
         const stock = result.stock || (result.data && result.data.stock) || null;
         const movement = result.movement || (result.data && result.data.movement) || { id_movement: result.id_movement, date_movement: result.date_movement, type: movementType };
 
-        row.cells[2].textContent = stock && stock.id_stock ? stock.id_stock : (result.id_stock || 'N/A');
-        row.cells[3].textContent = stock && stock.no_part ? stock.no_part : (result.no_part || 'N/A');
-        row.cells[4].textContent = stock && stock.no_project ? stock.no_project : (result.no_project || 'N/A');
-        row.cells[5].textContent = stock && stock.rack ? stock.rack : (result.rack || 'N/A');
+        row.cells[2].textContent = stock && stock.no_part ? stock.no_part : (result.no_part || 'N/A');
+        row.cells[3].textContent = stock && stock.no_project ? stock.no_project : (result.no_project || 'N/A');
+        row.cells[4].textContent = stock && stock.rack ? stock.rack : (result.rack || 'N/A');
 
-        row.cells[6].textContent = movement && (movement.id_movement || movement.id) ? (movement.id_movement || movement.id) : 'N/A';
-        row.cells[7].textContent = movement && movement.date_movement ? new Date(movement.date_movement).toLocaleString() : (new Date().toLocaleString());
+        row.cells[5].textContent = movement && movement.date_movement ? new Date(movement.date_movement).toLocaleString() : (new Date().toLocaleString());
 
-        row.cells[8].textContent = movementType === 'INBOUND' ? 'INBOUND' : 'OUTBOUND';
-        row.cells[8].className = movementType === 'INBOUND' ? 'fw-bold text-success' : 'fw-bold text-danger';
+        row.cells[6].textContent = movementType === 'INBOUND' ? 'INBOUND' : 'OUTBOUND';
+        row.cells[6].className = movementType === 'INBOUND' ? 'fw-bold text-success' : 'fw-bold text-danger';
 
-        // Consultar cantidad disponible
+        // Consultar cantidad disponible (actualizada)
         try {
           const availRes = await fetch(`${API_BASE}/api/stock/available/${qr}`);
           if (availRes.ok) {
             const availData = await availRes.json();
-            row.cells[9].textContent = availData.available || 0;
+            row.cells[8].textContent = availData.available || 0;
           } else {
-            row.cells[9].textContent = '-';
+            row.cells[8].textContent = '-';
           }
         } catch (err) {
           console.warn('fetchAvailable error', err);
-          row.cells[9].textContent = '-';
+          row.cells[8].textContent = '-';
         }
 
         showToast(`Movimiento ${movementType} registrado`, 'success');
