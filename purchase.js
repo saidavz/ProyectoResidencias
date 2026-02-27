@@ -451,6 +451,40 @@ app.get('/api/network/balance/:network', async (req, res) => {
   }
 });
 
+// Endpoint para obtener cantidad_calculada de paquetes para un proyecto y no_part
+app.get('/api/paquetes-calculados', async (req, res) => {
+  const { no_project, no_part } = req.query;
+  if (!no_project || !no_part) {
+    return res.status(400).json({ error: 'Faltan parámetros no_project o no_part' });
+  }
+  try {
+    // Buscar quantity_project en bom_project
+    const bomResult = await pool.query(
+      'SELECT quantity_project FROM bom_project WHERE no_project = $1 AND no_part = $2',
+      [no_project, no_part]
+    );
+    if (bomResult.rows.length === 0) {
+      return res.status(404).json({ error: 'No existe BOM para este proyecto y parte' });
+    }
+    const quantity_project = bomResult.rows[0].quantity_project;
+    // Buscar quantity en product
+    const productResult = await pool.query(
+      'SELECT quantity FROM product WHERE no_part = $1',
+      [no_part]
+    );
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ error: 'No existe producto para este no_part' });
+    }
+    const quantity = productResult.rows[0].quantity;
+    // Calcular cantidad_calculada y redondear hacia arriba
+    const cantidad_calculada = Math.ceil(quantity_project / quantity);
+    res.json({ cantidad_calculada });
+  } catch (error) {
+    console.error('Error en /api/paquetes-calculados:', error);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
 // ======================================================
 // PROJECTS - obtener proyectos con movimientos
 // ======================================================

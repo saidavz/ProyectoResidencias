@@ -220,10 +220,74 @@
         <td>...</td>
         <td>...</td>
         <td>...</td>
-        <td><input type="text" class="form-control form-control-sm price" value="1" autocomplete="off" style="width: 100px"></td>
+        <td><input type="text" class="form-control form-control-sm quantity" value="1" autocomplete="off" style="width: 100px"></td>
         <td>-</td>
       `;
       scanTable.prepend(row);
+
+      // Obtener el input de cantidad
+      const cantidadInput = row.querySelector('.quantity');
+      let previousValue = 1;
+
+      // Event listener para cambios en la cantidad al presionar Enter
+      cantidadInput.addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+
+        const newValue = parseInt(e.target.value, 10);
+        if (isNaN(newValue) || newValue < 0) {
+          showToast('Cantidad inválida', 'danger');
+          e.target.value = previousValue;
+          return;
+        }
+
+        // calcular diferencia respecto al valor previo
+        const delta = newValue - previousValue;
+        if (delta === 0) {
+          previousValue = newValue;
+          return;
+        }
+
+        try {
+          // determinar tipo de movimiento según signo de delta y selección actual
+          const inboundChecked = document.getElementById('btnradio1').checked;
+          let movementType = inboundChecked ? 'INBOUND' : 'OUTBOUND';
+          if (delta < 0) {
+            // si disminuye, invertimos el tipo
+            movementType = (movementType === 'INBOUND') ? 'OUTBOUND' : 'INBOUND';
+          }
+          const addedQr = row.cells[1].textContent;
+          const units = Math.abs(delta);
+
+          // registrar los movimientos en unidades de 1 si es necesario
+          if (units > 1) {
+            for (let i = 0; i < units; i++) {
+              await registerMovement(addedQr, movementType, 1);
+            }
+          } else {
+            await registerMovement(addedQr, movementType, units);
+          }
+
+          showToast(`Movimiento de ${units} unidades registrado`, 'success');
+
+          // Actualizar cantidad disponible
+          try {
+            const availRes = await fetch(`${API_BASE}/api/stock/available/${addedQr}`);
+            if (availRes.ok) {
+              const availData = await availRes.json();
+              row.cells[8].textContent = availData.available || 0;
+            }
+          } catch (err) {
+            console.warn('fetchAvailable error', err);
+          }
+
+          previousValue = newValue;
+        } catch (err) {
+          console.error('Error en movimiento adicional:', err);
+          showToast('Error al registrar movimiento adicional', 'danger');
+          e.target.value = previousValue;
+        }
+      });
 
       try {
         // Determinar tipo de movimiento según btn-group
@@ -268,11 +332,7 @@
               const paquetesData = await paquetesRes.json();
               const cantidad_calculada = paquetesData.cantidad_calculada || 0;
               if ((available + cantidad) > cantidad_calculada) {
-                row.cells[8].textContent = 'Límite superado';
-                row.cells[8].className = 'fw-bold text-danger';
-                row.cells[9].textContent = available;
-                showToast('No se puede registrar: el stock disponible más la cantidad ingresada supera el máximo permitido de paquetes para este proyecto.', 'warning', `Máximo permitido: ${cantidad_calculada}, Disponible: ${available}, Intento de entrada: ${cantidad}`);
-                return;
+                window.alert(`Advertencia: el stock disponible supera lo pedido de este número de parte para este proyecto.\nMaterial pedido: ${cantidad_calculada}\nDisponible: ${available}\nIntento de entrada: ${cantidad}`);
               }
             }
           } catch (err) {
@@ -306,7 +366,7 @@
             row.cells[8].textContent = '-';
           }
         } catch (err) {
-          console.warn('fetchAvailable error', err);
+          console.warn('fetchAvailable error', err); 
           row.cells[8].textContent = '-';
         }
 
