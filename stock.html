@@ -67,17 +67,23 @@
   <div class="inventory-container">
     <div class="inventory-header">
       <h2 class="inventory-title text-center text-white" style="font-weight: bold;">Inventory</h2>
-      <div class="total-material-card">
-        <span class="total-material-number" id="totalMaterial">0</span>
-        <span class="total-material-label">Total Material</span>
+      <div class="cards-container">
+        <div class="total-material-card">
+          <span class="total-material-number" id="totalMaterial">0</span>
+          <span class="total-material-label">Total Material</span>
+        </div>
+        <div class="rack-card" id="rackCard" style="display: none;">
+          <span class="rack-number" id="rackNumber">-</span>
+          <span class="rack-label">Rack</span>
+        </div>
       </div>
     </div>
     <div class="inventory-search d-flex align-items-center gap-2">
-      <div class="card p-3 mb-3 static-filter-card" style="position: relative; z-index: 1010; overflow: visible;">
+      <div class="card p-3 mb-3 static-filter-card" style="position: relative; z-index: 1010; overflow: visible; width: 100%;">
         <div class="row">
           <div class="col-md-12">
-              <label for="projectSearchStock" class="form-label">Buscar proyecto o No. Parte</label>
-              <div style="position: relative; max-width: 700px;">
+              <label for="projectSearchStock" class="form-label">Buscador</label>
+              <div style="position: relative; max-width: 980px;">
                 <input type="text" id="projectSearchStock" class="form-control" style="font-size:1.1rem; height: 48px; width: 100%;" placeholder="Buscar proyecto o número de parte..." autocomplete="off">
                 <div id="projectSuggestionsStock" class="bg-light text-dark" style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 2000; border: 1px solid #ccc; display: none; max-height: 300px; overflow-y: auto; border-radius: 4px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); background-color: white;"></div>
               </div>

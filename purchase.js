@@ -23,11 +23,11 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
   password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
-// RUTAS DEL SERVIRDOR 1 (purchase.js) 
+// RUTAS DEL SERVIRDOR 1 (purchase.js) 00..
 
 app.get('/api/products', async (req, res) => {
   try {
@@ -527,30 +527,48 @@ app.get('/api/stock/by-project', async (req, res) => {
         p.quantity AS product_quantity,
         p.unit,
         p.type_p,
-        pd.price_unit,
-        pd.quantity AS pd_quantity,
-        (pd.price_unit * pd.quantity) AS subtotal,
-        bp.status,
-        n.network,
-        n.balance,
-        v.name_vendor,
+        pd_info.price_unit,
+        pd_info.pd_quantity,
+        (pd_info.price_unit * pd_info.pd_quantity) AS subtotal,
+        pd_info.status,
+        pd_info.network,
+        pd_info.balance,
+        pd_info.name_vendor,
         pr.name_project,
-        pu.currency,
-        pu.time_delivered,
-        pu.pr,
-        pu.shopping,
-        pu.po,
-        pd.quantity AS cantidad_entrada,
+        pd_info.currency,
+        pd_info.time_delivered,
+        pd_info.pr,
+        pd_info.shopping,
+        pd_info.po,
+        pd_info.pd_quantity AS cantidad_entrada,
         (SELECT COUNT(*) FROM movements m 
          WHERE m.id_stock = s.id_stock AND m.type_movement = 'INBOUND') AS cantidad_disponible
       FROM stock s
       JOIN product p ON s.no_part = p.no_part
-      LEFT JOIN purchase_detail pd ON s.no_part = pd.no_part
-      LEFT JOIN purchase pu ON pd.id_purchase = pu.id_purchase
-      LEFT JOIN bom_project bp ON bp.no_project = pu.no_project AND bp.no_part = pd.no_part
-      LEFT JOIN vendor v ON pu.id_vendor = v.id_vendor
-      LEFT JOIN project pr ON pu.no_project = pr.no_project
-      LEFT JOIN network n ON pu.network = n.network
+      LEFT JOIN LATERAL (
+        SELECT
+          pd.price_unit,
+          pd.quantity AS pd_quantity,
+          bp.status,
+          n.network,
+          n.balance,
+          v.name_vendor,
+          pu.currency,
+          pu.time_delivered,
+          pu.pr,
+          pu.shopping,
+          pu.po
+        FROM purchase_detail pd
+        JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+        LEFT JOIN bom_project bp ON bp.no_project = pu.no_project AND bp.no_part = pd.no_part
+        LEFT JOIN vendor v ON pu.id_vendor = v.id_vendor
+        LEFT JOIN network n ON pu.network = n.network
+        WHERE pd.no_part = s.no_part
+          AND pu.no_project = s.no_project
+        ORDER BY pu.id_purchase DESC
+        LIMIT 1
+      ) pd_info ON TRUE
+      LEFT JOIN project pr ON s.no_project = pr.no_project
       WHERE s.no_project = $1
         AND EXISTS (
           SELECT 1 FROM movements m 
