@@ -21,7 +21,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  password: 'postgresql', //verifica bien al cambiarlo
   port: 5432,
 });
 // RUTAS DEL SERVIRDOR 1 (purchase.js) 
@@ -654,10 +654,11 @@ app.get('/api/stock/summary', async (req, res) => {
         NULL AS cantidad_entrada,
         MIN(s.id_stock) AS id_stock,
         MIN(s.rack) AS rack,
-        SUM(s.available) AS available
+        SUM(DISTINCT s.available) AS available
       FROM movements m
       JOIN stock s ON m.id_stock = s.id_stock
       JOIN product p ON s.no_part = p.no_part
+      
       GROUP BY p.no_part, p.brand, p.description, p.quantity, p.unit, p.type_p
       ORDER BY MAX(m.date_movement) DESC
     `;
