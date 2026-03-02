@@ -1,4 +1,7 @@
 // server.js
+
+
+//COMENTARIO PRUEBA
 import express from 'express';
 import pg from 'pg';
 import cors from 'cors';
@@ -21,7 +24,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'postgresql', //verifica bien al cambiarlo
+  password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
 // RUTAS DEL SERVIRDOR 1 (purchase.js) 
