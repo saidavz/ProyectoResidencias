@@ -220,17 +220,40 @@
         <td>...</td>
         <td>...</td>
         <td>...</td>
-        <td><input type="text" class="form-control form-control-sm quantity" value="1" autocomplete="off" style="width: 100px"></td>
-        <td>-</td>
+        <td><input type="number" min="0" class="form-control form-control-sm quantity-input" value="1" style="width: 80px" /></td>
+        <td>...</td>
       `;
       scanTable.prepend(row);
 
-      // Obtener el input de cantidad
-      const cantidadInput = row.querySelector('.quantity');
+      // fix: select the actual quantity input class
+      const cantidadInput = row.querySelector('.quantity-input');
       let previousValue = 1;
 
+      // As soon as we add the row fetch basic stock info so user sees part/project/rack immediately
+      (async () => {
+        try {
+          const availRes = await fetch(`${API_BASE}/api/stock/available/${qr}`);
+          if (availRes.ok) {
+            const availData = await availRes.json();
+            row.cells[2].textContent = availData.no_part || '';
+            row.cells[3].textContent = availData.no_project || '';
+            // rack not returned by available endpoint; try qr-code endpoint
+            try {
+              const qrRes = await fetch(`${API_BASE}/api/stock/qr-code?qr_code=${encodeURIComponent(qr)}`);
+              if (qrRes.ok) {
+                const qrData = await qrRes.json();
+                row.cells[4].textContent = qrData.rack || '';
+              }
+            } catch (e) { /* ignore */ }
+          }
+        } catch (e) {
+          console.warn('early stock fetch failed', e);
+        }
+      })();
+
       // Event listener para cambios en la cantidad al presionar Enter
-      cantidadInput.addEventListener('keydown', async (e) => {
+      if (cantidadInput) {
+        cantidadInput.addEventListener('keydown', async (e) => {
         if (e.key !== 'Enter') return;
         e.preventDefault();
 
@@ -288,6 +311,7 @@
           e.target.value = previousValue;
         }
       });
+      } 
 
       try {
         // Determinar tipo de movimiento según btn-group

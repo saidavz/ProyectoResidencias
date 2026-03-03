@@ -128,7 +128,7 @@
                 </div>
                 <!-- Botón para agregar a la tabla -->
                 <div class="d-grid">
-                  <button type="button" class="btn btn-outline-info btn-agregar-tabla">
+                  <button type="button" class="btn btn-primary btn-lg w-100">
                     <i class="bi bi-plus-circle"></i> Added
                   </button>
                 </div>
@@ -367,8 +367,11 @@
         const tablaBody = document.querySelector("#tablaProductos tbody");
         if (!tablaBody) return;
 
-        // Usar quantity_calculated del backend (quantity_project / quantity)
-        const quantityFinal = Math.ceil(producto.quantity_calculated || 0);
+        // Prefill con la cantidad pedida en material (quantity_project). Si no existe, usamos el cálculo (quantity_calculated).
+        // Esto permite al usuario ver lo que originalmente se solicitó, pero aún así editar la cantidad.
+        const quantityFinal = producto.quantity_project != null
+          ? Number(producto.quantity_project)
+          : Math.ceil(producto.quantity_calculated || 0);
 
         // Escapar texto
         const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -380,7 +383,9 @@
             <td>${esc(producto.brand)}</td>
             <td>${esc(producto.description)}</td>
             <td>${esc(producto.type_p)}</td>
-            <td class="cell-quantity">${quantityFinal.toFixed(2)}</td>
+            <td>
+              <input type="number" min="0" class="form-control form-control-sm quantity-input" value="${quantityFinal.toFixed(0)}" style="width: 80px" />
+            </td>
             <td>${esc(producto.unit)}</td>
             <td><input type="date" class="form-control time-delivered" /></td>
             <td><input type="text" inputmode="decimal" class="form-control form-control-sm price" placeholder="0.00" autocomplete="off" style="width: 100px"></td>
@@ -399,24 +404,38 @@
           brand: producto.brand,
           description: producto.description,
           type_p: producto.type_p,
-          quantity: quantityFinal, //Se usa quantity calculado
+          quantity: quantityFinal, // Inicializado con la cantidad pedida en material o cálculo
           unit: producto.unit,
           price_unit: 0,
           time_delivered_product: null,
-          subtotal: 0
+          subtotal: 0,
+          quantity_project: producto.quantity_project,
+          quantity_calculated: producto.quantity_calculated
         };
 
         productosEnTabla.push(productoObj);
         actualizarTotal();
 
-        // Manejo del input precio
+        // Manejo del input precio y cantidad
         const priceInput = nuevaFila.querySelector('.price');
+        const quantityInput = nuevaFila.querySelector('.quantity-input');
+
+        const recalcSubtotal = () => {
+          productoObj.subtotal = productoObj.price_unit * productoObj.quantity;
+          actualizarTotal();
+        };
+
         priceInput.addEventListener('input', () => {
           const raw = priceInput.value || '';
           const val = parseFloat(raw.replace(/[^0-9.-]+/g, '')) || 0;
           productoObj.price_unit = val;
-          productoObj.subtotal = val * productoObj.quantity;
-          actualizarTotal();
+          recalcSubtotal();
+        });
+
+        quantityInput.addEventListener('input', () => {
+          const q = parseFloat(quantityInput.value) || 0;
+          productoObj.quantity = q;
+          recalcSubtotal();
         });
 
         // Manejo del botón eliminar
@@ -445,7 +464,9 @@
             <td>${esc(producto.brand)}</td>
             <td>${esc(producto.description)}</td>
             <td>${esc(producto.type_p)}</td>
-            <td class="cell-quantity">${esc(producto.quantity)}</td>
+            <td>
+              <input type="number" min="0" step="0.01" class="form-control form-control-sm quantity-input" value="${esc(producto.quantity)}" style="width: 80px" />
+            </td>
             <td>${esc(producto.unit)}</td>
             <td><input type="date" class="form-control time-delivered" /></td>
             <td><input type="text" inputmode="decimal" class="form-control form-control-sm price" placeholder="0.00" autocomplete="off" style="width: 100px"></td>
