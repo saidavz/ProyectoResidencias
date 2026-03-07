@@ -76,7 +76,7 @@
                     <div class="mb-4">
                         <div class="producto-item card p-4 p-md-5">
                             <div class="row">
-                                <!-- Select de proyecto con productos en Shopping cart -->
+                                <!-- Select de proyecto con productos en PO -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label" for="projectSelect">Select a project</label>
                                     <select class="form-select bg-secondary text-light" id="projectSelect"
@@ -97,7 +97,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <!-- Tabla de productos por proyecto Shopping cart) -->
+                            <!-- Tabla de productos por proyecto PO -->
                             <div class="mt-4">
                                 <div class="entry-table-wrapper hidden" id="projectTableWrapper">
                                     <table class="table table-striped table-hover mb-0" id="projectProductsTable">
@@ -189,8 +189,8 @@
 
             let allRows = [];
 
-            // Cargar proyectos que tienen productos en Shopping cart
-            fetch(`${baseURL}/api/projects-shopping-cart`)
+            // Cargar proyectos que tienen productos en PO
+            fetch(`${baseURL}/api/projects-po`)
                 .then(res => res.json())
                 .then(data => {
                     const options = Array.isArray(data) ? data : [];
@@ -210,10 +210,21 @@
                 return (v === null || v === undefined || v === '') ? '-' : String(v);
             }
 
+            function normalizeValue(v) {
+                return String(v ?? '').trim();
+            }
+
             // Función para obtener QR previo de un producto
-            async function getExistingQR(noPart, noProject, rack) {
+            async function getExistingQR(noPart, noProject) {
                 try {
-                    const response = await fetch(`${baseURL}/api/stock/qr-code?no_part=${encodeURIComponent(noPart)}&no_project=${encodeURIComponent(noProject)}&rack=${rack}`);
+                    const normalizedNoPart = normalizeValue(noPart);
+                    const normalizedNoProject = normalizeValue(noProject);
+
+                    if (!normalizedNoPart || !normalizedNoProject) {
+                        return null;
+                    }
+
+                    const response = await fetch(`${baseURL}/api/stock/qr-code?no_part=${encodeURIComponent(normalizedNoPart)}&no_project=${encodeURIComponent(normalizedNoProject)}`);
                     const data = await response.json();
                     return data.qr_code || null;
                 } catch (error) {
@@ -225,11 +236,11 @@
             function renderRows(rows) {
                 tbody.innerHTML = '';
                 const filteredRows = rows.filter(r => {
-                    // Solo productos en status "Shopping cart" con datos válidos
+                    // Solo productos en status "PO" con datos válidos
                     const hasData = r.no_part && r.description;
                     const statusVal = String(r.status || '').trim().toLowerCase();
-                    const isShopping = statusVal === 'shopping cart';
-                    return hasData && isShopping;
+                    const isPo = statusVal === 'po';
+                    return hasData && isPo;
                 });
 
                 if (filteredRows.length === 0) {
@@ -240,11 +251,9 @@
 
                 filteredRows.forEach(r => {
                     const tr = document.createElement('tr');
-                    const rackSelect = document.querySelector('select[name="rackNumber"]');
-                    const rack = rackSelect?.value || '';
                     
                     // Obtener QR existente de forma asíncrona
-                    getExistingQR(r.no_part, projectSelect.value, rack).then(existingQR => {
+                    getExistingQR(r.no_part, projectSelect.value).then(existingQR => {
                         const qrIdCell = tr.querySelector('td:nth-child(3)');
                         if (qrIdCell) {
                             qrIdCell.textContent = existingQR ? existingQR : '-';
@@ -358,7 +367,8 @@
             window.generateQR = function (noPart) {
                 const rackSelect = document.querySelector('select[name="rackNumber"]');
                 const rack = rackSelect.value;
-                const noProject = projectSelect.value;
+                const normalizedNoPart = normalizeValue(noPart);
+                const noProject = normalizeValue(projectSelect.value);
 
                 if (!rack) {
                     alert('Please select a rack number');
@@ -370,13 +380,18 @@
                     return;
                 }
 
+                if (!normalizedNoPart) {
+                    alert('Part number is required');
+                    return;
+                }
+
                 // Verificar si ya existe un QR previo
-                getExistingQR(noPart, noProject, rack).then(existingQR => {
+                getExistingQR(normalizedNoPart, noProject).then(existingQR => {
                     if (existingQR) {
                         // Si existe QR previo, mostrar confirmación
                         currentQRAction = {
                             qr_code: existingQR,
-                            no_part: noPart,
+                            no_part: normalizedNoPart,
                             rack: rack,
                             no_project: noProject
                         };
@@ -384,7 +399,7 @@
                         confirmQRModal.show();
                     } else {
                         // Si no existe, crear uno nuevo
-                        createNewQR(noPart, rack, noProject);
+                        createNewQR(normalizedNoPart, rack, noProject);
                     }
                 });
             };
@@ -429,10 +444,12 @@
 
             // Función para actualizar la columna QR en la tabla
             function updateTableQRColumn(noPart, qrCode) {
+                const targetPart = normalizeValue(noPart).toLowerCase();
                 const rows = tbody.querySelectorAll('tr');
                 rows.forEach(row => {
                     const partCell = row.querySelector('td:first-child');
-                    if (partCell && partCell.textContent === noPart) {
+                    const currentPart = normalizeValue(partCell?.textContent).toLowerCase();
+                    if (partCell && currentPart === targetPart) {
                         const qrCell = row.querySelector('td:nth-child(3)');
                         if (qrCell) {
                             qrCell.textContent = qrCode;

@@ -115,6 +115,13 @@
             </div>
 
         </div>
+        
+        <!-- Botón pequeño para gestionar Networks -->
+        <div class="text-center mt-4">
+            <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#networkOffcanvas" aria-controls="networkOffcanvas">
+                <i class="bi bi-cash-coin"></i> Manage Networks
+            </button>
+        </div>
     </main>
 
     <footer class="text-center py-3 text-white bg-gradient mt-5">
@@ -122,6 +129,266 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        const BASE_URL = 'http://localhost:3000/api';
+        let isEditingNetwork = false;
+        let allNetworks = [];
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const networkOffcanvas = document.getElementById('networkOffcanvas');
+            const networkNameInput = document.getElementById('networkName');
+            const cancelNetworkBtn = document.getElementById('cancelNetworkBtn');
+            const deleteNetworkBtn = document.getElementById('deleteNetworkBtn');
+            const networkForm = document.getElementById('networkForm');
+
+            if (networkOffcanvas) {
+                networkOffcanvas.addEventListener('show.bs.offcanvas', function () {
+                    loadNetworks();
+                });
+            }
+
+            if (networkNameInput) {
+                networkNameInput.addEventListener('input', handleNetworkNameInput);
+                networkNameInput.addEventListener('change', handleNetworkNameInput);
+            }
+
+            if (cancelNetworkBtn) {
+                cancelNetworkBtn.addEventListener('click', function () {
+                    resetNetworkForm();
+                });
+            }
+
+            if (deleteNetworkBtn) {
+                deleteNetworkBtn.addEventListener('click', handleDeleteSelectedNetwork);
+            }
+
+            if (networkForm) {
+                networkForm.addEventListener('submit', handleNetworkFormSubmit);
+            }
+
+            setDeleteButtonVisibility(false);
+        });
+
+        // Cargar networks para buscador/autocompletado
+        async function loadNetworks() {
+            try {
+                const response = await fetch(`${BASE_URL}/networks`);
+                const networks = await response.json();
+                allNetworks = Array.isArray(networks) ? networks : [];
+                updateNetworkSuggestions();
+            } catch (error) {
+                console.error('Error loading networks:', error);
+            }
+        }
+
+        function updateNetworkSuggestions() {
+            const datalist = document.getElementById('networkNameSuggestions');
+            if (!datalist) return;
+            datalist.innerHTML = '';
+
+            allNetworks.forEach(network => {
+                const option = document.createElement('option');
+                option.value = network.network;
+                datalist.appendChild(option);
+            });
+        }
+
+        function fillFormFromNetwork(foundNetwork) {
+            if (!foundNetwork) return;
+            isEditingNetwork = true;
+            document.getElementById('originalNetworkName').value = foundNetwork.network;
+            document.getElementById('networkName').value = foundNetwork.network;
+            document.getElementById('networkBalance').value = Number(foundNetwork.balance || 0);
+            document.getElementById('saveNetworkBtn').innerHTML = '<i class="bi bi-save"></i> Update';
+            setDeleteButtonVisibility(true);
+        }
+
+        function setDeleteButtonVisibility(show) {
+            const deleteBtn = document.getElementById('deleteNetworkBtn');
+            if (!deleteBtn) return;
+            deleteBtn.style.display = show ? '' : 'none';
+        }
+
+        function setFormToCreateMode(clearBalance = false) {
+            isEditingNetwork = false;
+            document.getElementById('originalNetworkName').value = '';
+            document.getElementById('saveNetworkBtn').innerHTML = '<i class="bi bi-save"></i> Save';
+            setDeleteButtonVisibility(false);
+            if (clearBalance) {
+                document.getElementById('networkBalance').value = '';
+            }
+        }
+
+        function handleNetworkNameInput() {
+            const typedName = this.value.trim().toLowerCase();
+
+            if (!typedName) {
+                setFormToCreateMode(true);
+                return;
+            }
+
+            const exactMatch = allNetworks.find(n => String(n.network).trim().toLowerCase() === typedName);
+
+            if (exactMatch) {
+                fillFormFromNetwork(exactMatch);
+                return;
+            }
+
+            const partialMatches = allNetworks.filter(n => String(n.network).trim().toLowerCase().includes(typedName));
+
+            if (partialMatches.length === 1) {
+                fillFormFromNetwork(partialMatches[0]);
+            } else {
+                setFormToCreateMode(true);
+            }
+        }
+
+        // Resetear formulario
+        function resetNetworkForm() {
+            document.getElementById('networkForm').reset();
+            setFormToCreateMode();
+        }
+
+        // Guardar network (crear o actualizar)
+        async function handleNetworkFormSubmit(e) {
+            e.preventDefault();
+
+            const networkName = document.getElementById('networkName').value.trim();
+            const balance = parseFloat(document.getElementById('networkBalance').value);
+            const originalName = document.getElementById('originalNetworkName').value;
+
+            if (!networkName) {
+                alert('Please enter a network name');
+                return;
+            }
+
+            if (isNaN(balance)) {
+                alert('Please enter a valid balance');
+                return;
+            }
+
+            const confirmationMessage = (isEditingNetwork && originalName)
+                ? `Do you want to update network "${originalName}" to "${networkName}" with a balance of $${balance.toFixed(2)}?`
+                : `Do you want to create network "${networkName}" with a balance of $${balance.toFixed(2)}?`;
+
+            if (!confirm(confirmationMessage)) {
+                return;
+            }
+
+            try {
+                let response;
+                
+                if (isEditingNetwork && originalName) {
+                    // Actualizar network existente
+                    response = await fetch(`${BASE_URL}/networks/${encodeURIComponent(originalName)}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            newNetwork: networkName,
+                            balance: balance 
+                        })
+                    });
+                } else {
+                    // Crear nueva network
+                    response = await fetch(`${BASE_URL}/networks`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            network: networkName,
+                            balance: balance 
+                        })
+                    });
+                }
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    alert(`Error: ${result.error}`);
+                    return;
+                }
+
+                alert(isEditingNetwork ? 'Network updated successfully' : 'Network created successfully');
+                resetNetworkForm();
+                loadNetworks();
+            } catch (error) {
+                console.error('Error saving network:', error);
+                alert('Error saving network');
+            }
+        }
+
+        async function handleDeleteSelectedNetwork() {
+            const originalName = document.getElementById('originalNetworkName').value.trim();
+
+            if (!originalName) {
+                return;
+            }
+
+            const confirmed = confirm(`Do you want to delete network "${originalName}"?`);
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/networks/${encodeURIComponent(originalName)}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    alert(`Error: ${result.error || 'Error deleting network'}`);
+                    return;
+                }
+
+                alert('Network deleted successfully');
+                resetNetworkForm();
+                await loadNetworks();
+            } catch (error) {
+                console.error('Error deleting network:', error);
+                alert('Error deleting network');
+            }
+        }
+
+    </script>
+
+    <!-- Offcanvas para gestionar Networks -->
+    <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="networkOffcanvas" aria-labelledby="networkOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="networkOffcanvasLabel"><i class="bi bi-cash-coin"></i> Manage Networks</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <!-- Formulario para crear/actualizar Network -->
+            <div class="mb-4">
+                <form id="networkForm">
+                    <input type="hidden" id="originalNetworkName" value="">
+                    <div class="mb-3">
+                        <label for="networkName" class="form-label">Network-Number</label>
+                        <input type="text" class="form-control" id="networkName" list="networkNameSuggestions" placeholder="Type to create or search network" required>
+                        <datalist id="networkNameSuggestions"></datalist>
+                        <div class="form-text text-light">Type an existing network to update balance, or a new name to create.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="networkBalance" class="form-label">Balance ($)</label>
+                        <input type="number" class="form-control" id="networkBalance" placeholder="Enter balance" step="0.01" required>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="saveNetworkBtn">
+                            <i class="bi bi-save"></i> Save
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="cancelNetworkBtn">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="deleteNetworkBtn" style="display: none;">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

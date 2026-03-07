@@ -66,7 +66,7 @@
 
   <div class="inventory-container">
     <div class="inventory-header">
-      <h2 class="inventory-title text-center text-white" style="font-weight: bold;">Inventory</h2>
+      <h2 class="inventory-title text-center text-white mb-4" style="font-weight: bold;">Inventory</h2>
       <div class="cards-container">
         <div class="total-material-card">
           <span class="total-material-number" id="totalMaterial">0</span>
@@ -81,12 +81,32 @@
     <div class="inventory-search d-flex align-items-center gap-2">
       <div class="card p-3 mb-3 static-filter-card" style="position: relative; z-index: 1010; overflow: visible; width: 100%;">
         <div class="row">
-          <div class="col-md-12">
-              <label for="projectSearchStock" class="form-label">Buscador</label>
-              <div style="position: relative; max-width: 980px;">
-                <input type="text" id="projectSearchStock" class="form-control" style="font-size:1.1rem; height: 48px; width: 100%;" placeholder="Buscar proyecto o número de parte..." autocomplete="off">
+          <div class="col-md-5">
+              <label for="projectSearchStock" class="form-label">Buscar Proyecto</label>
+              <div style="position: relative;">
+                <div class="input-group" style="border-radius: 8px; overflow: hidden;">
+                  <span class="input-group-text" style="background-color: #000; border-color: #000; border-radius: 8px 0 0 8px;">
+                    <i class="bi bi-search text-white"></i>
+                  </span>
+                  <input type="text" id="projectSearchStock" class="form-control" style="font-size:1.1rem; height: 48px; border-radius: 0 8px 8px 0;" placeholder="Buscar proyecto..." autocomplete="off">
+                </div>
                 <div id="projectSuggestionsStock" class="bg-light text-dark" style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 2000; border: 1px solid #ccc; display: none; max-height: 300px; overflow-y: auto; border-radius: 4px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); background-color: white;"></div>
               </div>
+          </div>
+        </div>
+        
+        <!-- Filtros adicionales (ocultos por defecto, visibles al seleccionar proyecto) -->
+        <div id="additionalFilters" class="row mt-3" style="display: none;">
+          <div class="col-md-5">
+            <label for="filterProjectData" class="form-label">Filter</label>
+            <div class="input-group" style="border-radius: 8px; overflow: hidden;">
+              <span class="input-group-text" style="background-color: #000; border-color: #000; border-radius: 8px 0 0 8px;">
+                <i class="bi bi-funnel-fill text-white"></i>
+              </span>
+              <input type="text" id="filterProjectData" class="form-control" 
+                     style="font-size:1rem; height: 48px; background-color: #e9ecef; border: 1px solid #ced4da; border-radius: 0 8px 8px 0;" 
+                     placeholder="Search part number or product type..." autocomplete="off">
+            </div>
           </div>
         </div>
       </div>
@@ -125,25 +145,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="script.js"></script>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      setTimeout(() => {
-        const rowCount = document.querySelectorAll('#tablaInventario tbody tr').length;
-        document.getElementById('totalMaterial').textContent = rowCount;
-      }, 1000);
-
-      const searchInput = document.getElementById('buscar');
-      if (searchInput) {
-        searchInput.addEventListener('input', function (e) {
-          if (typeof window.filterTable === 'function') {
-            window.filterTable(e.target.value);
-          }
-        });
-      }
-    });
-  </script>
-  
 
 </body>
 

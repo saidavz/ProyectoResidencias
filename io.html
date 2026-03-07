@@ -11,8 +11,52 @@
 </head>
 
 <body>
+  <!-- Login Overlay -->
+  <div id="loginOverlay" class="login-overlay">
+    <div class="login-card">
+      <div class="login-icon">
+        <i class="bi bi-qr-code-scan"></i>
+      </div>
+      <h2 class="login-title">Access Control</h2>
+      <p class="login-subtitle">Scan your QR badge to access Inbound & Outbound</p>
+      
+      <div class="qr-input-wrapper">
+        <i class="bi bi-upc-scan"></i>
+        <input 
+          type="text" 
+          id="loginQrInput" 
+          placeholder="Scan your QR code..." 
+          autofocus 
+          autocomplete="off"
+        />
+      </div>
+      
+      <div class="scanning-animation" id="scanningIndicator">
+        <i class="bi bi-arrow-repeat"></i> Validating access...
+      </div>
+      
+      <div id="loginAlert" class="alert alert-login d-none"></div>
+      
+      <button type="button" class="login-btn" id="loginBtn">
+        <i class="bi bi-shield-check me-2"></i>Verify Access
+      </button>
+    </div>
+  </div>
+
+  <!-- User Info Bar -->
+  <div id="userInfoBar" class="user-info-bar">
+    <div class="user-details">
+      <i class="bi bi-person-circle fs-5"></i>
+      <span id="pid">User</span>
+      <span class="user-badge" id="rol">Role</span>
+    </div>
+    <button class="logout-btn" id="logoutBtn">
+      <i class="bi bi-box-arrow-right me-1"></i>Logout
+    </button>
+  </div>
+
   <!-- Barra de navegación -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-gradient">
+  <nav id="mainNavbar" class="navbar navbar-expand-lg navbar-dark bg-gradient">
     <div class="container-fluid px-4">
       <a href="index.html" class="p-0 me-4" title="Go to Home Page">
         <img src="logo.png" alt="Logo" height="40">
@@ -65,22 +109,25 @@
       </div>
     </div>
   </nav>
-  </div>
-  </nav>
 
-  <div class="container py-4">
+  <div id="ioMainSection" class="container py-4">
     <h2 class="text-center text-white mb-4" style="font-weight: bold;">Inbound And Outbound</h2>
 
-    <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
-      <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
-      <label class="btn btn-outline-danger" for="btnradio1">          
-        <i class="bi bi-box fs-4 me-2 text-white"></i>
-          <i class="bi bi-arrow-right fs-4 me-2 text-white"></i>Inbound</label>
-      <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
-      <label class="btn btn-outline-danger" for="btnradio2">
-          <i class="bi bi-arrow-left fs-4 me-2 text-white"></i>
-            <i class="bi bi-box fs-4 me-2 text-white"></i>Outbound</label>
-    </div><br><br>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
+        <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
+        <label class="btn btn-outline-danger" for="btnradio1">          
+          <i class="bi bi-box fs-4 me-2 text-white"></i>
+            <i class="bi bi-arrow-right fs-4 me-2 text-white"></i>Inbound</label>
+        <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
+        <label class="btn btn-outline-danger" for="btnradio2">
+            <i class="bi bi-arrow-left fs-4 me-2 text-white"></i>
+              <i class="bi bi-box fs-4 me-2 text-white"></i>Outbound</label>
+      </div>
+      <button class="btn btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#historyOffcanvas" aria-controls="historyOffcanvas">
+        <i class="bi bi-clock-history me-2"></i>Historial de Movimientos
+      </button>
+    </div>
 
     <div class="card shadow-sm p-3 mb-4">
       <label class="form-label fw-bold">Scan the QR code</label>
@@ -110,13 +157,236 @@
     </div>
   </div>
 
+  <!-- Offcanvas para Historial de Movimientos -->
+  <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="historyOffcanvas" aria-labelledby="historyOffcanvasLabel" style="width: 70%;">
+    <div class="offcanvas-header border-bottom border-secondary">
+      <h5 class="offcanvas-title" id="historyOffcanvasLabel">
+        <i class="bi bi-clock-history me-2"></i>Historial de Movimientos
+      </h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <!-- Buscador único -->
+      <div class="card bg-secondary text-white mb-3">
+        <div class="card-body">
+          <h6 class="card-title mb-3"><i class="bi bi-search me-2"></i>Buscador</h6>
+          <div class="row">
+            <div class="col-12">
+              <input type="text" class="form-control form-control-lg" id="searchMovements" placeholder="Buscar por proyecto o número de parte...">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla de historial - Datos de tabla movements -->
+      <div class="table-responsive">
+        <table class="table table-hover history-movements-table">
+          <thead>
+            <tr>
+              <th>date_movement</th>
+              <th>type_movement</th>
+              <th>id_stock</th>
+              <th>no_part</th>
+              <th>no_project</th>
+              <th>name_project</th>
+              <th>pid</th>
+              <th>user_name</th>
+              <th>last_name</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr>
+              <td colspan="9" class="text-center text-muted">Escribe en el buscador para ver resultados...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Información adicional -->
+      <div id="historyStats" class="mt-3 p-4 rounded d-none" style="background: linear-gradient(135deg, #1a1a1c 0%, #2a2a2e 100%); border: 2px solid #c8102e;">
+        <h6 class="text-white mb-3"><i class="bi bi-graph-up me-2"></i>Estadísticas</h6>
+        <div class="row text-center">
+          <div class="col-md-4">
+            <div class="stat-card">
+              <div class="stat-label text-white">Total Movimientos</div>
+              <div class="stat-value" id="statTotal" style="color: #17a2b8; font-size: 2rem; font-weight: bold;">0</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <div class="stat-label text-white">Inbound</div>
+              <div class="stat-value" id="statInbound" style="color: #28a745; font-size: 2rem; font-weight: bold;">0</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <div class="stat-label text-white">Outbound</div>
+              <div class="stat-value" id="statOutbound" style="color: #c8102e; font-size: 2rem; font-weight: bold;">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // ===== AUTHENTICATION LOGIC =====
+    let currentUser = null;
+    const API_BASE = (location.protocol === 'file:' || location.port !== '3000') ? 'http://localhost:3000' : window.location.origin;
+
+    const loginOverlay = document.getElementById('loginOverlay');
+    const userInfoBar = document.getElementById('userInfoBar');
+    const mainNavbar = document.getElementById('mainNavbar');
+    const loginQrInput = document.getElementById('loginQrInput');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginAlert = document.getElementById('loginAlert');
+    const scanningIndicator = document.getElementById('scanningIndicator');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const pidLabel = document.getElementById('pid');
+    const rolLabel = document.getElementById('rol');
+    const inboundRadio = document.getElementById('btnradio1');
+    const outboundRadio = document.getElementById('btnradio2');
+
+    function showLoginAlert(message, type = 'danger') {
+      loginAlert.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-warning', 'alert-info');
+      loginAlert.classList.add(`alert-${type}`);
+      loginAlert.textContent = message;
+      
+      setTimeout(() => {
+        loginAlert.classList.add('d-none');
+      }, 4000);
+    }
+
+    function updateLoginOverlayBounds() {
+      if (!mainNavbar) return;
+      const navBottom = mainNavbar.offsetTop + mainNavbar.offsetHeight;
+      loginOverlay.style.top = `${navBottom}px`;
+      loginOverlay.style.height = `calc(100vh - ${navBottom}px)`;
+    }
+
+    async function validateQRLogin() {
+      const qrCode = loginQrInput.value.trim();
+      
+      if (!qrCode) {
+        showLoginAlert('Please scan or enter your QR code');
+        return;
+      }
+
+      scanningIndicator.classList.add('active');
+      loginBtn.disabled = true;
+
+      try {
+        const response = await fetch(`${API_BASE}/api/auth/validate-qr`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pid: qrCode })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          currentUser = data.user;
+          showLoginSuccess();
+        } else {
+          showLoginAlert(data.error || 'Access denied. Invalid credentials or insufficient permissions.');
+          loginQrInput.value = '';
+          loginQrInput.focus();
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        showLoginAlert('Connection error. Please verify the server is running.');
+      } finally {
+        scanningIndicator.classList.remove('active');
+        loginBtn.disabled = false;
+      }
+    }
+
+    function showLoginSuccess() {
+      // Update user info bar
+      pidLabel.textContent = currentUser.pid || '-';
+      rolLabel.textContent = currentUser.rol || currentUser.role || '-';
+      
+      // Hide login overlay with fade out
+      loginOverlay.style.animation = 'fadeOut 0.3s ease-out';
+      setTimeout(() => {
+        loginOverlay.classList.add('hidden');
+        loginOverlay.style.animation = '';
+      }, 300);
+      
+      // Hide main navbar, show user info bar only
+      mainNavbar.style.display = 'none';
+      userInfoBar.style.display = 'flex';
+      setIoSectionEnabled(true);
+      
+      // Focus on QR input for operations
+      setTimeout(() => {
+        qrInput.focus();
+      }, 400);
+    }
+
+    function logout() {
+      currentUser = null;
+      
+      // Show main navbar, hide user info bar
+      mainNavbar.style.display = '';
+      userInfoBar.style.display = 'none';
+      
+      // Show login overlay
+      updateLoginOverlayBounds();
+      loginOverlay.classList.remove('hidden');
+      setIoSectionEnabled(false);
+      inboundRadio.checked = true;
+      outboundRadio.checked = false;
+      
+      loginQrInput.value = '';
+      setTimeout(() => {
+        loginQrInput.focus();
+      }, 100);
+      scanTable.innerHTML = '';
+      count = 0;
+    }
+
+    // Event listeners for login
+    loginBtn.addEventListener('click', validateQRLogin);
+    
+    loginQrInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        validateQRLogin();
+      }
+    });
+
+    logoutBtn.addEventListener('click', logout);
+
+    // Auto-submit after QR scan (simulated by rapid input)
+    let loginScanTimer;
+    loginQrInput.addEventListener('input', () => {
+      clearTimeout(loginScanTimer);
+      const value = loginQrInput.value.trim();
+      if (value.length > 3) {
+        loginScanTimer = setTimeout(() => {
+          validateQRLogin();
+        }, 500);
+      }
+    });
+
+    // ===== ORIGINAL INBOUND/OUTBOUND LOGIC =====
     const qrInput = document.getElementById("qrInput");
     const scanTable = document.getElementById("scanTable");
     const toast = document.getElementById("toast");
+    const ioMainSection = document.getElementById('ioMainSection');
 
-    // API base: cuando la página se abre con file:// o desde otro servidor/puerto, usar el backend en localhost:3000
-    const API_BASE = (location.protocol === 'file:' || location.port !== '3000') ? 'http://localhost:3000' : window.location.origin;
+    function setIoSectionEnabled(isEnabled) {
+      qrInput.disabled = !isEnabled;
+      inboundRadio.disabled = !isEnabled;
+      outboundRadio.disabled = !isEnabled;
+      ioMainSection.classList.toggle('io-section-locked', !isEnabled);
+      if (!isEnabled) {
+        qrInput.value = '';
+      }
+    }
+
+    // API_BASE already defined above
     console.log('API_BASE =', API_BASE);
 
     let count = 0;
@@ -166,7 +436,12 @@
       // Intentar endpoint genérico primero
       // Ahora acepta cantidad
       let cantidad = arguments.length > 2 ? arguments[2] : 1;
-      const payload = { qr_code, type: movementType, cantidad };
+      const payload = { 
+        qr_code, 
+        type: movementType, 
+        cantidad,
+        pid: currentUser ? currentUser.pid : null
+      };
 
       async function tryPost(url, body) {
         const r = await fetch(url, {
@@ -193,8 +468,12 @@
 
       // Fallbacks: try legacy endpoints if present
       try {
-        if (movementType === 'INBOUND') return await tryPost(`${API_BASE}/api/inbound`, { qr_code });
-        if (movementType === 'OUTBOUND') return await tryPost(`${API_BASE}/api/outbound`, { qr_code });
+        const legacyPayload = { 
+          qr_code, 
+          pid: currentUser ? currentUser.pid : null 
+        };
+        if (movementType === 'INBOUND') return await tryPost(`${API_BASE}/api/inbound`, legacyPayload);
+        if (movementType === 'OUTBOUND') return await tryPost(`${API_BASE}/api/outbound`, legacyPayload);
       } catch (err) {
         console.warn('fallback endpoints failed', err.message);
         throw err;
@@ -204,6 +483,14 @@
     }
 
     async function handleScan() {
+      if (!currentUser) {
+        showToast('Debes iniciar sesion para registrar movimientos.', 'warning');
+        loginOverlay.classList.remove('hidden');
+        loginQrInput.focus();
+        qrInput.value = '';
+        return;
+      }
+
       const qr = qrInput.value.trim().toUpperCase();
       if (!qr) return;
 
@@ -422,7 +709,124 @@
       }
     });
 
-    window.onload = () => qrInput.focus();
+    window.onload = () => {
+      // Check if user is already logged in (could add session storage later)
+      updateLoginOverlayBounds();
+      window.addEventListener('resize', updateLoginOverlayBounds);
+      setIoSectionEnabled(Boolean(currentUser));
+      if (!currentUser) {
+        loginQrInput.focus();
+      } else {
+        qrInput.focus();
+      }
+    };
+
+    // ============== HISTORIAL DE MOVIMIENTOS ==============
+    
+    // Cargar historial de movimientos con buscador único
+    async function loadMovementHistory(searchTerm = '') {
+      const tbody = document.getElementById('historyTableBody');
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center">Cargando...</td></tr>';
+
+      try {
+        // Construir URL con parámetro de búsqueda
+        let url = `${API_BASE}/api/movements/history?`;
+        if (searchTerm) {
+          url += `search=${encodeURIComponent(searchTerm)}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Error al cargar el historial');
+
+        const data = await response.json();
+        
+        if (!data.movements || data.movements.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No se encontraron movimientos</td></tr>';
+          document.getElementById('historyStats').classList.add('d-none');
+          return;
+        }
+
+        // Renderizar tabla con datos exactos de la BD
+        tbody.innerHTML = '';
+        let inboundCount = 0;
+        let outboundCount = 0;
+
+        data.movements.forEach(mov => {
+          const row = tbody.insertRow();
+          
+          // date_movement
+          const dateCell = row.insertCell();
+          dateCell.textContent = mov.date_movement ? new Date(mov.date_movement).toLocaleString() : '-';
+          
+          // type_movement
+          const typeCell = row.insertCell();
+          typeCell.textContent = mov.type_movement || '-';
+          if (mov.type_movement === 'INBOUND') {
+            typeCell.className = 'text-success fw-bold';
+            inboundCount++;
+          } else if (mov.type_movement === 'OUTBOUND') {
+            typeCell.className = 'text-danger fw-bold';
+            outboundCount++;
+          }
+          
+          // id_stock
+          const idStockCell = row.insertCell();
+          idStockCell.textContent = mov.id_stock || '-';
+          idStockCell.className = 'cell-gray';
+          
+          // no_part (de tabla stock)
+          row.insertCell().textContent = mov.no_part || '-';
+          
+          // no_project (de tabla stock)
+          row.insertCell().textContent = mov.no_project || '-';
+          
+          // name_project (de tabla project)
+          const nameProjectCell = row.insertCell();
+          nameProjectCell.textContent = mov.name_project || '-';
+          nameProjectCell.className = 'cell-project';
+          
+          // pid (de tabla movements)
+          const pidCell = row.insertCell();
+          pidCell.textContent = mov.pid || '-';
+          pidCell.className = 'cell-pid';
+          
+          // user_name (de tabla user_)
+          row.insertCell().textContent = mov.user_name || '-';
+          
+          // last_name (de tabla user_)
+          row.insertCell().textContent = mov.last_name || '-';
+        });
+
+        // Mostrar estadísticas
+        document.getElementById('statTotal').textContent = data.movements.length;
+        document.getElementById('statInbound').textContent = inboundCount;
+        document.getElementById('statOutbound').textContent = outboundCount;
+        document.getElementById('historyStats').classList.remove('d-none');
+
+      } catch (error) {
+        console.error('Error loading history:', error);
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Error: ${error.message}</td></tr>`;
+      }
+    }
+
+    // Buscador en tiempo real
+    let searchTimer;
+    const searchInput = document.getElementById('searchMovements');
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        const searchTerm = this.value.trim();
+        searchTimer = setTimeout(() => {
+          loadMovementHistory(searchTerm);
+        }, 500);
+      });
+    }
+
+    // Cargar historial cuando se abre el offcanvas
+    document.getElementById('historyOffcanvas').addEventListener('show.bs.offcanvas', function () {
+      const searchTerm = searchInput ? searchInput.value.trim() : '';
+      loadMovementHistory(searchTerm);
+    });
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

@@ -23,11 +23,81 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim', //verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
 // RUTAS DEL SERVIRDOR 1 (purchase.js) 00..
+
+// Endpoint para validar login de usuario con QR (pid)
+app.post('/api/auth/validate-qr', async (req, res) => {
+  const { pid } = req.body;
+
+  if (!pid) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'PID es requerido' 
+    });
+  }
+
+  try {
+    const normalizedPid = String(pid).trim();
+
+    // Priorizar columna "rol"; si no existe, usar "role" por compatibilidad.
+    const roleColumnResult = await pool.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'user_'
+        AND column_name IN ('rol', 'role')
+      ORDER BY CASE WHEN column_name = 'rol' THEN 0 ELSE 1 END
+      LIMIT 1
+    `);
+
+    if (roleColumnResult.rows.length === 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'La tabla user_ no tiene columna rol/role para validar permisos.'
+      });
+    }
+
+    const roleColumn = roleColumnResult.rows[0].column_name;
+
+    // Buscar usuario por PID y verificar que tenga rol Administrador o Tecnico
+    const query = `
+      SELECT pid, ${roleColumn} AS rol
+      FROM user_
+      WHERE LOWER(BTRIM(pid)) = LOWER($1)
+        AND (${roleColumn} ILIKE 'Administrador' OR ${roleColumn} ILIKE 'Tecnico')
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [normalizedPid]);
+
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+      res.json({
+        success: true,
+        user: {
+          pid: user.pid,
+          rol: user.rol,
+          role: user.rol
+        }
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        error: 'Acceso denegado. Usuario no encontrado o sin permisos.'
+      });
+    }
+  } catch (error) {
+    console.error('Error validating user:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Error al validar usuario: ' + error.message 
+    });
+  }
+});
 
 app.get('/api/products', async (req, res) => {
   try {
@@ -454,6 +524,97 @@ app.get('/api/network/balance/:network', async (req, res) => {
   }
 });
 
+// Endpoint para crear una nueva network
+app.post('/api/networks', async (req, res) => {
+  try {
+    const { network, balance } = req.body;
+    
+    if (!network) {
+      return res.status(400).json({ error: 'Network name is required' });
+    }
+
+    const balanceValue = parseFloat(balance) || 0;
+
+    // Verificar si la network ya existe
+    const checkResult = await pool.query('SELECT network FROM network WHERE network = $1', [network]);
+    if (checkResult.rows.length > 0) {
+      return res.status(409).json({ error: 'Network already exists' });
+    }
+
+    // Insertar nueva network
+    const result = await pool.query(
+      'INSERT INTO network (network, balance) VALUES ($1, $2) RETURNING network, balance',
+      [network, balanceValue]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating network:', error);
+    res.status(500).json({ error: 'Error creating network' });
+  }
+});
+
+// Endpoint para actualizar una network
+app.put('/api/networks/:network', async (req, res) => {
+  try {
+    const { network } = req.params;
+    const { newNetwork, balance } = req.body;
+
+    // Verificar que la network existe
+    const checkResult = await pool.query('SELECT network FROM network WHERE network = $1', [network]);
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Network not found' });
+    }
+
+    const networkValue = newNetwork || network;
+    const balanceValue = parseFloat(balance);
+
+    if (isNaN(balanceValue)) {
+      return res.status(400).json({ error: 'Invalid balance value' });
+    }
+
+    // Si se cambió el nombre de la network, verificar que no exista otra con ese nombre
+    if (newNetwork && newNetwork !== network) {
+      const duplicateCheck = await pool.query('SELECT network FROM network WHERE network = $1', [newNetwork]);
+      if (duplicateCheck.rows.length > 0) {
+        return res.status(409).json({ error: 'Network name already exists' });
+      }
+    }
+
+    // Actualizar network
+    const result = await pool.query(
+      'UPDATE network SET network = $1, balance = $2 WHERE network = $3 RETURNING network, balance',
+      [networkValue, balanceValue, network]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating network:', error);
+    res.status(500).json({ error: 'Error updating network' });
+  }
+});
+
+// Endpoint para eliminar una network
+app.delete('/api/networks/:network', async (req, res) => {
+  try {
+    const { network } = req.params;
+
+    // Verificar que la network existe
+    const checkResult = await pool.query('SELECT network FROM network WHERE network = $1', [network]);
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Network not found' });
+    }
+
+    // Eliminar network
+    await pool.query('DELETE FROM network WHERE network = $1', [network]);
+
+    res.json({ message: 'Network deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting network:', error);
+    res.status(500).json({ error: 'Error deleting network' });
+  }
+});
+
 // Endpoint para obtener cantidad_calculada de paquetes para un proyecto y no_part
 app.get('/api/paquetes-calculados', async (req, res) => {
   const { no_project, no_part } = req.query;
@@ -736,7 +897,7 @@ app.get("/api/stock", async (req, res) => {
 
 
 app.get("/api/stock/qr-code", async (req, res) => {
-  const { no_part, no_project, rack } = req.query;
+  const { no_part, no_project } = req.query;
 
   if (!no_part || !no_project) {
     return res.status(400).json({
@@ -745,15 +906,26 @@ app.get("/api/stock/qr-code", async (req, res) => {
   }
 
   try {
+    const normalizedNoPart = String(no_part).trim();
+    const normalizedNoProject = String(no_project).trim();
+
+    if (!normalizedNoPart || !normalizedNoProject) {
+      return res.status(400).json({
+        error: 'Parámetros requeridos: no_part, no_project'
+      });
+    }
+
     // Buscar QR solo por no_part y no_project (sin rack)
     const query = `
       SELECT id_stock, qr_code, no_part, no_project, rack, available
       FROM stock
-      WHERE no_part = $1 AND no_project = $2
+      WHERE LOWER(BTRIM(no_part)) = LOWER($1)
+        AND LOWER(BTRIM(CAST(no_project AS TEXT))) = LOWER($2)
+      ORDER BY id_stock ASC
       LIMIT 1
     `;
 
-    const result = await pool.query(query, [no_part, no_project]);
+    const result = await pool.query(query, [normalizedNoPart, normalizedNoProject]);
 
     if (result.rows.length > 0) {
       res.json(result.rows[0]);
@@ -801,7 +973,11 @@ app.get("/api/stock/first-rack", async (req, res) => {
 app.post("/api/stock/entry", async (req, res) => {
   const { rack, no_part, no_project } = req.body;
 
-  if (!rack || !no_part || !no_project) {
+  const normalizedRack = String(rack || '').trim();
+  const normalizedNoPart = String(no_part || '').trim();
+  const normalizedNoProject = String(no_project || '').trim();
+
+  if (!normalizedRack || !normalizedNoPart || !normalizedNoProject) {
     return res.status(400).json({ 
       success: false, 
       error: 'Faltan datos requeridos (rack, no_part, no_project)' 
@@ -812,16 +988,18 @@ app.post("/api/stock/entry", async (req, res) => {
     // Buscar por no_part y no_project (SIN rack) para verificar si ya existe
     const checkQuery = `
       SELECT * FROM stock
-      WHERE no_part = $1 AND no_project = $2
+      WHERE LOWER(BTRIM(no_part)) = LOWER($1)
+        AND LOWER(BTRIM(CAST(no_project AS TEXT))) = LOWER($2)
+      ORDER BY id_stock ASC
       LIMIT 1
     `;
 
-    const existingResult = await pool.query(checkQuery, [no_part, no_project]);
+    const existingResult = await pool.query(checkQuery, [normalizedNoPart, normalizedNoProject]);
 
     if (existingResult.rows.length > 0) {
       // Si ya existe el registro de stock para este no_part+no_project,
       // no incrementamos disponible al generar el QR. Simplemente devolvemos el registro.
-      console.log(`Registro de stock existente para ${no_part} proyecto ${no_project} - no se modifica available`);
+      console.log(`Registro de stock existente para ${normalizedNoPart} proyecto ${normalizedNoProject} - no se modifica available`);
       return res.json({
         success: true,
         message: 'QR ya existente, no se modificó available',
@@ -837,7 +1015,7 @@ app.post("/api/stock/entry", async (req, res) => {
       LIMIT 1
     `;
     
-    const pattern = `I%-${no_project}`;
+    const pattern = `I%-${normalizedNoProject}`;
     const lastQrResult = await pool.query(lastQrQuery, [pattern]);
     
     let nextNumber = 1; 
@@ -854,7 +1032,7 @@ app.post("/api/stock/entry", async (req, res) => {
     
     // Generar código en formato: I0001-AUT-2026-00
     const consecutivo = String(nextNumber).padStart(4, '0');
-    const qrCode = `I${consecutivo}-${no_project}`;
+    const qrCode = `I${consecutivo}-${normalizedNoProject}`;
 
     // Insertar en la tabla stock con available = 0 (sin existencias hasta un INBOUND)
     const query = `
@@ -863,7 +1041,7 @@ app.post("/api/stock/entry", async (req, res) => {
       RETURNING id_stock, rack, no_part, no_project, qr_code, available
     `;
 
-    const result = await pool.query(query, [rack, no_part, no_project, qrCode]);
+    const result = await pool.query(query, [normalizedRack, normalizedNoPart, normalizedNoProject, qrCode]);
 
     res.json({
       success: true,
@@ -1212,8 +1390,8 @@ app.get('/api/projects-with-purchase', async (req, res) => {
   }
 });
 
-// Obtener proyectos que tienen productos en status "Shopping cart"
-app.get('/api/projects-shopping-cart', async (req, res) => {
+// Obtener proyectos que tienen productos en status "PO"
+app.get(['/api/projects-po', '/api/projects-shopping-cart'], async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT DISTINCT
@@ -1223,14 +1401,14 @@ app.get('/api/projects-shopping-cart', async (req, res) => {
       INNER JOIN purchase pu ON pu.no_project = pr.no_project
       INNER JOIN purchase_detail pd ON pd.id_purchase = pu.id_purchase
       INNER JOIN bom_project bp ON bp.no_project = pr.no_project AND bp.no_part = pd.no_part
-      WHERE bp.status ILIKE 'Shopping cart'
+      WHERE bp.status ILIKE 'PO'
         AND pd.no_part IS NOT NULL
       ORDER BY pr.name_project
     `);
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching shopping cart projects:', error);
+    console.error('Error fetching PO projects:', error);
     res.status(500).json({ error: 'Failed to fetch projects' });
   }
 });
@@ -1411,10 +1589,12 @@ app.get('/api/movements/last', async (req, res) => {
 // ======================================================
 app.post('/api/movements', async (req, res) => {
   try {
-    const { qr_code, type } = req.body;
+    const { qr_code, type, pid } = req.body;
     const t = (type || '').toString().trim().toUpperCase();
     if (!qr_code) return res.status(400).json({ ok: false, message: 'qr_code requerido' });
     if (!t || (t !== 'INBOUND' && t !== 'OUTBOUND')) return res.status(400).json({ ok: false, message: 'type debe ser INBOUND u OUTBOUND' });
+    
+    const userPid = pid ? String(pid).trim() : null;
 
     const qr = qr_code.trim().toUpperCase();
     const stockQ = `SELECT id_stock, rack, available, no_part, no_project, qr_code FROM stock WHERE UPPER(qr_code) = $1 LIMIT 1`;
@@ -1437,8 +1617,8 @@ app.post('/api/movements', async (req, res) => {
         newAvailable = dr.rows[0] ? dr.rows[0].available : newAvailable;
       }
 
-      const movementQuery = `INSERT INTO movements (date_movement, type_movement, id_stock, pid) VALUES (NOW(), $1, $2, NULL) RETURNING id_movement, date_movement, type_movement, id_stock, pid`;
-      const movementResult = await client.query(movementQuery, [t, stockRow.id_stock]);
+      const movementQuery = `INSERT INTO movements (date_movement, type_movement, id_stock, pid) VALUES (NOW(), $1, $2, $3) RETURNING id_movement, date_movement, type_movement, id_stock, pid`;
+      const movementResult = await client.query(movementQuery, [t, stockRow.id_stock, userPid]);
       await client.query('COMMIT');
 
       stockRow.available = newAvailable;
@@ -1461,9 +1641,10 @@ app.post('/api/movements', async (req, res) => {
 // ======================================================
 app.post('/api/outbound', async (req, res) => {
   try {
-    const { qr_code } = req.body;
+    const { qr_code, pid } = req.body;
     if (!qr_code) return res.status(400).json({ ok: false, message: 'qr_code requerido' });
     const qr = qr_code.trim().toUpperCase();
+    const userPid = pid ? String(pid).trim() : null;
 
     const stockQ = `SELECT id_stock, rack, available, no_part, no_project, qr_code FROM stock WHERE UPPER(qr_code) = $1 LIMIT 1`;
     const stockR = await pool.query(stockQ, [qr]);
@@ -1478,8 +1659,8 @@ app.post('/api/outbound', async (req, res) => {
       const dr = await client.query(dq, [stockRow.id_stock]);
       const newAvailable = dr.rows[0] ? dr.rows[0].available : stockRow.available;
 
-      const movementQuery = `INSERT INTO movements (date_movement, type_movement, id_stock, pid) VALUES (NOW(), 'OUTBOUND', $1, NULL) RETURNING id_movement, date_movement, type_movement, id_stock, pid`;
-      const movementResult = await client.query(movementQuery, [stockRow.id_stock]);
+      const movementQuery = `INSERT INTO movements (date_movement, type_movement, id_stock, pid) VALUES (NOW(), 'OUTBOUND', $1, $2) RETURNING id_movement, date_movement, type_movement, id_stock, pid`;
+      const movementResult = await client.query(movementQuery, [stockRow.id_stock, userPid]);
       await client.query('COMMIT');
 
       stockRow.available = newAvailable;
@@ -1496,3 +1677,69 @@ app.post('/api/outbound', async (req, res) => {
     res.status(500).json({ ok: false, message: 'Error en servidor', error: String(err) });
   }
 });
+
+// Endpoint para obtener historial de movimientos con buscador único
+app.get('/api/movements/history', async (req, res) => {
+  try {
+    const { search } = req.query;
+    
+    // Query principal: datos exactos de las tablas movements, stock, project y user_
+    let query = `
+      SELECT 
+        m.date_movement,
+        m.type_movement,
+        m.id_stock,
+        s.no_part,
+        s.no_project,
+        pr.name_project,
+        m.pid,
+        u.user_name,
+        u.last_name
+      FROM movements m
+      LEFT JOIN stock s ON m.id_stock = s.id_stock
+      LEFT JOIN project pr ON s.no_project = pr.no_project
+      LEFT JOIN user_ u ON LOWER(BTRIM(m.pid)) = LOWER(BTRIM(u.pid))
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    // Buscador único: busca en name_project, no_project y no_part
+    if (search) {
+      query += ` AND (pr.name_project ILIKE $1 OR s.no_project ILIKE $1 OR s.no_part ILIKE $1)`;
+      params.push(`%${search}%`);
+    }
+    
+    query += ` ORDER BY m.date_movement DESC LIMIT 500`;
+    
+    const result = await pool.query(query, params);
+    
+    // Retornar datos exactos como están en la BD
+    const movements = result.rows.map(row => ({
+      date_movement: row.date_movement,
+      type_movement: row.type_movement,
+      id_stock: row.id_stock,
+      no_part: row.no_part,
+      no_project: row.no_project,
+      name_project: row.name_project,
+      pid: row.pid,
+      user_name: row.user_name,
+      last_name: row.last_name
+    }));
+    
+    res.json({
+      success: true,
+      movements: movements,
+      total: movements.length
+    });
+    
+  } catch (err) {
+    console.error('/api/movements/history error', err);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Error al obtener historial de movimientos', 
+      message: String(err) 
+    });
+  }
+});
+

@@ -128,8 +128,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       
-      uploadMessage.innerHTML = `
-        <div class="alert alert-success py-1">The data has been successfully uploaded!</div>`;
+      uploadMessage.innerHTML = '';
+      alert('¡El BOM se subió correctamente!');
       
       // Limpiar el formulario 
       setTimeout(() => {
