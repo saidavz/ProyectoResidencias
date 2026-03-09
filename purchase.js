@@ -23,11 +23,59 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: '150403kim', //verifica bien al cambiarlo
   port: 5432,
 });
-// RUTAS DEL SERVIRDOR 1 (purchase.js) 00..
+// Endpoint para verificar estructura de BD
+app.get('/api/db-check', async (req, res) => {
+  try {
+    // Verificar tablas existentes
+    const tablesResult = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      ORDER BY table_name
+    `);
+    
+    // Verificar estructura de tabla movements
+    let movementsStructure = null;
+    try {
+      const movementsResult = await pool.query(`
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns 
+        WHERE table_name = 'movements' AND table_schema = 'public'
+        ORDER BY ordinal_position
+      `);
+      movementsStructure = movementsResult.rows;
+    } catch (e) {
+      movementsStructure = 'Table does not exist';
+    }
+    
+    // Verificar estructura de tabla stock
+    let stockStructure = null;
+    try {
+      const stockResult = await pool.query(`
+        SELECT column_name, data_type, is_nullable
+        FROM information_schema.columns 
+        WHERE table_name = 'stock' AND table_schema = 'public'
+        ORDER BY ordinal_position
+      `);
+      stockStructure = stockResult.rows;
+    } catch (e) {
+      stockStructure = 'Table does not exist';
+    }
+    
+    res.json({
+      status: 'OK',
+      tables: tablesResult.rows.map(r => r.table_name),
+      movements_structure: movementsStructure,
+      stock_structure: stockStructure
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Endpoint para validar login de usuario con QR (pid)
 app.post('/api/auth/validate-qr', async (req, res) => {
@@ -216,6 +264,7 @@ app.get('/api/projects/search', async (req, res) => {
        FROM project 
        WHERE (no_project::text ILIKE $1 OR name_project ILIKE $2)
          AND name_project NOT ILIKE '%Sin asignar%'
+         AND status ILIKE 'Active'
        ORDER BY 
          CASE 
            WHEN no_project::text ILIKE $3 THEN 1
@@ -270,7 +319,8 @@ app.get('/api/projects/all', async (req, res) => {
     const result = await pool.query(
       `SELECT no_project, name_project
       FROM project
-      WHERE name_project NOT ILIKE '%Sin asignar%'
+      WHERE name_project NOT ILIKE '%STOCK_AVAILABLE%'
+        AND status = 'Active'
       ORDER BY name_project`
     );
     res.json(result.rows);
@@ -284,13 +334,73 @@ app.get('/api/projects/check/:no_project', async (req, res) => {
   try {
     const { no_project } = req.params;
     const result = await pool.query(
-      'SELECT no_project, name_project FROM project WHERE no_project = $1',
+      'SELECT no_project, name_project, status FROM project WHERE no_project = $1',
       [no_project]
     );
     res.json({ exists: result.rows.length > 0, project: result.rows[0] || null });
   } catch (error) {
     console.error('Error checking project:', error);
     res.status(500).json({ error: 'Error al verificar proyecto' });
+  }
+});
+
+// Crear o activar un proyecto
+app.post('/api/projects', async (req, res) => {
+  const { no_project, name_project } = req.body;
+  if (!no_project || !name_project) {
+    return res.status(400).json({ error: 'no_project y name_project son requeridos' });
+  }
+  try {
+    // Verificar si existe
+    const check = await pool.query('SELECT * FROM project WHERE no_project = $1', [no_project]);
+    if (check.rows.length > 0) {
+      // Si existe, activarlo
+      await pool.query('UPDATE project SET status = $1 WHERE no_project = $2', ['Active', no_project]);
+      res.json({ message: 'Proyecto activado exitosamente', project: check.rows[0] });
+    } else {
+      // Si no existe, crearlo activo
+      const result = await pool.query(
+        'INSERT INTO project (no_project, name_project, status) VALUES ($1, $2, $3) RETURNING *',
+        [no_project, name_project, 'Active']
+      );
+      res.json({ message: 'Proyecto creado y activado exitosamente', project: result.rows[0] });
+    }
+  } catch (error) {
+    console.error('Error creating/activating project:', error);
+    res.status(500).json({ error: 'Error al crear/activar proyecto' });
+  }
+});
+
+// Activar/desactivar un proyecto
+app.put('/api/projects/:no_project/status', async (req, res) => {
+  const { no_project } = req.params;
+  const { status } = req.body;
+  if (typeof status !== 'string' || !['Active', 'Inactive'].includes(status)) {
+    return res.status(400).json({ error: "status debe ser 'Active' o 'Inactive'" });
+  }
+  try {
+    const result = await pool.query(
+      'UPDATE project SET status = $1 WHERE no_project = $2',
+      [status, no_project]
+    );
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+
+    // Si se desactiva, mover material disponible a AUT-STOCK
+    if (status === 'Inactive') {
+      // Cambia el no_project en stock a 'AUT-STOCK' solo para material disponible
+      const updateStock = await pool.query(
+        `UPDATE stock SET no_project = 'AUT-STOCK'
+         WHERE no_project = $1 AND available > 0`,
+        [no_project]
+      );
+    }
+
+    res.json({ message: `Proyecto ${status === 'Active' ? 'activado' : 'desactivado'} exitosamente` });
+  } catch (error) {
+    console.error('Error updating project status:', error);
+    res.status(500).json({ error: 'Error al actualizar estado del proyecto' });
   }
 });
 
@@ -756,6 +866,8 @@ app.get('/api/stock/distinct-filters', async (req, res) => {
       FROM stock s
       LEFT JOIN project pr ON s.no_project = pr.no_project
       WHERE s.no_project IS NOT NULL
+        AND pr.status LIKE 'Active'
+       AND pr.name_project NOT ILIKE '%STOCK_AVAILABLE%'
       ORDER BY pr.name_project NULLS LAST, s.no_project
     `;
     const vendorsQuery = `
@@ -1264,8 +1376,6 @@ app.delete("/api/bom/:no_project", async (req, res) => {
 // Visualización de Materiales por Proyecto)
 app.get('/api/bomView', async (req, res) => {
   const noProject = req.query.no_project;
-  console.log('/api/bomView called with no_project=', noProject);
-
   try {
     let query =
       `SELECT 
@@ -1453,27 +1563,18 @@ app.get('/api/stock/available/:qr_code', async (req, res) => {
     const qr = (req.params.qr_code || '').toString().trim().toUpperCase();
     if (!qr) return res.status(400).json({ message: 'qr_code requerido' });
 
-    // Buscar stock por qr_code (case-insensitive)
-    const stockQ = `SELECT id_stock, no_part, no_project FROM stock WHERE UPPER(qr_code) = $1 LIMIT 1`;
+    // Buscar stock por qr_code (case-insensitive) y devolver datos incluyendo available actualizado
+    const stockQ = `SELECT id_stock, no_part, no_project, rack, available FROM stock WHERE UPPER(qr_code) = $1 LIMIT 1`;
     const stockR = await pool.query(stockQ, [qr]);
     if (stockR.rows.length === 0) return res.status(404).json({ message: 'QR no encontrado' });
     const stock = stockR.rows[0];
 
-    // Contar INBOUND y OUTBOUND para ese no_part en ese proyecto
-    const movQ = `
-      SELECT 
-        COUNT(CASE WHEN m.type_movement = 'INBOUND' THEN 1 END) as inbound_count,
-        COUNT(CASE WHEN m.type_movement = 'OUTBOUND' THEN 1 END) as outbound_count
-      FROM movements m
-      JOIN stock s ON m.id_stock = s.id_stock
-      WHERE s.no_part = $1 AND s.no_project = $2
-    `;
-    const movR = await pool.query(movQ, [stock.no_part, stock.no_project]);
-    const inbound = parseInt(movR.rows[0].inbound_count) || 0;
-    const outbound = parseInt(movR.rows[0].outbound_count) || 0;
-    const available = inbound - outbound;
-
-    res.json({ no_part: stock.no_part, no_project: stock.no_project, inbound, outbound, available });
+    res.json({ 
+      no_part: stock.no_part, 
+      no_project: stock.no_project, 
+      rack: stock.rack,
+      available: stock.available 
+    });
   } catch (err) {
     console.error('/api/stock/available error', err);
     res.status(500).json({ message: 'Error en servidor', error: String(err) });
@@ -1589,10 +1690,17 @@ app.get('/api/movements/last', async (req, res) => {
 // ======================================================
 app.post('/api/movements', async (req, res) => {
   try {
-    const { qr_code, type, pid } = req.body;
+    const { qr_code, type, pid, cantidad } = req.body;
+    console.log('Parsed params:', { qr_code, type, pid, cantidad });
+    
     const t = (type || '').toString().trim().toUpperCase();
+    const qty = cantidad && !isNaN(cantidad) ? parseInt(cantidad) : 1;
+    
+    console.log('Processed params:', { t, qty });
+    
     if (!qr_code) return res.status(400).json({ ok: false, message: 'qr_code requerido' });
     if (!t || (t !== 'INBOUND' && t !== 'OUTBOUND')) return res.status(400).json({ ok: false, message: 'type debe ser INBOUND u OUTBOUND' });
+    if (qty < 1) return res.status(400).json({ ok: false, message: 'cantidad debe ser mayor a 0' });
     
     const userPid = pid ? String(pid).trim() : null;
 
@@ -1602,27 +1710,35 @@ app.post('/api/movements', async (req, res) => {
     if (stockR.rows.length === 0) return res.status(404).json({ ok: false, message: `QR no encontrado en Stock: ${qr}` });
     const stockRow = stockR.rows[0];
 
-    // Ajustar available según tipo dentro de una transacción
+    // Ajustar available según tipo y cantidad dentro de una transacción
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       let newAvailable = stockRow.available;
-      if (t === 'INBOUND') {
-        const uq = `UPDATE stock SET available = available + 1 WHERE id_stock = $1 RETURNING available`;
-        const ur = await client.query(uq, [stockRow.id_stock]);
-        newAvailable = ur.rows[0] ? ur.rows[0].available : newAvailable;
-      } else if (t === 'OUTBOUND') {
-        const dq = `UPDATE stock SET available = GREATEST(available - 1, 0) WHERE id_stock = $1 RETURNING available`;
-        const dr = await client.query(dq, [stockRow.id_stock]);
-        newAvailable = dr.rows[0] ? dr.rows[0].available : newAvailable;
+      const adjustment = t === 'INBOUND' ? qty : -qty;
+      
+      const updateQuery = `UPDATE stock SET available = GREATEST(available + $2, 0) WHERE id_stock = $1 RETURNING available`;
+      const updateResult = await client.query(updateQuery, [stockRow.id_stock, adjustment]);
+      newAvailable = updateResult.rows[0] ? updateResult.rows[0].available : newAvailable;
+
+      // Insertar múltiples movimientos si cantidad > 1
+      const movements = [];
+      for (let i = 0; i < qty; i++) {
+        const movementQuery = `INSERT INTO movements (date_movement, type_movement, id_stock, pid) VALUES (NOW(), $1, $2, $3) RETURNING id_movement, date_movement, type_movement, id_stock, pid`;
+        const movementResult = await client.query(movementQuery, [t, stockRow.id_stock, userPid]);
+        movements.push(movementResult.rows[0]);
       }
 
-      const movementQuery = `INSERT INTO movements (date_movement, type_movement, id_stock, pid) VALUES (NOW(), $1, $2, $3) RETURNING id_movement, date_movement, type_movement, id_stock, pid`;
-      const movementResult = await client.query(movementQuery, [t, stockRow.id_stock, userPid]);
       await client.query('COMMIT');
 
       stockRow.available = newAvailable;
-      return res.json({ ok: true, message: 'Movimiento registrado', stock: stockRow, movement: movementResult.rows[0] });
+      return res.json({ 
+        ok: true, 
+        message: `${qty} movimiento(s) ${t.toLowerCase()} registrado(s)`, 
+        stock: stockRow, 
+        movements: movements,
+        cantidad: qty
+      });
     } catch (errInner) {
       await client.query('ROLLBACK');
       console.error('/api/movements POST transaction error', errInner);

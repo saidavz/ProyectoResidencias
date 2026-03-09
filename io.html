@@ -524,14 +524,7 @@
             const availData = await availRes.json();
             row.cells[2].textContent = availData.no_part || '';
             row.cells[3].textContent = availData.no_project || '';
-            // rack not returned by available endpoint; try qr-code endpoint
-            try {
-              const qrRes = await fetch(`${API_BASE}/api/stock/qr-code?qr_code=${encodeURIComponent(qr)}`);
-              if (qrRes.ok) {
-                const qrData = await qrRes.json();
-                row.cells[4].textContent = qrData.rack || '';
-              }
-            } catch (e) { /* ignore */ }
+            row.cells[4].textContent = availData.rack || '';
           }
         } catch (e) {
           console.warn('early stock fetch failed', e);
@@ -569,6 +562,32 @@
           const addedQr = row.cells[1].textContent;
           const units = Math.abs(delta);
 
+          // Si es INBOUND y delta > 0, validar contra paquetes-calculados
+          if (movementType === 'INBOUND' && delta > 0) {
+            const no_part = row.cells[2].textContent;
+            const no_project = row.cells[3].textContent;
+            if (no_part && no_project) {
+              try {
+                const paquetesRes = await fetch(`${API_BASE}/api/paquetes-calculados?no_project=${encodeURIComponent(no_project)}&no_part=${encodeURIComponent(no_part)}`);
+                if (paquetesRes.ok) {
+                  const paquetesData = await paquetesRes.json();
+                  const cantidad_calculada = paquetesData.cantidad_calculada || 0;
+                  // Obtener cantidad disponible actual
+                  const availRes = await fetch(`${API_BASE}/api/stock/available/${addedQr}`);
+                  if (availRes.ok) {
+                    const availData = await availRes.json();
+                    const currentAvailable = availData.available || 0;
+                    if ((currentAvailable + delta) > cantidad_calculada) {
+                      window.alert(`Advertencia: el stock disponible supera lo pedido de este número de parte para este proyecto.\nMaterial pedido: ${cantidad_calculada}\nDisponible: ${currentAvailable}\nIntento de entrada: ${delta}`);
+                    }
+                  }
+                }
+              } catch (err) {
+                console.warn('fetch paquetes-calculados error', err);
+              }
+            }
+          }
+
           // registrar los movimientos en unidades de 1 si es necesario
           if (units > 1) {
             for (let i = 0; i < units; i++) {
@@ -578,7 +597,7 @@
             await registerMovement(addedQr, movementType, units);
           }
 
-          showToast(`Movimiento de ${units} unidades registrado`, 'success');
+          showToast(`Movimiento registrado`, 'success');
 
           // Actualizar cantidad disponible
           try {
@@ -606,16 +625,8 @@
         const outboundChecked = document.getElementById('btnradio2').checked;
         let movementType = inboundChecked ? 'INBOUND' : outboundChecked ? 'OUTBOUND' : 'INBOUND';
 
-        // Pedir cantidad
-        let cantidad = prompt('Ingrese la cantidad para el movimiento:', '1');
-        cantidad = cantidad ? parseInt(cantidad, 10) : 1;
-        if (isNaN(cantidad) || cantidad <= 0) {
-          row.cells[8].textContent = 'Cantidad inválida';
-          row.cells[8].className = 'fw-bold text-secondary';
-          row.cells[9].textContent = '-';
-          showToast('Cantidad inválida', 'info');
-          return;
-        }
+        // Cantidad por defecto para escaneo QR (1 unidad)
+        const cantidad = 1;
 
         // Consultar cantidad disponible y datos de stock
         let stockData = null;

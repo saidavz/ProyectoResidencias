@@ -8,6 +8,34 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .aut-stock-cell {
+      font-size: 1.25rem;
+      font-weight: bold;
+      text-align: center;
+      background: linear-gradient(90deg, #e0ffe0 60%, #b6fcb6 100%);
+      border: 2px solid #28a745;
+      border-radius: 8px;
+      color: #218838;
+      box-shadow: 0 0 8px #b6fcb6;
+      transition: background 0.3s, color 0.3s;
+    }
+    .aut-stock-cell.low {
+      background: linear-gradient(90deg, #fffbe0 60%, #ffe6b6 100%);
+      border-color: #ffc107;
+      color: #856404;
+    }
+    .aut-stock-cell.none {
+      background: linear-gradient(90deg, #ffe0e0 60%, #fcb6b6 100%);
+      border-color: #dc3545;
+      color: #721c24;
+    }
+    .aut-stock-icon {
+      margin-right: 6px;
+      font-size: 1.5rem;
+      vertical-align: middle;
+    }
+  </style>
 </head>
 
 <body>
@@ -128,18 +156,20 @@
                 </div>
                 <!-- Botón para agregar a la tabla -->
                 <div class="d-grid">
-                  <button type="button" class="btn btn-primary btn-lg w-100">
+                  <button type="button" class="btn btn-agregar-tabla btn-lg w-100">
                     <i class="bi bi-plus-circle"></i> Added
                   </button>
                 </div>
               </div>
               <!-- Tabla de productos -->
               <div class="mt-4">
+                <!-- El aviso grande de stock se elimina, solo badge en la tabla -->
                 <div class="enhanced-table">
                   <div class="table-responsive">
                     <table class="table table-striped table-hover mb-0" id="tablaProductos">
                       <thead class="table-dark">
                         <tr>
+                          <th>Available</th>
                           <th>Part Number</th>
                           <th>Brand</th>
                           <th>Description</th>
@@ -164,6 +194,25 @@
                     </table>
                   </div>
                 </div>
+                <style>
+                  .aut-stock-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    padding: 2px 8px;
+                    border-radius: 8px;
+                    background: #e0ffe0;
+                    color: #218838;
+                    border: 1px solid #28a745;
+                    margin-left: 6px;
+                    box-shadow: 0 0 4px #b6fcb6;
+                  }
+                  .aut-stock-badge .aut-stock-icon {
+                    font-size: 1.2rem;
+                    margin-right: 4px;
+                  }
+                </style>
               </div>
               <br>
               <!-- Botón para guardar la compra -->
@@ -379,6 +428,7 @@
         // Mostrar en la tabla con quantity calculado
         const filaHTML = `
           <tr>
+            <td class="aut-stock-cell">Cargando...</td>
             <td class="cell-no-part">${esc(producto.no_part)}</td>
             <td>${esc(producto.brand)}</td>
             <td>${esc(producto.description)}</td>
@@ -397,6 +447,35 @@
 
         // Obtener la fila recién agregada
         const nuevaFila = tablaBody.lastElementChild;
+
+        // Buscar stock en AUT-STOCK para el número de parte
+        (async () => {
+          try {
+            const resStock = await fetch(`${baseURL}/stock/by-project?no_project=AUT-STOCK`);
+            if (resStock.ok) {
+              const stockData = await resStock.json();
+              const found = stockData.find(item => item.no_part === producto.no_part);
+              const autStockCell = nuevaFila.querySelector('.aut-stock-cell');
+              if (found && found.available > 0) {
+                // Mostrar badge pequeño y discreto
+                autStockCell.innerHTML = `<span class="aut-stock-badge"><span class="aut-stock-icon bi bi-check-circle-fill"></span>${found.available}</span>`;
+                autStockCell.classList.add('table-success');
+                nuevaFila.title = `AUT-STOCK disponible: ${found.available}`;
+              } else {
+                autStockCell.innerHTML = '';
+                autStockCell.classList.remove('table-success');
+                autStockCell.classList.remove('aut-stock-cell');
+                nuevaFila.title = 'No hay stock en AUT-STOCK';
+              }
+            }
+          } catch (err) {
+            console.error('Error consultando stock AUT-STOCK:', err);
+            const autStockCell = nuevaFila.querySelector('.aut-stock-cell');
+            autStockCell.innerHTML = '';
+            autStockCell.classList.remove('table-success');
+            nuevaFila.title = 'Error consultando stock';
+          }
+        })();
 
         // Crear un objeto del producto con el quantity calculado
         const productoObj = {
