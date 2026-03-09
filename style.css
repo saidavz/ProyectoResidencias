@@ -1017,6 +1017,7 @@ body {
   font-weight: 600;
   transition: var(--transition);
   font-size: 1rem;
+  color: var(--pure-white) !important;
 }
 
 @media (max-width: 576px) {
@@ -1227,6 +1228,12 @@ h1 {
   padding: 1.0rem 1.5rem;
 }
 
+.btn.btn-agregar-tabla.btn-lg {
+  font-size: 1.1rem;
+  padding: 1.0rem 1.5rem;
+  color: var(--pure-white) !important;
+}
+
 .bg-purple {
   background-color: #6f42c1 !important;
   color: white;
@@ -1433,18 +1440,18 @@ h1 {
 
 /* Botón "Added" en Purchase Record: gris oscuro */
 .btn.btn-agregar-tabla {
-  background: rgba(255, 0, 0, 0.854);
-  color: var(--pure-white) !important;
-  border: 1px solid rgb(255, 255, 255);
-  border-radius: 8px;
-  padding: 0.35rem 0.75rem;
+  background: linear-gradient(135deg, var(--primary-red), var(--dark-red));
+  border: none;
+  border-radius: 12px;
+  padding: 1rem 2rem;
   font-weight: 600;
   transition: var(--transition);
+  font-size: 1rem;
 }
 
 .btn.btn-agregar-tabla:hover {
-  background: rgba(146, 12, 12, 0.95);
-  color: var(--pure-white) !important;
+  background: linear-gradient(135deg, var(--dark-red), var(--primary-red));
+  transform: translateY(-2px);
 }
 
 .total-highlight {
