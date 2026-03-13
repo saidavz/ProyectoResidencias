@@ -23,8 +23,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim', //verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
 // Endpoint para verificar estructura de BD
@@ -111,12 +111,16 @@ app.post('/api/auth/validate-qr', async (req, res) => {
 
     const roleColumn = roleColumnResult.rows[0].column_name;
 
-    // Buscar usuario por PID y verificar que tenga rol Administrador o Tecnico
+    // Buscar usuario por PID y verificar que tenga rol permitido
     const query = `
       SELECT pid, ${roleColumn} AS rol
       FROM user_
       WHERE LOWER(BTRIM(pid)) = LOWER($1)
-        AND (${roleColumn} ILIKE 'Administrador' OR ${roleColumn} ILIKE 'Tecnico')
+        AND (
+          ${roleColumn} ILIKE 'Administrador'
+          OR ${roleColumn} ILIKE 'Compras'
+          OR ${roleColumn} ILIKE 'Tecnico'
+        )
       LIMIT 1
     `;
 

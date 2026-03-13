@@ -8,41 +8,16 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+  <script src="auth.js"></script>
+  <script>
+    const ioAuthUser = PurchaseAuth.requireAuth({
+      allowedRoles: ['Tecnico', 'Administrador', 'Compras'],
+      deniedMessage: 'No tienes permisos para acceder a Entradas y Salidas.'
+    });
+  </script>
 </head>
 
 <body>
-  <!-- Login Overlay -->
-  <div id="loginOverlay" class="login-overlay">
-    <div class="login-card">
-      <div class="login-icon">
-        <i class="bi bi-qr-code-scan"></i>
-      </div>
-      <h2 class="login-title">Access Control</h2>
-      <p class="login-subtitle">Scan your QR badge to access Inbound & Outbound</p>
-      
-      <div class="qr-input-wrapper">
-        <i class="bi bi-upc-scan"></i>
-        <input 
-          type="text" 
-          id="loginQrInput" 
-          placeholder="Scan your QR code..." 
-          autofocus 
-          autocomplete="off"
-        />
-      </div>
-      
-      <div class="scanning-animation" id="scanningIndicator">
-        <i class="bi bi-arrow-repeat"></i> Validating access...
-      </div>
-      
-      <div id="loginAlert" class="alert alert-login d-none"></div>
-      
-      <button type="button" class="login-btn" id="loginBtn">
-        <i class="bi bi-shield-check me-2"></i>Verify Access
-      </button>
-    </div>
-  </div>
-
   <!-- User Info Bar -->
   <div id="userInfoBar" class="user-info-bar">
     <div class="user-details">
@@ -68,7 +43,7 @@
       <div class="collapse navbar-collapse" id="navbarMenu">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
-          <li class="nav-item dropdown">
+          <li class="nav-item dropdown requires-full-access">
             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               BOM
             </a>
@@ -80,24 +55,23 @@
               <li><a class="dropdown-item" href="bomView.html">View BOM</a></li>
             </ul>
           </li>
-          <li class="nav-item"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
-          <li class="nav-item"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
+          <li class="nav-item requires-full-access"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
+          <li class="nav-item requires-full-access"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
           <li class="nav-item dropdown">
             <a class="nav-link active dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
               aria-expanded="false">
               Inventory
             </a>
             <ul class="dropdown-menu text-center" aria-labelledby="dropdownBom">
-              <li><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
-              <li>
+              <li class="requires-full-access"><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
+              <li class="requires-full-access">
                 <hr class="dropdown-divider">
               </li>
               <li><a class="dropdown-item" href="io.html">Register Inbound And Outbound</a></li>
-              <li>
-              <li>
+              <li class="requires-full-access">
                 <hr class="dropdown-divider">
               </li>
-              <li><a class="dropdown-item" href="stock.html">View Inventory</a></li>
+              <li class="requires-full-access"><a class="dropdown-item" href="stock.html">View Inventory</a></li>
             </ul>
           </li>
         </ul>
@@ -124,7 +98,7 @@
             <i class="bi bi-arrow-left fs-4 me-2 text-white"></i>
               <i class="bi bi-box fs-4 me-2 text-white"></i>Outbound</label>
       </div>
-      <button class="btn btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#historyOffcanvas" aria-controls="historyOffcanvas">
+      <button class="btn btn-outline-light requires-full-access" type="button" data-bs-toggle="offcanvas" data-bs-target="#historyOffcanvas" aria-controls="historyOffcanvas">
         <i class="bi bi-clock-history me-2"></i>Historial de Movimientos
       </button>
     </div>
@@ -158,7 +132,7 @@
   </div>
 
   <!-- Offcanvas para Historial de Movimientos -->
-  <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="historyOffcanvas" aria-labelledby="historyOffcanvasLabel" style="width: 70%;">
+  <div class="offcanvas offcanvas-end bg-dark text-white requires-full-access" data-bs-backdrop="static" tabindex="-1" id="historyOffcanvas" aria-labelledby="historyOffcanvasLabel" style="width: 70%;">
     <div class="offcanvas-header border-bottom border-secondary">
       <h5 class="offcanvas-title" id="historyOffcanvasLabel">
         <i class="bi bi-clock-history me-2"></i>Historial de Movimientos
@@ -231,144 +205,68 @@
 
   <script>
     // ===== AUTHENTICATION LOGIC =====
-    let currentUser = null;
-    const API_BASE = (location.protocol === 'file:' || location.port !== '3000') ? 'http://localhost:3000' : window.location.origin;
+    let currentUser = ioAuthUser || PurchaseAuth.getUser();
+    const API_BASE = PurchaseAuth.apiBase();
 
-    const loginOverlay = document.getElementById('loginOverlay');
     const userInfoBar = document.getElementById('userInfoBar');
-    const mainNavbar = document.getElementById('mainNavbar');
-    const loginQrInput = document.getElementById('loginQrInput');
-    const loginBtn = document.getElementById('loginBtn');
-    const loginAlert = document.getElementById('loginAlert');
-    const scanningIndicator = document.getElementById('scanningIndicator');
     const logoutBtn = document.getElementById('logoutBtn');
     const pidLabel = document.getElementById('pid');
     const rolLabel = document.getElementById('rol');
     const inboundRadio = document.getElementById('btnradio1');
     const outboundRadio = document.getElementById('btnradio2');
+    const mainNavbar = document.getElementById('mainNavbar');
 
-    function showLoginAlert(message, type = 'danger') {
-      loginAlert.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-warning', 'alert-info');
-      loginAlert.classList.add(`alert-${type}`);
-      loginAlert.textContent = message;
-      
-      setTimeout(() => {
-        loginAlert.classList.add('d-none');
-      }, 4000);
+    function applyIoRoleVisibility() {
+      const hasFullAccess = PurchaseAuth.hasAnyRole(currentUser, ['Administrador', 'Compras']);
+      document.querySelectorAll('.requires-full-access').forEach((element) => {
+        element.style.display = hasFullAccess ? '' : 'none';
+      });
+
+      if (!hasFullAccess) {
+        const navbarMenu = document.getElementById('navbarMenu');
+        const navbarToggler = mainNavbar ? mainNavbar.querySelector('.navbar-toggler') : null;
+        const logoLink = mainNavbar ? mainNavbar.querySelector('a[href="index.html"]') : null;
+
+        if (navbarMenu) {
+          navbarMenu.style.display = 'none';
+        }
+
+        if (navbarToggler) {
+          navbarToggler.style.display = 'none';
+        }
+
+        if (logoLink) {
+          logoLink.setAttribute('href', 'io.html');
+          logoLink.setAttribute('title', 'Inbound And Outbound');
+        }
+      }
     }
 
-    function updateLoginOverlayBounds() {
-      if (!mainNavbar) return;
-      const navBottom = mainNavbar.offsetTop + mainNavbar.offsetHeight;
-      loginOverlay.style.top = `${navBottom}px`;
-      loginOverlay.style.height = `calc(100vh - ${navBottom}px)`;
-    }
-
-    async function validateQRLogin() {
-      const qrCode = loginQrInput.value.trim();
-      
-      if (!qrCode) {
-        showLoginAlert('Please scan or enter your QR code');
+    function initializeIoSession() {
+      if (!currentUser) {
+        PurchaseAuth.logout('index.html');
         return;
       }
 
-      scanningIndicator.classList.add('active');
-      loginBtn.disabled = true;
+      if (pidLabel) pidLabel.textContent = currentUser.pid || '-';
+      if (rolLabel) rolLabel.textContent = currentUser.rol || currentUser.role || '-';
+      if (userInfoBar) userInfoBar.style.display = 'flex';
 
-      try {
-        const response = await fetch(`${API_BASE}/api/auth/validate-qr`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pid: qrCode })
-        });
+      applyIoRoleVisibility();
 
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-          currentUser = data.user;
-          showLoginSuccess();
-        } else {
-          showLoginAlert(data.error || 'Access denied. Invalid credentials or insufficient permissions.');
-          loginQrInput.value = '';
-          loginQrInput.focus();
-        }
-      } catch (error) {
-        console.error('Login error:', error);
-        showLoginAlert('Connection error. Please verify the server is running.');
-      } finally {
-        scanningIndicator.classList.remove('active');
-        loginBtn.disabled = false;
+      const pendingNotice = PurchaseAuth.consumeNotice();
+      if (pendingNotice) {
+        window.alert(pendingNotice);
       }
     }
 
-    function showLoginSuccess() {
-      // Update user info bar
-      pidLabel.textContent = currentUser.pid || '-';
-      rolLabel.textContent = currentUser.rol || currentUser.role || '-';
-      
-      // Hide login overlay with fade out
-      loginOverlay.style.animation = 'fadeOut 0.3s ease-out';
-      setTimeout(() => {
-        loginOverlay.classList.add('hidden');
-        loginOverlay.style.animation = '';
-      }, 300);
-      
-      // Hide main navbar, show user info bar only
-      mainNavbar.style.display = 'none';
-      userInfoBar.style.display = 'flex';
-      setIoSectionEnabled(true);
-      
-      // Focus on QR input for operations
-      setTimeout(() => {
-        qrInput.focus();
-      }, 400);
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        PurchaseAuth.logout('index.html');
+      });
     }
 
-    function logout() {
-      currentUser = null;
-      
-      // Show main navbar, hide user info bar
-      mainNavbar.style.display = '';
-      userInfoBar.style.display = 'none';
-      
-      // Show login overlay
-      updateLoginOverlayBounds();
-      loginOverlay.classList.remove('hidden');
-      setIoSectionEnabled(false);
-      inboundRadio.checked = true;
-      outboundRadio.checked = false;
-      
-      loginQrInput.value = '';
-      setTimeout(() => {
-        loginQrInput.focus();
-      }, 100);
-      scanTable.innerHTML = '';
-      count = 0;
-    }
-
-    // Event listeners for login
-    loginBtn.addEventListener('click', validateQRLogin);
-    
-    loginQrInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        validateQRLogin();
-      }
-    });
-
-    logoutBtn.addEventListener('click', logout);
-
-    // Auto-submit after QR scan (simulated by rapid input)
-    let loginScanTimer;
-    loginQrInput.addEventListener('input', () => {
-      clearTimeout(loginScanTimer);
-      const value = loginQrInput.value.trim();
-      if (value.length > 3) {
-        loginScanTimer = setTimeout(() => {
-          validateQRLogin();
-        }, 500);
-      }
-    });
+    initializeIoSession();
 
     // ===== ORIGINAL INBOUND/OUTBOUND LOGIC =====
     const qrInput = document.getElementById("qrInput");
@@ -484,10 +382,10 @@
 
     async function handleScan() {
       if (!currentUser) {
-        showToast('Debes iniciar sesion para registrar movimientos.', 'warning');
-        loginOverlay.classList.remove('hidden');
-        loginQrInput.focus();
-        qrInput.value = '';
+        showToast('Sesion expirada. Redirigiendo al inicio.', 'warning');
+        setTimeout(() => {
+          PurchaseAuth.logout('index.html');
+        }, 250);
         return;
       }
 
@@ -721,14 +619,11 @@
     });
 
     window.onload = () => {
-      // Check if user is already logged in (could add session storage later)
-      updateLoginOverlayBounds();
-      window.addEventListener('resize', updateLoginOverlayBounds);
       setIoSectionEnabled(Boolean(currentUser));
-      if (!currentUser) {
-        loginQrInput.focus();
-      } else {
+      if (currentUser) {
         qrInput.focus();
+      } else {
+        PurchaseAuth.logout('index.html');
       }
     };
 
@@ -839,6 +734,10 @@
       loadMovementHistory(searchTerm);
     });
   </script>
+
+  <footer class="text-center py-3 text-white bg-gradient mt-5">
+    Purchase-Inventory Management System - BRK. Resideo.
+  </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 

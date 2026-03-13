@@ -15,6 +15,13 @@
   --shadow-medium: 0 12px 40px rgba(0, 0, 0, 0.15);
   --shadow-strong: 0 20px 60px rgba(0, 0, 0, 0.25);
   --transition: all 0.3s ease;
+  --section-spacing-y: 2rem;
+}
+
+/* Evita el salto horizontal cuando aparece/desaparece scrollbar entre secciones */
+html {
+  min-height: 100%;
+  overflow-y: scroll;
 }
 
 * {
@@ -28,7 +35,35 @@ body {
   background: linear-gradient(135deg, var(--charcoal) 0%, var(--pure-black) 100%);
   color: var(--light-gray);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   line-height: 1.6;
+}
+
+/* Mantiene una altura consistente del area principal en todas las secciones */
+body > main,
+body > #ioMainSection,
+body > .inventory-container,
+body > .container.mt-4 {
+  flex: 1 0 auto;
+  width: 100%;
+}
+
+/* Unifica espaciado vertical del contenido principal entre paginas */
+body > main.container,
+body > #ioMainSection.container,
+body > .inventory-container,
+body > .container.mt-4 {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: var(--section-spacing-y) !important;
+  padding-bottom: var(--section-spacing-y) !important;
+}
+
+@media (max-width: 576px) {
+  :root {
+    --section-spacing-y: 1.25rem;
+  }
 }
 
 /* ===== NAVBAR ===== */
@@ -1636,6 +1671,12 @@ input:focus {
   padding: 20px;
   animation: fadeIn 0.3s ease-out;
   pointer-events: none;
+}
+
+.login-overlay.login-overlay-full {
+  top: 0;
+  height: 100vh;
+  pointer-events: auto;
 }
 
 .login-overlay.hidden {
