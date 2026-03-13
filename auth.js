@@ -19,6 +19,8 @@
 
     const pid = String(user.pid || '').trim();
     const rol = String(user.rol || user.role || '').trim();
+    const userName = String(user.user_name || user.userName || '').trim();
+    const lastName = String(user.last_name || user.lastName || '').trim();
 
     if (!pid || !rol) {
       return null;
@@ -27,8 +29,24 @@
     return {
       pid,
       rol,
-      role: rol
+      role: rol,
+      user_name: userName,
+      last_name: lastName
     };
+  }
+
+  function getUserDisplayName(user) {
+    const normalizedUser = normalizeUser(user);
+    if (!normalizedUser) {
+      return '-';
+    }
+
+    const fullName = [normalizedUser.user_name, normalizedUser.last_name]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+      .join(' ');
+
+    return fullName || normalizedUser.pid || '-';
   }
 
   function getUser() {
@@ -200,7 +218,7 @@
     const rolLabel = getPageRolLabel(userInfoBar);
 
     if (pidLabel) {
-      pidLabel.textContent = user.pid || '-';
+      pidLabel.textContent = getUserDisplayName(user);
     }
 
     if (rolLabel) {
@@ -242,7 +260,7 @@
     const logoutButton = userInfoBar.querySelector('.logout-btn');
 
     if (pidLabel) {
-      pidLabel.textContent = user.pid || '-';
+      pidLabel.textContent = getUserDisplayName(user);
     }
 
     if (rolLabel) {
@@ -274,13 +292,31 @@
     return currentUser;
   }
 
-  function autoMountUserInfoBar() {
+  async function refreshUserProfileIfNeeded(user) {
+    const normalizedUser = normalizeUser(user);
+    if (!normalizedUser) {
+      return null;
+    }
+
+    if (normalizedUser.user_name || normalizedUser.last_name) {
+      return normalizedUser;
+    }
+
+    try {
+      return await validateQr(normalizedUser.pid);
+    } catch (error) {
+      return normalizedUser;
+    }
+  }
+
+  async function autoMountUserInfoBar() {
     const currentUser = getUser();
     if (!currentUser) {
       return;
     }
 
-    mountUserInfoBar({ user: currentUser, bindExistingLogout: false });
+    const hydratedUser = await refreshUserProfileIfNeeded(currentUser);
+    mountUserInfoBar({ user: hydratedUser, bindExistingLogout: false });
   }
 
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
@@ -296,11 +332,13 @@
     getUser,
     setUser,
     clearUser,
+    getUserDisplayName,
     hasAnyRole,
     validateQr,
     requireAuth,
     consumeNotice,
     logout,
-    mountUserInfoBar
+    mountUserInfoBar,
+    refreshUserProfileIfNeeded
   });
 })();

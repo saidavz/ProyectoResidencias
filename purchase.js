@@ -113,7 +113,11 @@ app.post('/api/auth/validate-qr', async (req, res) => {
 
     // Buscar usuario por PID y verificar que tenga rol permitido
     const query = `
-      SELECT pid, ${roleColumn} AS rol
+      SELECT
+        pid,
+        ${roleColumn} AS rol,
+        COALESCE(user_name, '') AS user_name,
+        COALESCE(last_name, '') AS last_name
       FROM user_
       WHERE LOWER(BTRIM(pid)) = LOWER($1)
         AND (
@@ -133,7 +137,9 @@ app.post('/api/auth/validate-qr', async (req, res) => {
         user: {
           pid: user.pid,
           rol: user.rol,
-          role: user.rol
+          role: user.rol,
+          user_name: user.user_name,
+          last_name: user.last_name
         }
       });
     } else {
@@ -284,6 +290,29 @@ app.get('/api/projects/search', async (req, res) => {
   } catch (err) {
     console.error('Error searching projects:', err);
     res.status(500).json({ error: 'Error al buscar proyectos' });
+  }
+});
+
+// Busqueda de no_project desde BOM
+app.get('/api/bom-projects/search', async (req, res) => {
+  const term = String(req.query.term || '').trim();
+
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT no_project::text AS no_project
+       FROM bom_project
+       WHERE no_project IS NOT NULL
+         AND BTRIM(no_project::text) <> ''
+         AND no_project::text ILIKE $1
+       ORDER BY no_project
+       LIMIT 10`,
+      [`%${term}%`]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error searching bom projects:', err);
+    res.status(500).json({ error: 'Error al buscar no_project en BOM' });
   }
 });
 
@@ -1422,6 +1451,10 @@ app.get('/recordPurchase.html', (req, res) => {
 
 app.get('/purchaseTracking.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'purchaseTracking.html'));
+});
+
+app.get('/requisition.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'requisition.html'));
 });
 
 app.get('/bom.html', (req, res) => {

@@ -81,6 +81,7 @@
                     </li>
                     <li class="nav-item requires-full-access"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
                     <li class="nav-item requires-full-access"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
+                    <li class="nav-item requires-full-access"><a class="nav-link" href="requisition.html">Requisition</a></li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
@@ -137,7 +138,12 @@
                 <div class="btn-title">Purchase Tracking</div>
                 <div class="btn-description">Purchase tracking and monitoring</div>
             </a>
-            <div class="dropdown home-btn-dropdown">
+            <a href="requisition.html" class="home-btn requires-full-access">
+                <i class="bi bi-journal-text btn-icon"></i>
+                <div class="btn-title">Requisition</div>
+                <div class="btn-description">Pegue aqui la informacion de requisicion</div>
+            </a>
+            <div class="dropdown home-btn-dropdown home-btn-last">
                 <button class="home-btn dropdown-toggle" 
                         type="button" 
                         id="dropdownBom"
@@ -224,7 +230,7 @@
 
             const pidLabel = document.getElementById('loggedPid');
             const rolLabel = document.getElementById('loggedRol');
-            if (pidLabel) pidLabel.textContent = user.pid || '-';
+            if (pidLabel) pidLabel.textContent = PurchaseAuth.getUserDisplayName(user);
             if (rolLabel) rolLabel.textContent = user.rol || user.role || '-';
 
             const overlay = homeLoginOverlay();

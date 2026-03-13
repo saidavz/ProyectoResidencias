@@ -188,12 +188,23 @@ body > .container.mt-4 {
   margin: 0 auto;
 }
 
+.home-buttons-container .home-btn-last {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(100%, 460px);
+}
+
 /* Mobile: Una columna */
 @media (max-width: 576px) {
   .home-buttons-container {
     grid-template-columns: 1fr;
     gap: 1rem;
     padding: 1rem 0.5rem;
+  }
+
+  .home-buttons-container .home-btn-last {
+    grid-column: auto;
+    width: 100%;
   }
 }
 
