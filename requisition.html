@@ -63,86 +63,104 @@
           </li>
         </ul>
         <div class="d-flex align-items-center ms-auto">
-          <i class="bi bi-journal-text fs-4 me-2 text-white"></i>
-          <span class="h4 mb-0 text-white">Requisition</span>
+          <i class="bi bi-file-earmark-text fs-4 me-2 text-white"></i>
+          <span class="h4 mb-0 text-white">Requisitions</span>
         </div>
       </div>
     </div>
   </nav>
 
-  <main class="container my-5">
+  <main class="container mt-4">
     <div class="row justify-content-center">
-      <div class="col-lg-10">
-        <h2 class="mb-4 text-center text-white" style="font-weight: bold;">Requisition</h2>
-
-        <div class="card p-4 p-md-5">
+      <h2 class="mb-4 text-center text-white" style="font-weight: bold;">Create Requisition</h2>
+      
+      <div class="col-lg-10 col-xl-8">
+        <!-- Card para formulario de requisición -->
+        <div class="card p-4 p-md-5 mb-4">
+          <h5 class="mb-4 text-white"><i class="bi bi-file-text me-2"></i>Requisition Details</h5>
+          
           <div class="mb-3" style="position: relative;">
-            <label for="requisitionProjectInput" class="form-label fw-bold">No Project (BOM)</label>
+            <label for="requisitionProjectInput" class="form-label fw-bold">Project</label>
             <input
               id="requisitionProjectInput"
               type="text"
-              class="form-control bg-dark text-light"
-              placeholder="Search no_project..."
+              class="form-control"
+              placeholder="Search by number or project name..."
               autocomplete="off"
             >
             <div
               id="requisitionProjectSuggestions"
-              class="bg-dark text-light"
-              style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 220px; overflow-y: auto;"
+              class="border"
+              style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; display: none; max-height: 220px; overflow-y: auto; background-color: #f8f9fa;"
             ></div>
           </div>
+
           <div class="mb-3">
-            <label for="requisitionInput" class="form-label fw-bold">Pegue aqui</label>
-            <textarea id="requisitionInput" class="form-control bg-dark text-light" rows="4"
-              placeholder="Pegue aqui la informacion de requisicion..."></textarea>
+            <label for="requisitionInput" class="form-label fw-bold">Paste Requisition Information</label>
+            <textarea 
+              id="requisitionInput" 
+              class="form-control" 
+              rows="5"
+              placeholder="Paste requisition details here..."
+            ></textarea>
           </div>
-          <div class="d-grid d-md-flex gap-2">
-            <button id="requisitionOkBtn" type="button" class="btn btn-success px-4">OK</button>
+
+          <div class="d-grid mb-3">
+            <button id="requisitionOkBtn" type="button" class="btn btn-primary btn-lg w-100">
+              <i class="bi bi-check-circle me-2"></i>Load Data
+            </button>
           </div>
           <p id="requisitionFeedback" class="small mt-3 mb-0 text-muted"></p>
         </div>
 
-        <div class="card p-4 p-md-5 mt-4" style="background: linear-gradient(135deg, rgba(181,19,19,0.25) 0%, rgba(100,10,10,0.35) 100%); border: 1px solid #c0c0c0;">
-          <h5 class="mb-3 text-white"><i class="bi bi-list-ul me-2"></i>ORDER LIST</h5>
+        <!-- Card para tabla de items -->
+        <div class="card p-4 p-md-5">
+          <h5 class="mb-4 text-white"><i class="bi bi-list-ul me-2"></i>Order Summary</h5>
+          
           <div
             id="requisitionOrderInfo"
             class="mb-3 p-3 rounded d-flex flex-wrap gap-3 align-items-center"
-            style="background: rgba(0, 0, 0, 0.35); border: 1px solid #c0c0c0;"
+            style="background: #f8f9fa; border: 1px solid #dee2e6;"
           >
-            <div class="text-white">
-              <span class="fw-semibold">Number:</span>
-              <span id="requisitionOrderNumber" class="fw-bold ms-1">-</span>
+            <div>
+              <span class="fw-semibold text-secondary">Requisition #:</span>
+              <span id="requisitionOrderNumber" class="fw-bold ms-2 text-dark">-</span>
             </div>
-            <div class="vr" style="color: #ffffff; opacity: 0.6;"></div>
-            <div class="text-white">
-              <span class="fw-semibold">No Project:</span>
-              <span id="requisitionSelectedProject" class="fw-bold ms-1">-</span>
+            <div class="vr"></div>
+            <div>
+              <span class="fw-semibold text-secondary">Project:</span>
+              <span id="requisitionSelectedProject" class="fw-bold ms-2 text-dark">-</span>
             </div>
           </div>
-          <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle mb-0 bg-white" style="border: 2px solid #c0c0c0;">
-              <thead>
-                <tr style="background-color: #c0c0c0; color: #212529;">
-                  <th scope="col">No Project</th>
-                  <th scope="col">Part Number</th>
-                  <th scope="col">Description</th>
-                  <th scope="col">Quantity</th>
-                  <th scope="col">Units</th>
-                  <th scope="col">Unit Price</th>
-                  <th scope="col">Currency</th>
-                  <th scope="col">Supplier</th>
-                </tr>
-              </thead>
-              <tbody id="requisitionTableBody">
-                <tr>
-                  <td colspan="8" class="text-center text-secondary">No hay items cargados.</td>
-                </tr>
-              </tbody>
-            </table>
+
+          <div class="enhanced-table">
+            <div class="table-responsive">
+              <table class="table table-striped table-bordered table-hover align-middle bg-white">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Project</th>
+                    <th>Part Number</th>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Unit</th>
+                    <th>Unit Price</th>
+                    <th>Currency</th>
+                    <th>Supplier</th>
+                  </tr>
+                </thead>
+                <tbody id="requisitionTableBody">
+                  <tr>
+                    <td colspan="8" class="text-center text-muted py-4">No items loaded</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div class="d-flex justify-content-end mt-3">
-            <button id="requisitionClearBtn" type="button" class="btn btn-sm btn-outline-warning">
-              Save
+
+          <br>
+          <div class="d-grid mb-3">
+            <button id="requisitionClearBtn" type="button" class="btn btn-primary btn-lg w-100">
+              <i class="bi bi-cloud-upload me-2"></i>Save Requisition
             </button>
           </div>
         </div>
@@ -229,8 +247,9 @@
                 return;
               }
 
+              const name = normalizeSpace(String(item.name || ''));
               const option = document.createElement('div');
-              option.textContent = noProject;
+              option.textContent = `${noProject}${name ? ' - ' + name : ''}`;
               option.style.padding = '6px 10px';
               option.style.cursor = 'pointer';
               option.addEventListener('click', () => {
@@ -367,6 +386,7 @@
         return {
           selectedNoProject: '-',
           orderNumber: '-',
+          projectTitle: '',
           items: []
         };
       }
@@ -382,6 +402,7 @@
 
         const selectedNoProject = normalizeSpace(rawState.selectedNoProject || '-') || '-';
         const orderNumber = String(rawState.orderNumber || '-').trim() || '-';
+        const projectTitle = normalizeSpace(rawState.projectTitle || '') || '';
         const items = Array.isArray(rawState.items)
           ? rawState.items
             .map((item) => ({
@@ -399,6 +420,7 @@
         return {
           selectedNoProject,
           orderNumber,
+          projectTitle,
           items
         };
       }
@@ -422,18 +444,16 @@
       }
 
       function saveOrderMock(payload) {
-        let savedOrders = [];
-
-        try {
-          const rawSavedOrders = localStorage.getItem(SAVED_STORAGE_KEY);
-          const parsedSavedOrders = rawSavedOrders ? JSON.parse(rawSavedOrders) : [];
-          savedOrders = Array.isArray(parsedSavedOrders) ? parsedSavedOrders : [];
-        } catch (error) {
-          savedOrders = [];
-        }
-
-        savedOrders.push(payload);
-        localStorage.setItem(SAVED_STORAGE_KEY, JSON.stringify(savedOrders));
+        return fetch(`${baseURL}/requisitions/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+          .then(res => res.json())
+          .catch(err => {
+            console.error('Error saving requisition:', err);
+            throw err;
+          });
       }
 
       const requisitionState = loadSavedState();
@@ -445,7 +465,7 @@
           }
 
           for (let next = index + 1; next < lines.length && next <= index + 5; next += 1) {
-            const value = normalizeSpace(lines[next]);
+            const value = normalizeSpace(lines[next]).toUpperCase();
             if (!value) {
               continue;
             }
@@ -459,6 +479,27 @@
         }
 
         return '-';
+      }
+
+      function extractProjectTitle(lines) {
+        const titleKeywords = ['project', 'title', 'subject', 'name'];
+        
+        for (let index = 0; index < lines.length; index += 1) {
+          const lower = normalizeSpace(lines[index]).toLowerCase();
+          
+          for (const keyword of titleKeywords) {
+            if (lower.includes(keyword) && lower !== keyword) {
+              const titleText = normalizeSpace(lines[index]);
+              const parts = titleText.split(':');
+              if (parts.length > 1) {
+                return normalizeSpace(parts.slice(1).join(':'));
+              }
+              return titleText;
+            }
+          }
+        }
+        
+        return '';
       }
 
       function extractItemsSection(lines) {
@@ -509,7 +550,7 @@
         let index = 0;
 
         while (index < sectionLines.length) {
-          const partNumber = normalizeSpace(sectionLines[index]);
+          const partNumber = normalizeSpace(sectionLines[index]).toUpperCase();
 
           if (!partNumber || isNoiseLine(partNumber)) {
             index += 1;
@@ -520,9 +561,9 @@
             break;
           }
 
-          const description = normalizeSpace(sectionLines[index + 1]);
+          const description = normalizeSpace(sectionLines[index + 1]).toUpperCase();
           const quantity = normalizeSpace(sectionLines[index + 2]);
-          const units = normalizeSpace(sectionLines[index + 3]);
+          const units = normalizeSpace(sectionLines[index + 3]).toUpperCase();
 
           if (!description || !looksLikeQuantity(quantity) || !looksLikeUnit(units)) {
             index += 1;
@@ -557,10 +598,10 @@
           }
 
           if (cursor < sectionLines.length) {
-            const maybeSupplier = normalizeSpace(sectionLines[cursor]);
-            const maybeDescription = normalizeSpace(sectionLines[cursor + 1] || '');
+            const maybeSupplier = normalizeSpace(sectionLines[cursor]).toUpperCase();
+            const maybeDescription = normalizeSpace(sectionLines[cursor + 1] || '').toUpperCase();
             const maybeQuantity = normalizeSpace(sectionLines[cursor + 2] || '');
-            const maybeUnits = normalizeSpace(sectionLines[cursor + 3] || '');
+            const maybeUnits = normalizeSpace(sectionLines[cursor + 3] || '').toUpperCase();
 
             const nextLooksLikeItem =
               !!maybeDescription &&
@@ -595,11 +636,13 @@
       function parseOrderDetailsText(text) {
         const lines = text.split(/\r?\n/);
         const orderNumber = extractOrderNumber(lines);
+        const projectTitle = extractProjectTitle(lines);
         const itemSection = extractItemsSection(lines);
         const items = parseItems(itemSection);
 
         return {
           orderNumber,
+          projectTitle,
           items
         };
       }
@@ -643,43 +686,74 @@
           return;
         }
 
+        // Si es la misma requisición, agregar solo items nuevos; si es diferente, reemplazar
+        let finalItems = parsed.items;
+        if (requisitionState.orderNumber === parsed.orderNumber && requisitionState.orderNumber !== '-') {
+          // Obtener part numbers existentes
+          const existingPartNumbers = new Set(requisitionState.items.map(item => item.partNumber));
+          // Filtrar items nuevos que no están duplicados
+          const newItems = parsed.items.filter(item => !existingPartNumbers.has(item.partNumber));
+          // Combinar items existentes con nuevos
+          finalItems = [...requisitionState.items, ...newItems];
+          
+          const addedCount = newItems.length;
+          if (addedCount === 0) {
+            updateFeedback(`Requisición ${parsed.orderNumber}: No hay items nuevos para agregar.`, 'error');
+            requisitionInput.value = '';
+            return;
+          }
+          updateFeedback(
+            `Requisición ${parsed.orderNumber}: ${addedCount} item(s) nuevo(s) agregado(s). Total: ${finalItems.length} items.`,
+            'success'
+          );
+        } else {
+          // Nueva requisición, reemplazar todo
+          updateFeedback(
+            `Requisición ${parsed.orderNumber} cargada con ${parsed.items.length} items para proyecto ${selectedNoProject}.`,
+            'success'
+          );
+        }
+
+        requisitionState.projectTitle = parsed.projectTitle || '';
         requisitionState.selectedNoProject = selectedNoProject;
         requisitionState.orderNumber = parsed.orderNumber;
-        requisitionState.items = parsed.items;
+        requisitionState.items = finalItems;
         saveState();
         renderState();
 
-        updateFeedback(
-          `Pedido ${parsed.orderNumber} cargado con ${parsed.items.length} items para proyecto ${selectedNoProject}.`,
-          'success'
-        );
         requisitionInput.value = '';
         clearProjectSearchInput();
       });
 
       if (requisitionClearBtn) {
-        requisitionClearBtn.addEventListener('click', () => {
+        requisitionClearBtn.addEventListener('click', async () => {
           if (!requisitionState.items.length) {
             updateFeedback('No hay datos para guardar.', 'error');
             return;
           }
 
-          // Guardado simulado: por ahora se almacena localmente hasta habilitar conexion a BD.
-          saveOrderMock({
-            no_project: requisitionState.selectedNoProject,
-            number: requisitionState.orderNumber,
-            items: requisitionState.items,
-            saved_at: new Date().toISOString()
-          });
+          try {
+            const payload = {
+              no_project: requisitionState.selectedNoProject,
+              no_qis: requisitionState.orderNumber,
+              projectTitle: requisitionState.projectTitle || 'Sin título',
+              items: requisitionState.items
+            };
 
-          requisitionState.selectedNoProject = '-';
-          requisitionState.orderNumber = '-';
-          requisitionState.items = [];
-          saveState();
-          clearProjectSearchInput();
-          requisitionInput.value = '';
-          renderState();
-          updateFeedback('Save completado (simulado). Tabla y buscador limpiados.', 'success');
+            await saveOrderMock(payload);
+
+            requisitionState.selectedNoProject = '-';
+            requisitionState.orderNumber = '-';
+            requisitionState.projectTitle = '';
+            requisitionState.items = [];
+            saveState();
+            clearProjectSearchInput();
+            requisitionInput.value = '';
+            renderState();
+            updateFeedback('Save completado exitosamente.', 'success');
+          } catch (error) {
+            updateFeedback('Error al guardar la requisición: ' + error.message, 'error');
+          }
         });
       }
 
@@ -691,6 +765,12 @@
           'success'
         );
       }
+
+      // Limpiar datos cuando se sale de la página
+      window.addEventListener('beforeunload', () => {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(SAVED_STORAGE_KEY);
+      });
     })();
   </script>
 

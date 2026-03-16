@@ -633,7 +633,7 @@
             alert('No products were found that match the BOM.');
             return;
           }
-          // Añadir a la tabla con cálculo
+          // Añadir a la tabla con cálculo (todos los productos no registrados de este tipo)
           productos.forEach(prod => agregarProductoConCalculo(prod));
           // Marcar este tipo como agregado
           addedTypes.add(type_p);

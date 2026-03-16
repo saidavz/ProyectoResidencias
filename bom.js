@@ -82,19 +82,22 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     try {
-      //Verificar si el proyecto ya existe
+      //Verificar si el proyecto ya existe y si tiene BOM
       const checkRes = await fetch(`${BASE}/projects/check/${encodeURIComponent(no_project)}`);
       const checkData = await checkRes.json();
       if (checkData.exists) {
-        //Verifica si el proyecto ya tiene un BOM asociado
-        const confirmUpdate = confirm(
-          `This project already has a saved BOM. Do you want to update it?\n\nNew parts will be added, existing parts will be updated, and parts not in the new file will be removed.`
-        );
-        if (!confirmUpdate) {
-          uploadMessage.innerHTML = `
-            <div class="alert alert-info py-1">Canceled upload</div>`;
-          return;
+        if (checkData.hasBOM) {
+          // Solo mostrar confirm si ya tiene BOM
+          const confirmUpdate = confirm(
+            `This project already has a saved BOM. Do you want to update it?\n\nNew parts will be added, existing parts will be updated, and parts not in the new file will be removed.`
+          );
+          if (!confirmUpdate) {
+            uploadMessage.innerHTML = `
+              <div class="alert alert-info py-1">Canceled upload</div>`;
+            return;
+          }
         }
+        // Si existe pero no tiene BOM, continuar sin confirm
       } else {
         // Si no existe, registrar el proyecto primero
         const projectRes = await fetch(`${BASE}/projects`, {

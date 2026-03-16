@@ -90,6 +90,7 @@
                     <thead class="table-dark">
                         <tr>
                             <th>Project</th>
+                            <th>QIS Number</th>
                             <th>Type</th>
                             <th>No. Part</th>
                             <th>Description</th>
@@ -244,7 +245,7 @@
                 const tbody = document.getElementById('bomTableBody');
 
                 if (!data || data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="text-center">No materials were found.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="10" class="text-center">No materials were found.</td></tr>';
                     return;
                 }
                 const rows = data.map(item => {
@@ -252,6 +253,7 @@
                     return `
                         <tr>
                             <td>${item.name_project}</td>
+                            <td>${item.no_qis || '-'}</td>
                             <td>${item.type_p}</td>
                             <td>${item.no_part}</td>
                             <td>${item.description}</td>

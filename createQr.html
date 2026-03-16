@@ -304,24 +304,45 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.rack) {
-                            // Proyecto ya tiene QRs - rellenar y deshabilitar
+                            // Proyecto ya tiene QRs - rellenar
                             rackSelect.value = data.rack;
-                            rackSelect.disabled = true;
-                        } else {
-                            // Proyecto nuevo - permitir seleccionar rack
-                            rackSelect.disabled = false;
-                            rackSelect.value = '';
                         }
                     })
                     .catch(err => {
                         console.error('Error getting first rack:', err);
-                        rackSelect.disabled = false;
                     });
 
                 fetch(`${baseURL}/api/purchases?projectId=${encodeURIComponent(pid)}`)
                     .then(res => res.json())
                     .then(rows => {
                         allRows = rows;
+                        
+                        // Verificar si el proyecto es inactivo
+                        const projectStatus = (rows.length > 0 && rows[0].project_status) 
+                            ? String(rows[0].project_status).trim().toLowerCase() 
+                            : '';
+                        const isInactive = projectStatus === 'inactive';
+                        
+                        if (isInactive) {
+                            // Proyecto inactivo - siempre habilitar el rack
+                            rackSelect.disabled = false;
+                            rackSelect.value = '';
+                        } else {
+                            // Proyecto activo - verificar si ya tiene QRs
+                            fetch(`${baseURL}/api/stock/first-rack?no_project=${encodeURIComponent(pid)}`)
+                                .then(res => res.json())
+                                .then(data => {
+                                    if (data.rack) {
+                                        // Ya tiene QRs - deshabilitar
+                                        rackSelect.disabled = true;
+                                    } else {
+                                        // Proyecto nuevo - permitir seleccionar
+                                        rackSelect.disabled = false;
+                                        rackSelect.value = '';
+                                    }
+                                });
+                        }
+                        
                         if (Array.isArray(rows) && rows.length > 0) {
                             renderRows(rows);
                         } else {

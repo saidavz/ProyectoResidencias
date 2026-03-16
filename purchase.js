@@ -23,8 +23,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: '150403kim', //verifica bien al cambiarlo
   port: 5432,
 });
 // Endpoint para verificar estructura de BD
@@ -212,12 +212,19 @@ app.get("/api/products/bom-calculation", async (req, res) => {
     const bomNoParts = bomItems.map(item => item.no_part);
 
     // 2. Buscar productos que coincidan con el tipo de producto Y estén en BOM
+    // PERO EXCLUIR productos que ya hayan sido registrados en una compra
     const productResult = await pool.query(
-      `SELECT no_part, brand, description, quantity, unit, type_p 
-       FROM product 
-       WHERE type_p = $1 
-         AND no_part = ANY($2::text[])`,
-      [type_p, bomNoParts]
+      `SELECT p.no_part, p.brand, p.description, p.quantity, p.unit, p.type_p 
+       FROM product p
+       WHERE p.type_p = $1 
+         AND p.no_part = ANY($2::text[])
+         AND NOT EXISTS (
+           SELECT 1 FROM purchase_detail pd
+           JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+           WHERE pd.no_part = p.no_part
+             AND pu.no_project = $3
+         )`,
+      [type_p, bomNoParts, no_project]
     );
 
     // 3. Calcular Quantity = quantity_project / quantity
@@ -299,12 +306,13 @@ app.get('/api/bom-projects/search', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT DISTINCT no_project::text AS no_project
-       FROM bom_project
-       WHERE no_project IS NOT NULL
-         AND BTRIM(no_project::text) <> ''
-         AND no_project::text ILIKE $1
-       ORDER BY no_project
+      `SELECT DISTINCT ON (bp.no_project) bp.no_project::text AS no_project, COALESCE(p.name_project::text, '') AS name
+       FROM bom_project bp
+       LEFT JOIN project p ON bp.no_project = p.no_project
+       WHERE bp.no_project IS NOT NULL
+         AND BTRIM(bp.no_project::text) <> ''
+         AND (bp.no_project::text ILIKE $1 OR p.name_project::text ILIKE $1)
+       ORDER BY bp.no_project
        LIMIT 10`,
       [`%${term}%`]
     );
@@ -313,6 +321,81 @@ app.get('/api/bom-projects/search', async (req, res) => {
   } catch (err) {
     console.error('Error searching bom projects:', err);
     res.status(500).json({ error: 'Error al buscar no_project en BOM' });
+  }
+});
+
+// Guardar items de requisición en bom_project
+app.post('/api/requisitions/save', async (req, res) => {
+  const { no_project, no_qis, projectTitle, items } = req.body;
+
+  if (!no_project || !no_qis || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Datos incompletos para guardar requisición' });
+  }
+
+  try {
+    // Verificar si el no_project existe en la tabla project
+    const projectCheck = await pool.query(
+      'SELECT no_project FROM project WHERE no_project = $1',
+      [no_project]
+    );
+
+    let finalNoProject = no_project;
+
+    // Si el proyecto NO existe, crear entrada con no_qis como no_project
+    if (projectCheck.rows.length === 0) {
+      await pool.query(
+        'INSERT INTO project (no_project, name_project, status) VALUES ($1, $2, $3)',
+        [no_qis, projectTitle || 'Sin título', 'Active']
+      );
+      finalNoProject = no_qis;
+    }
+
+    // Procesar cada item: insertar en product si no existe, luego en bom_project
+    for (const item of items) {
+      const { partNumber, description, quantity, units } = item;
+      
+      if (!partNumber || !quantity) {
+        continue;
+      }
+
+      // Verificar si el producto ya existe en la tabla product
+      const productCheck = await pool.query(
+        'SELECT no_part FROM product WHERE no_part = $1',
+        [partNumber]
+      );
+
+      // Si el producto NO existe, crearlo
+      if (productCheck.rows.length === 0) {
+        await pool.query(
+          'INSERT INTO product (no_part, brand, description, quantity, unit, type_p) VALUES ($1, $2, $3, $4, $5, $6)',
+          [partNumber, 'OTRA', description || '', 1, units || '', 'OTRO']
+        );
+      }
+
+      // Verificar si el item ya existe en bom_project para este no_qis
+      const bomCheck = await pool.query(
+        'SELECT no_part FROM bom_project WHERE no_project = $1 AND no_qis = $2 AND no_part = $3',
+        [finalNoProject, no_qis, partNumber]
+      );
+
+      // Solo insertar si no existe
+      if (bomCheck.rows.length === 0) {
+        await pool.query(
+          'INSERT INTO bom_project (no_project, no_qis, no_part, quantity_project, status) VALUES ($1, $2, $3, $4, $5)',
+          [finalNoProject, no_qis, partNumber, quantity, 'Active']
+        );
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Requisición ${no_qis} guardada exitosamente`,
+      no_project: finalNoProject,
+      items_saved: items.length
+    });
+  } catch (err) {
+    console.error('Error saving requisition:', err);
+    res.status(500).json({ error: 'Error al guardar requisición: ' + err.message });
   }
 });
 
@@ -455,6 +538,8 @@ app.get('/api/purchases', async (req, res) => {
       SELECT
         pr.name_project AS project_name,
         pr.no_project AS no_project,
+        pr.status AS project_status,
+        bp.no_qis,
         p.no_part,
         p.description,
         v.name_vendor AS vendor_name,
@@ -846,7 +931,8 @@ app.get('/api/stock/by-project', async (req, res) => {
         pd_info.po,
         pd_info.pd_quantity AS cantidad_entrada,
         (SELECT COUNT(*) FROM movements m 
-         WHERE m.id_stock = s.id_stock AND m.type_movement = 'INBOUND') AS cantidad_disponible
+         WHERE m.id_stock = s.id_stock AND m.type_movement = 'INBOUND') AS cantidad_disponible,
+        pd_info.no_qis
       FROM stock s
       JOIN product p ON s.no_part = p.no_part
       LEFT JOIN LATERAL (
@@ -861,7 +947,8 @@ app.get('/api/stock/by-project', async (req, res) => {
           pu.time_delivered,
           pu.pr,
           pu.shopping,
-          pu.po
+          pu.po,
+          bp.no_qis
         FROM purchase_detail pd
         JOIN purchase pu ON pd.id_purchase = pu.id_purchase
         LEFT JOIN bom_project bp ON bp.no_project = pu.no_project AND bp.no_part = pd.no_part
@@ -981,10 +1068,12 @@ app.get('/api/stock/summary', async (req, res) => {
         NULL AS cantidad_entrada,
         MIN(s.id_stock) AS id_stock,
         MIN(s.rack) AS rack,
-        SUM(DISTINCT s.available) AS available
+        SUM(DISTINCT s.available) AS available,
+        COALESCE(MIN(bp.no_qis), '') AS no_qis
       FROM movements m
       JOIN stock s ON m.id_stock = s.id_stock
       JOIN product p ON s.no_part = p.no_part
+      LEFT JOIN bom_project bp ON bp.no_project = s.no_project AND bp.no_part = s.no_part
       
       GROUP BY p.no_part, p.brand, p.description, p.quantity, p.unit, p.type_p
       ORDER BY MAX(m.date_movement) DESC
@@ -1025,9 +1114,11 @@ app.get("/api/stock", async (req, res) => {
         NULL AS pr,
         NULL AS shopping,
         NULL AS po,
-        NULL AS cantidad_entrada
+        NULL AS cantidad_entrada,
+        COALESCE(MIN(bp.no_qis), '') AS no_qis
       FROM stock s
       JOIN product p ON s.no_part = p.no_part
+      LEFT JOIN bom_project bp ON s.no_part = bp.no_part
       GROUP BY p.no_part, p.brand, p.description, p.quantity, p.unit, p.type_p
       ORDER BY MIN(s.id_stock) DESC
     `;
@@ -1413,6 +1504,7 @@ app.get('/api/bomView', async (req, res) => {
     let query =
       `SELECT 
               pr.name_project,
+              bp.no_qis,
               bp.quantity_project AS quantity_requested,
               p.type_p,
               p.no_part,
@@ -1892,6 +1984,59 @@ app.get('/api/movements/history', async (req, res) => {
       success: false, 
       error: 'Error al obtener historial de movimientos', 
       message: String(err) 
+    });
+  }
+});
+
+// ======================================================
+// BOM_PROJECT - Actualizar status (Delivered/Pending Delivery)
+// ======================================================
+app.patch('/api/bom-project/update-status', async (req, res) => {
+  try {
+    const { no_project, no_part, status } = req.body;
+
+    if (!no_project || !no_part || !status) {
+      return res.status(400).json({ 
+        ok: false, 
+        message: 'no_project, no_part y status son requeridos' 
+      });
+    }
+
+    // Validar que el status sea uno de los permitidos
+    if (status !== 'Delivered' && status !== 'Pending Delivery' && status !== 'PO') {
+      return res.status(400).json({ 
+        ok: false, 
+        message: 'Status debe ser: Delivered, Pending Delivery o PO' 
+      });
+    }
+
+    // Actualizar el status en bom_project
+    const result = await pool.query(
+      `UPDATE bom_project 
+       SET status = $1 
+       WHERE no_project = $2 AND no_part = $3
+       RETURNING *`,
+      [status, no_project, no_part]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ 
+        ok: false, 
+        message: 'No se encontró el item en bom_project para actualizar' 
+      });
+    }
+
+    res.json({ 
+      ok: true, 
+      message: `Status actualizado a ${status}`, 
+      item: result.rows[0] 
+    });
+  } catch (error) {
+    console.error('Error en /api/bom-project/update-status:', error);
+    res.status(500).json({ 
+      ok: false, 
+      message: 'Error al actualizar el status', 
+      error: String(error) 
     });
   }
 });

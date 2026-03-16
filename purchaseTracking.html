@@ -170,6 +170,7 @@
           <thead class="table-dark">
             <tr>
               <th>Project</th>
+              <th>QIS Number</th>
               <th>Part Number</th>
               <th>Description</th>
               <th>Supplier</th>
@@ -374,7 +375,7 @@
         const tbody = document.getElementById('purchasesTableBody');
 
         if (data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="10" class="text-center">No purchases found</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" class="text-center">No purchases found</td></tr>';
           return;
         }
 
@@ -393,6 +394,7 @@
           const row = `
           <tr>
             <td>${purchase.project_name}</td>
+            <td>${purchase.no_qis || '-'}</td>
             <td>${purchase.no_part}</td>
             <td>${purchase.description}</td>
             <td>${supplier}</td>
@@ -556,7 +558,8 @@
             return 'bg-info text-dark';
           case 'Reviewed and imported':
             return 'bg-warning text-dark';
-          case 'Delivered to BRK':
+          case 'Pending Delivery':
+            return 'bg-primary';
           case 'Delivered':
             return 'bg-success';
           default:

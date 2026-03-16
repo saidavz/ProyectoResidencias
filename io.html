@@ -479,6 +479,21 @@
                     if ((currentAvailable + delta) > cantidad_calculada) {
                       window.alert(`Advertencia: el stock disponible supera lo pedido de este número de parte para este proyecto.\nMaterial pedido: ${cantidad_calculada}\nDisponible: ${currentAvailable}\nIntento de entrada: ${delta}`);
                     }
+                    // Actualizar status en bom_project
+                    const newStatus = (currentAvailable + delta) >= cantidad_calculada ? 'Delivered' : 'Pending Delivery';
+                    try {
+                      await fetch(`${API_BASE}/api/bom-project/update-status`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          no_project,
+                          no_part,
+                          status: newStatus
+                        })
+                      });
+                    } catch (err) {
+                      console.warn('Error updating bom_project status:', err);
+                    }
                   }
                 }
               } catch (err) {
@@ -554,6 +569,21 @@
               const cantidad_calculada = paquetesData.cantidad_calculada || 0;
               if ((available + cantidad) > cantidad_calculada) {
                 window.alert(`Advertencia: el stock disponible supera lo pedido de este número de parte para este proyecto.\nMaterial pedido: ${cantidad_calculada}\nDisponible: ${available}\nIntento de entrada: ${cantidad}`);
+              }
+              // Actualizar status en bom_project
+              const newStatus = (available + cantidad) >= cantidad_calculada ? 'Delivered' : 'Pending Delivery';
+              try {
+                await fetch(`${API_BASE}/api/bom-project/update-status`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    no_project,
+                    no_part,
+                    status: newStatus
+                  })
+                });
+              } catch (err) {
+                console.warn('Error updating bom_project status:', err);
               }
             }
           } catch (err) {
