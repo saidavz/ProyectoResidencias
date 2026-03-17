@@ -2,7 +2,7 @@ window.printQRCodes = function () {
     const qrContainer = document.getElementById('qrCodesContainer');
 
     if (!qrContainer || qrContainer.children.length === 0) {
-        alert('No hay códigos QR para imprimir');
+        alert('No QR codes to print');
         return;
     }
 

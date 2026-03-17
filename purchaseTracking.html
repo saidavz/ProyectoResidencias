@@ -219,7 +219,8 @@
               collapseEl.classList.toggle('show');
             }
           } catch (err) {
-            console.error('Error toggling collapse:', err);
+
+
           }
         });
       }
@@ -236,7 +237,8 @@
           const res = await fetch(`${BASE}/projects/all`);
           allProjects = await res.json();
         } catch (err) {
-          console.error('Error loading projects:', err);
+
+
         }
       }
 
@@ -319,12 +321,14 @@
           }
           const response = await fetch(url);
           const data = await response.json();
-          console.log("Datos filtrados recibidos:", data);
+
+
           allPurchasesData = data; // Guardar datos globalmente
           populateSupplierFilter(data); // Poblar filtro de proveedores
           applyFilters(); // Aplicar filtros actuales
         } catch (error) {
-          console.error('Error loading filtered purchases:', error);
+
+
           document.getElementById('purchasesTableBody').innerHTML =
             '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
         }
@@ -353,7 +357,8 @@
           }
 
         } catch (error) {
-          console.error("Error loading percentages:", error);
+
+
         }
       }
       //Funcion para cargar los porcentajes
@@ -383,7 +388,8 @@
 
         data.forEach((purchase, index) => {
           if (purchase.status == null) {
-            console.warn('Purchase with null status detected for debugging:', purchase);
+
+
           }
           const statusClass = getStatusClass(purchase.status);
           const deliveryDate = purchase.time_delivered_product

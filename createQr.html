@@ -13,7 +13,7 @@
     <script>
         PurchaseAuth.requireAuth({
             allowedRoles: ['Administrador', 'Compras'],
-            deniedMessage: 'Solo Administrador y Compras tienen acceso a esta seccion.'
+            deniedMessage: 'Only Administrator and Purchases have access to this section.'
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -166,6 +166,33 @@
         </div>
     </div>
 
+    <!-- Modal para pedir rack en proyecto inactivo -->
+    <div class="modal fade" id="inactiveProjectRackModal" tabindex="-1" aria-labelledby="inactiveProjectRackLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="inactiveProjectRackLabel">Enter Rack Number</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label" for="inactiveRackInput">Select Rack for Inactive Project:</label>
+                    <select class="form-select bg-secondary text-light" id="inactiveRackInput">
+                        <option value="">Select Rack Number</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmInactiveRackBtn">Generate QR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer class="text-center py-3 text-white bg-gradient mt-5">
         Purchase-Inventory Management System - BRK. Resideo.
     </footer>
@@ -193,7 +220,9 @@
             const tbody = document.getElementById('projectProductsBody');
             const emptyState = document.getElementById('projectEmptyState');
             const confirmQRModal = new bootstrap.Modal(document.getElementById('confirmQRModal'));
+            const inactiveProjectRackModal = new bootstrap.Modal(document.getElementById('inactiveProjectRackModal'));
             let currentQRAction = null; // Para guardar la acción pendiente del QR
+            let pendingQRForInactiveProject = null; // Para guardar datos del QR en proyecto inactivo
 
             let allRows = [];
 
@@ -206,6 +235,7 @@
                         const option = document.createElement('option');
                         option.value = proj.no_project;
                         option.textContent = proj.name_project;
+                        option.dataset.status = proj.status; // Guardar status en atributo data-status
                         projectSelect.appendChild(option);
                     });
                 })
@@ -244,11 +274,13 @@
             function renderRows(rows) {
                 tbody.innerHTML = '';
                 const filteredRows = rows.filter(r => {
-                    // Solo productos en status "PO" con datos válidos
+                    // Solo productos en status "PO", "Pending Delivery" o "Delivery" con datos válidos
                     const hasData = r.no_part && r.description;
                     const statusVal = String(r.status || '').trim().toLowerCase();
                     const isPo = statusVal === 'po';
-                    return hasData && isPo;
+                    const isPendingDelivery = statusVal === 'pending delivery';
+                    const isDelivery = statusVal === 'delivered';
+                    return hasData && (isPo || isPendingDelivery || isDelivery);
                 });
 
                 if (filteredRows.length === 0) {
@@ -299,49 +331,42 @@
                     return;
                 }
 
-                // Obtener el rack usado por primera vez en este proyecto
-                fetch(`${baseURL}/api/stock/first-rack?no_project=${encodeURIComponent(pid)}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.rack) {
-                            // Proyecto ya tiene QRs - rellenar
-                            rackSelect.value = data.rack;
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Error getting first rack:', err);
-                    });
+                // Obtener status de la opción seleccionada
+                const selectedOption = projectSelect.options[projectSelect.selectedIndex];
+                const projectStatus = selectedOption.dataset.status;
+                const isInactive = !projectStatus || projectStatus.toUpperCase() !== 'ACTIVE';
+
+                if (isInactive) {
+                    // Proyecto inactivo - deshabilitar el rack
+                    rackSelect.disabled = true;
+                    rackSelect.value = '';
+                } else {
+                    // Proyecto activo - habilitar y verificar si ya tiene QRs
+                    rackSelect.disabled = false;
+                    
+                    // Obtener el rack usado por primera vez en este proyecto
+                    fetch(`${baseURL}/api/stock/first-rack?no_project=${encodeURIComponent(pid)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.rack) {
+                                // Proyecto ya tiene QRs - rellenar y deshabilitar
+                                rackSelect.value = data.rack;
+                                rackSelect.disabled = true;
+                            } else {
+                                // Proyecto nuevo - permitir seleccionar
+                                rackSelect.disabled = false;
+                                rackSelect.value = '';
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error getting first rack:', err);
+                        });
+                }
 
                 fetch(`${baseURL}/api/purchases?projectId=${encodeURIComponent(pid)}`)
                     .then(res => res.json())
                     .then(rows => {
                         allRows = rows;
-                        
-                        // Verificar si el proyecto es inactivo
-                        const projectStatus = (rows.length > 0 && rows[0].project_status) 
-                            ? String(rows[0].project_status).trim().toLowerCase() 
-                            : '';
-                        const isInactive = projectStatus === 'inactive';
-                        
-                        if (isInactive) {
-                            // Proyecto inactivo - siempre habilitar el rack
-                            rackSelect.disabled = false;
-                            rackSelect.value = '';
-                        } else {
-                            // Proyecto activo - verificar si ya tiene QRs
-                            fetch(`${baseURL}/api/stock/first-rack?no_project=${encodeURIComponent(pid)}`)
-                                .then(res => res.json())
-                                .then(data => {
-                                    if (data.rack) {
-                                        // Ya tiene QRs - deshabilitar
-                                        rackSelect.disabled = true;
-                                    } else {
-                                        // Proyecto nuevo - permitir seleccionar
-                                        rackSelect.disabled = false;
-                                        rackSelect.value = '';
-                                    }
-                                });
-                        }
                         
                         if (Array.isArray(rows) && rows.length > 0) {
                             renderRows(rows);
@@ -377,7 +402,6 @@
                         .then(res => res.json())
                         .then(result => {
                             if (result.success) {
-                                console.log('Disponible incrementado:', result.data.available);
                                 displayExistingQRCode(result.data);
                             } else {
                                 console.error('Error incrementando disponible:', result.error);
@@ -392,17 +416,49 @@
                 }
             });
 
-            // Función para generar QR y guardar en stock
-            window.generateQR = function (noPart) {
-                const rackSelect = document.querySelector('select[name="rackNumber"]');
-                const rack = rackSelect.value;
-                const normalizedNoPart = normalizeValue(noPart);
-                const noProject = normalizeValue(projectSelect.value);
+            // Evento para confirmar rack en proyecto inactivo
+            document.getElementById('confirmInactiveRackBtn').addEventListener('click', () => {
+                const rackInput = document.getElementById('inactiveRackInput');
+                const rack = rackInput.value;
 
                 if (!rack) {
                     alert('Please select a rack number');
                     return;
                 }
+
+                if (pendingQRForInactiveProject) {
+                    inactiveProjectRackModal.hide();
+                    // Crear QR con el rack ingresado
+                    createNewQR(
+                        pendingQRForInactiveProject.no_part,
+                        rack,
+                        pendingQRForInactiveProject.no_project
+                    );
+                    pendingQRForInactiveProject = null;
+                    rackInput.value = ''; // Limpiar el input
+                }
+            });
+
+            // Función para obtener rack existente de AUT-STOCK si existe
+            async function getExistingRackForAUTSTOCK(noPart) {
+              try {
+                const res = await fetch(`${baseURL}/api/stock/by-part-austocked/${encodeURIComponent(noPart)}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data && data.rack) {
+                    return data.rack;
+                  }
+                }
+              } catch (err) {
+              }
+              return null;
+            }
+
+            // Función para generar QR y guardar en stock
+            window.generateQR = function (noPart) {
+                const rackSelect = document.querySelector('select[name="rackNumber"]');
+                const normalizedNoPart = normalizeValue(noPart);
+                const noProject = normalizeValue(projectSelect.value);
 
                 if (!noProject) {
                     alert('Please select a project');
@@ -411,6 +467,38 @@
 
                 if (!normalizedNoPart) {
                     alert('Part number is required');
+                    return;
+                }
+
+                // Obtener status del proyecto
+                const selectedOption = projectSelect.options[projectSelect.selectedIndex];
+                const projectStatus = selectedOption.dataset.status;
+                const isInactive = !projectStatus || projectStatus.toUpperCase() !== 'ACTIVE';
+
+                if (isInactive) {
+                    // Para proyecto inactivo: verificar si ya existe rack en AUT-STOCK
+                    (async () => {
+                      const existingRack = await getExistingRackForAUTSTOCK(normalizedNoPart);
+                      if (existingRack) {
+                        // Usar rack existente automáticamente
+                        createNewQR(normalizedNoPart, existingRack, 'AUT-STOCK');
+                      } else {
+                        // Mostrar modal pidiendo rack
+                        pendingQRForInactiveProject = {
+                          no_part: normalizedNoPart,
+                          no_project: noProject
+                        };
+                        inactiveProjectRackModal.show();
+                      }
+                    })();
+                    return;
+                }
+
+                // Para proyecto activo: usar la lógica actual
+                const rack = rackSelect.value;
+
+                if (!rack) {
+                    alert('Please select a rack number');
                     return;
                 }
 

@@ -141,7 +141,7 @@
             <a href="requisition.html" class="home-btn requires-full-access">
                 <i class="bi bi-journal-text btn-icon"></i>
                 <div class="btn-title">Requisition</div>
-                <div class="btn-description">Pegue aqui la informacion de requisicion</div>
+                <div class="btn-description">Registro de las requisiciones de materiales extras</div>
             </a>
             <div class="dropdown home-btn-dropdown home-btn-last">
                 <button class="home-btn dropdown-toggle" 
@@ -448,7 +448,8 @@
                 allNetworks = Array.isArray(networks) ? networks : [];
                 updateNetworkSuggestions();
             } catch (error) {
-                console.error('Error loading networks:', error);
+
+
             }
         }
 
@@ -582,7 +583,8 @@
                 resetNetworkForm();
                 loadNetworks();
             } catch (error) {
-                console.error('Error saving network:', error);
+
+
                 alert('Error saving network');
             }
         }
@@ -615,7 +617,8 @@
                 resetNetworkForm();
                 await loadNetworks();
             } catch (error) {
-                console.error('Error deleting network:', error);
+
+
                 alert('Error deleting network');
             }
         }
@@ -628,7 +631,8 @@
                 allProjects = Array.isArray(projects) ? projects : [];
                 updateProjectSuggestions();
             } catch (error) {
-                console.error('Error loading projects:', error);
+
+
             }
         }
 
@@ -688,7 +692,8 @@
                 document.getElementById('activateProjectForm').reset();
                 loadActiveProjects();
             } catch (error) {
-                console.error('Error activating project:', error);
+
+
                 alert('Error activating project');
             }
         }
@@ -733,7 +738,8 @@
                 return;
             }
 
-            console.log('Deactivating project:', selectedProjectForDeactivate);
+
+
 
             try {
                 const response = await fetch(`${BASE_URL}/projects/${encodeURIComponent(selectedProjectForDeactivate.no_project)}/status`, {
@@ -746,7 +752,8 @@
 
                 const result = await response.json();
 
-                console.log('Deactivate response status:', response.status, 'Result:', result);
+
+
 
                 if (!response.ok) {
                     alert(`Error: ${result.error}`);
@@ -759,7 +766,8 @@
                 document.getElementById('deactivateBtn').disabled = true;
                 loadActiveProjects();
             } catch (error) {
-                console.error('Error deactivating project:', error);
+
+
                 alert(`Error deactivating project: ${error.message}`);
             }
         }

@@ -13,12 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch(`${BASE}/projects/all`);
       if (response.ok) {
         existingProjects = await response.json();
-        console.log('Proyectos cargados:', existingProjects.length);
-      } else {
-        console.error('Error al obtener proyectos, status:', response.status);
       }
     } catch (err) {
-      console.error('Error loading projects:', err);
     }
   }
 
@@ -31,8 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const filtered = existingProjects.filter(p => 
         p.no_project.toLowerCase().startsWith(searchText.toLowerCase())
       );
-
-      console.log('Buscando:', searchText, 'Encontrados:', filtered.length);
 
       filtered.forEach(project => {
         const option = document.createElement('option');
@@ -85,17 +79,20 @@ document.addEventListener('DOMContentLoaded', () => {
       //Verificar si el proyecto ya existe y si tiene BOM
       const checkRes = await fetch(`${BASE}/projects/check/${encodeURIComponent(no_project)}`);
       const checkData = await checkRes.json();
+      let updateMode = false;
+      
       if (checkData.exists) {
         if (checkData.hasBOM) {
-          // Solo mostrar confirm si ya tiene BOM
+          
           const confirmUpdate = confirm(
-            `This project already has a saved BOM. Do you want to update it?\n\nNew parts will be added, existing parts will be updated, and parts not in the new file will be removed.`
+            `BOM already exists for this project.\n\nWould you like to update it?\n`
           );
           if (!confirmUpdate) {
             uploadMessage.innerHTML = `
-              <div class="alert alert-info py-1">Canceled upload</div>`;
+              <div class="alert alert-info py-1">Update cancelled.</div>`;
             return;
           }
+          updateMode = true;
         }
         // Si existe pero no tiene BOM, continuar sin confirm
       } else {
@@ -108,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const projectData = await projectRes.json();
         if (!projectRes.ok) {
           uploadMessage.innerHTML = `
-            <div class="alert alert-danger py-1">Error registering the project: ${projectData.message}</div>`;
+            <div class="alert alert-danger py-1">Error registering project: ${projectData.message}</div>`;
           return;
         }
       }
@@ -117,6 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('no_project', no_project);
+      if (updateMode) {
+        formData.append('updateMode', 'true');
+      }
+      
       const bomRes = await fetch(`${BASE}/bom`, {
         method: 'POST',
         body: formData,
@@ -127,18 +128,29 @@ document.addEventListener('DOMContentLoaded', () => {
       
       if (!bomRes.ok) {
         uploadMessage.innerHTML = `
-          <div class="alert alert-danger py-1">Error loading the BOM: ${bomData.message}</div>`;
+          <div class="alert alert-danger py-1">Error loading BOM: ${bomData.message}</div>`;
         return;
       }
       
       uploadMessage.innerHTML = '';
-      alert('¡El BOM se subió correctamente!');
+      
+      // Display message based on operation type
+      if (updateMode) {
+        if (bomData.addedItems !== undefined) {
+          alert(`BOM updated successfully!\n${bomData.addedItems} new items were added.`);
+        } else {
+          alert('BOM updated successfully!');
+        }
+      } else {
+        alert('BOM uploaded successfully!');
+      }
       
       // Limpiar el formulario 
       setTimeout(() => {
         document.getElementById('no_project').value = '';
         document.getElementById('name_project').value = '';
         fileInputEl.value = '';
+        uploadMessage.innerHTML = '';
         // Resetear el overlay del archivo
         const overlay = document.querySelector('.upload-design-overlay');
         if (overlay) {

@@ -12,7 +12,7 @@
   <script>
     const ioAuthUser = PurchaseAuth.requireAuth({
       allowedRoles: ['Tecnico', 'Administrador', 'Compras'],
-      deniedMessage: 'No tienes permisos para acceder a Entradas y Salidas.'
+      deniedMessage: 'You do not have permission to access Inbound and Outbound.'
     });
   </script>
 </head>
@@ -110,6 +110,54 @@
     </div>
 
     <div id="toast" class="alert d-none" role="alert"></div>
+    
+    <!-- Modal for selecting original project from AUT-STOCK -->
+    <div class="modal fade" id="originalProjectModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-info">
+            <h5 class="modal-title">Select Original Project</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-info fw-bold">This item is in AUT-STOCK. Which project was it originally from?</p>
+            <div class="mb-3">
+              <label class="form-label">Select Project:</label>
+              <select id="originalProjectSelect" class="form-control">
+                <option value="">-- Select a project --</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="confirmProjectBtn">Confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Modal for selecting rack for inactive projects -->
+    <div class="modal fade" id="rackSelectionModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-warning">
+            <h5 class="modal-title" id="rackSelectionLabel">Inactive Project - Select Rack</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p id="inactiveProjectMessage" class="text-danger fw-bold"></p>
+            <label class="form-label">Select Rack for all items of this part and project:</label>
+            <input type="text" id="rackInput" class="form-control" placeholder="Enter rack number or location..." autofocus />
+            <small class="text-muted mt-2 d-block">This rack will be used for all items of this part number from inactive projects.</small>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="confirmRackBtn">Confirm Rack</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <div class="enhanced-table">
       <div class="table-responsive">
         <table class="table table-striped table-hover mb-0">
@@ -147,7 +195,7 @@
           <h6 class="card-title mb-3"><i class="bi bi-search me-2"></i>Buscador</h6>
           <div class="row">
             <div class="col-12">
-              <input type="text" class="form-control form-control-lg" id="searchMovements" placeholder="Buscar por proyecto o número de parte...">
+              <input type="text" class="form-control form-control-lg" id="searchMovements" placeholder="Search by project or part number...">
             </div>
           </div>
         </div>
@@ -259,6 +307,9 @@
       if (pendingNotice) {
         window.alert(pendingNotice);
       }
+      
+      // Cargar lista de proyectos para el modal de AUT-STOCK
+      loadProjectsList();
     }
 
     if (logoutBtn) {
@@ -274,6 +325,26 @@
     const scanTable = document.getElementById("scanTable");
     const toast = document.getElementById("toast");
     const ioMainSection = document.getElementById('ioMainSection');
+    
+    // Variables para manejar proyectos inactivos y AUT-STOCK
+    let rackSelectionModal = null; // Lazy initialization
+    let originalProjectModal = null; // Lazy initialization
+    let pendingRackSelection = null;
+    let selectedRackForInactiveProject = null;
+    const inactiveProjectRackMap = {}; // Map para almacenar rack por proyecto:parte
+    let allProjects = []; // Almacenar lista de proyectos
+
+    // Cargar lista de proyectos disponibles (incluyendo inactivos)
+    async function loadProjectsList() {
+      try {
+        const res = await fetch(`${API_BASE}/api/projects/all-including-inactive`);
+        if (res.ok) {
+          const data = await res.json();
+          allProjects = Array.isArray(data) ? data : (data.projects || []);
+        }
+      } catch (err) {
+      }
+    }
 
     function setIoSectionEnabled(isEnabled) {
       qrInput.disabled = !isEnabled;
@@ -286,7 +357,6 @@
     }
 
     // API_BASE already defined above
-    console.log('API_BASE =', API_BASE);
 
     let count = 0;
 
@@ -309,38 +379,154 @@
       }, 4000);
     }
 
+    // Función para verificar si un proyecto es inactivo
+    async function isProjectInactive(no_project) {
+      try {
+        const res = await fetch(`${API_BASE}/api/projects/check/${encodeURIComponent(no_project)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const project = data.project;
+          return project && project.status && project.status.toUpperCase() !== 'ACTIVE';
+        }
+      } catch (err) {
+      }
+      return false;
+    }
+
+    // Función que muestra el modal para seleccionar proyecto original de AUT-STOCK
+    function promptOriginalProjectForAUTSTOCK(no_part) {
+      return new Promise(async (resolve, reject) => {
+        // Lazy initialization of modal
+        if (!originalProjectModal) {
+          originalProjectModal = new bootstrap.Modal(document.getElementById('originalProjectModal'));
+        }
+        
+        const projectSelect = document.getElementById('originalProjectSelect');
+        const confirmBtn = document.getElementById('confirmProjectBtn');
+        
+        // Si allProjects está vacío, cargar ahora
+        if (!allProjects || allProjects.length === 0) {
+          await loadProjectsList();
+        }
+        
+        // Poblar opciones de proyectos (excluir AUT-STOCK)
+        projectSelect.innerHTML = '<option value="">-- Select a project --</option>';
+        if (allProjects && allProjects.length > 0) {
+          allProjects.forEach(proj => {
+            if (proj.no_project && proj.no_project !== 'AUT-STOCK') {
+              const option = document.createElement('option');
+              option.value = proj.no_project;
+              option.textContent = proj.name_project ? `${proj.no_project} - ${proj.name_project}` : proj.no_project;
+              projectSelect.appendChild(option);
+            }
+          });
+        }
+        
+        // Limpiar listeners previos
+        confirmBtn.onclick = null;
+        
+        // Agregar listener para confirmar
+        const onConfirm = () => {
+          const selectedProject = projectSelect.value.trim();
+          if (!selectedProject) {
+            showToast('Please select a project', 'warning');
+            return;
+          }
+          originalProjectModal.hide();
+          resolve(selectedProject);
+        };
+        
+        const onCancel = () => {
+          originalProjectModal.hide();
+          reject(new Error('User cancelled project selection'));
+        };
+        
+        confirmBtn.onclick = onConfirm;
+        projectSelect.onkeydown = (e) => {
+          if (e.key === 'Enter') onConfirm();
+          if (e.key === 'Escape') onCancel();
+        };
+        
+        // Mostrar modal
+        originalProjectModal.show();
+        projectSelect.focus();
+      });
+    }
+
+    // Función que muestra el modal para seleccionar rack y espera la confirmación
+    function promptRackForInactiveProject(no_project, no_part) {
+      return new Promise((resolve) => {
+        // Lazy initialization of modal
+        if (!rackSelectionModal) {
+          rackSelectionModal = new bootstrap.Modal(document.getElementById('rackSelectionModal'));
+        }
+        
+        const rackInput = document.getElementById('rackInput');
+        const confirmBtn = document.getElementById('confirmRackBtn');
+        const messageEl = document.getElementById('inactiveProjectMessage');
+        
+        // Limpiar inputs previos
+        rackInput.value = '';
+        messageEl.textContent = `Project ${no_project} is inactive. Please select a rack for part ${no_part}.`;
+        
+        // Limpiar listeners previos
+        confirmBtn.onclick = null;
+        
+        // Agregar listener para confirmar
+        const onConfirm = () => {
+          const selectedRack = rackInput.value.trim();
+          if (!selectedRack) {
+            showToast('Please enter a rack number', 'warning');
+            return;
+          }
+          rackSelectionModal.hide();
+          resolve(selectedRack);
+        };
+        
+        confirmBtn.onclick = onConfirm;
+        rackInput.onkeydown = (e) => {
+          if (e.key === 'Enter') onConfirm();
+        };
+        
+        // Mostrar modal
+        rackSelectionModal.show();
+        rackInput.focus();
+      });
+    }
+
     async function fetchLastMovement(qr_code) {
       try {
         const res = await fetch(`${API_BASE}/api/movements/last?qr_code=${encodeURIComponent(qr_code)}`);
         if (res.status === 404) return null;
         const txt = await res.text();
         if (!res.ok) {
-          // no hay endpoint o error — no tratamos como fatal aquí
-          console.warn('fetchLastMovement non-ok', res.status, txt);
           return null;
         }
         try {
           return txt ? JSON.parse(txt) : null;
         } catch (e) {
-          console.warn('fetchLastMovement parse error', e);
           return null;
         }
       } catch (e) {
-        console.warn('fetchLastMovement failed', e);
         return null;
       }
     }
 
     async function registerMovement(qr_code, movementType) {
       // Intentar endpoint genérico primero
-      // Ahora acepta cantidad
+      // Ahora acepta cantidad y original_project
       let cantidad = arguments.length > 2 ? arguments[2] : 1;
+      let original_project = arguments.length > 3 ? arguments[3] : null;
       const payload = { 
         qr_code, 
         type: movementType, 
         cantidad,
         pid: currentUser ? currentUser.pid : null
       };
+      
+      if (original_project) {
+        payload.original_project = original_project;
+      }
 
       async function tryPost(url, body) {
         const r = await fetch(url, {
@@ -361,9 +547,7 @@
       // Try generic /api/movements
       try {
         return await tryPost(`${API_BASE}/api/movements`, payload);
-      } catch (err) {
-        console.warn('/api/movements failed, trying fallbacks', err.message);
-      }
+      } catch (err) {}
 
       // Fallbacks: try legacy endpoints if present
       try {
@@ -374,7 +558,6 @@
         if (movementType === 'INBOUND') return await tryPost(`${API_BASE}/api/inbound`, legacyPayload);
         if (movementType === 'OUTBOUND') return await tryPost(`${API_BASE}/api/outbound`, legacyPayload);
       } catch (err) {
-        console.warn('fallback endpoints failed', err.message);
         throw err;
       }
 
@@ -426,7 +609,6 @@
             row.cells[4].textContent = availData.rack || '';
           }
         } catch (e) {
-          console.warn('early stock fetch failed', e);
         }
       })();
 
@@ -438,7 +620,7 @@
 
         const newValue = parseInt(e.target.value, 10);
         if (isNaN(newValue) || newValue < 0) {
-          showToast('Cantidad inválida', 'danger');
+          showToast('Invalid quantity', 'danger');
           e.target.value = previousValue;
           return;
         }
@@ -461,12 +643,27 @@
           const addedQr = row.cells[1].textContent;
           const units = Math.abs(delta);
 
-          // Si es INBOUND y delta > 0, validar contra paquetes-calculados
+          // Si es INBOUND y delta > 0, validar contra paquetes-calculados y verificar si proyecto es inactivo
           if (movementType === 'INBOUND' && delta > 0) {
             const no_part = row.cells[2].textContent;
             const no_project = row.cells[3].textContent;
             if (no_part && no_project) {
               try {
+                // Verificar si el proyecto es inactivo
+                const inactive = await isProjectInactive(no_project);
+                
+                if (inactive) {
+                  // Crear key única para este proyecto:parte
+                  const projectPartKey = `${no_project}:${no_part}`;
+                  
+                  // Si no hemos pedido rack para este proyecto:parte, pedirlo ahora
+                  if (!inactiveProjectRackMap[projectPartKey]) {
+                    const selectedRack = await promptRackForInactiveProject(no_project, no_part);
+                    inactiveProjectRackMap[projectPartKey] = selectedRack;
+                    showToast(`Rack selected for project ${no_project}, part ${no_part}: ${selectedRack}`, 'info');
+                  }
+                }
+                
                 const paquetesRes = await fetch(`${API_BASE}/api/paquetes-calculados?no_project=${encodeURIComponent(no_project)}&no_part=${encodeURIComponent(no_part)}`);
                 if (paquetesRes.ok) {
                   const paquetesData = await paquetesRes.json();
@@ -477,7 +674,7 @@
                     const availData = await availRes.json();
                     const currentAvailable = availData.available || 0;
                     if ((currentAvailable + delta) > cantidad_calculada) {
-                      window.alert(`Advertencia: el stock disponible supera lo pedido de este número de parte para este proyecto.\nMaterial pedido: ${cantidad_calculada}\nDisponible: ${currentAvailable}\nIntento de entrada: ${delta}`);
+                      window.alert(`Warning: available stock exceeds the requested amount for this part number in this project.\nRequested: ${cantidad_calculada}\nAvailable: ${currentAvailable}\nInbound attempt: ${delta}`);
                     }
                     // Actualizar status en bom_project
                     const newStatus = (currentAvailable + delta) >= cantidad_calculada ? 'Delivered' : 'Pending Delivery';
@@ -492,12 +689,10 @@
                         })
                       });
                     } catch (err) {
-                      console.warn('Error updating bom_project status:', err);
                     }
                   }
                 }
               } catch (err) {
-                console.warn('fetch paquetes-calculados error', err);
               }
             }
           }
@@ -511,7 +706,7 @@
             await registerMovement(addedQr, movementType, units);
           }
 
-          showToast(`Movimiento registrado`, 'success');
+          showToast(`Movement recorded`, 'success');
 
           // Actualizar cantidad disponible
           try {
@@ -521,17 +716,15 @@
               row.cells[8].textContent = availData.available || 0;
             }
           } catch (err) {
-            console.warn('fetchAvailable error', err);
           }
 
           previousValue = newValue;
         } catch (err) {
-          console.error('Error en movimiento adicional:', err);
-          showToast('Error al registrar movimiento adicional', 'danger');
+          showToast('Error registering additional movement', 'danger');
           e.target.value = previousValue;
         }
-      });
-      } 
+        });
+      }
 
       try {
         // Determinar tipo de movimiento según btn-group
@@ -557,85 +750,63 @@
             stockData = availData;
           }
         } catch (err) {
-          console.warn('fetchAvailable error', err);
         }
 
-        // Si es INBOUND, validar contra paquetes-calculados
-        if (movementType === 'INBOUND' && no_part && no_project) {
+        // Si es INBOUND y el QR es de AUT-STOCK, preguntar por el proyecto original ANTES de registrar
+        let originalProjectForAUTSTOCK = null;
+        if (movementType === 'INBOUND' && no_project === 'AUT-STOCK' && no_part) {
           try {
-            const paquetesRes = await fetch(`${API_BASE}/api/paquetes-calculados?no_project=${encodeURIComponent(no_project)}&no_part=${encodeURIComponent(no_part)}`);
-            if (paquetesRes.ok) {
-              const paquetesData = await paquetesRes.json();
-              const cantidad_calculada = paquetesData.cantidad_calculada || 0;
-              if ((available + cantidad) > cantidad_calculada) {
-                window.alert(`Advertencia: el stock disponible supera lo pedido de este número de parte para este proyecto.\nMaterial pedido: ${cantidad_calculada}\nDisponible: ${available}\nIntento de entrada: ${cantidad}`);
+            originalProjectForAUTSTOCK = await promptOriginalProjectForAUTSTOCK(no_part);
+            showToast(`Proyecto original seleccionado: ${originalProjectForAUTSTOCK}`, 'info');
+          } catch (err) {
+            // Usuario canceló la selección - remover la fila
+            row.remove();
+            return;
+          }
+        }
+
+        // Registrar el movimiento
+        try {
+          const result = await registerMovement(qr, movementType, cantidad, originalProjectForAUTSTOCK);
+          
+          // Actualizar celdas con la información del stock
+          if (!stockData) {
+            try {
+              const availRes = await fetch(`${API_BASE}/api/stock/available/${qr}`);
+              if (availRes.ok) {
+                stockData = await availRes.json();
               }
-              // Actualizar status en bom_project
-              const newStatus = (available + cantidad) >= cantidad_calculada ? 'Delivered' : 'Pending Delivery';
-              try {
-                await fetch(`${API_BASE}/api/bom-project/update-status`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    no_project,
-                    no_part,
-                    status: newStatus
-                  })
-                });
-              } catch (err) {
-                console.warn('Error updating bom_project status:', err);
-              }
+            } catch (err) {}
+          }
+
+          row.cells[2].textContent = no_part || 'N/A';
+          row.cells[3].textContent = no_project || 'N/A';
+          row.cells[4].textContent = (stockData && stockData.rack) || 'N/A';
+          row.cells[5].textContent = new Date().toLocaleString();
+          row.cells[6].textContent = movementType === 'INBOUND' ? 'INBOUND' : 'OUTBOUND';
+          row.cells[6].className = movementType === 'INBOUND' ? 'fw-bold text-success' : 'fw-bold text-danger';
+
+          // Consultar cantidad disponible (actualizada)
+          try {
+            const availRes = await fetch(`${API_BASE}/api/stock/available/${qr}`);
+            if (availRes.ok) {
+              const availData = await availRes.json();
+              row.cells[8].textContent = availData.available || 0;
+            } else {
+              row.cells[8].textContent = '-';
             }
           } catch (err) {
-            console.warn('fetch paquetes-calculados error', err);
-          }
-        }
-
-        // Registrar movimiento ignorando historial
-        const result = await registerMovement(qr, movementType, cantidad);
-
-        // defensivas: soportar distintas formas de respuesta
-        const stock = result.stock || (result.data && result.data.stock) || null;
-        const movement = result.movement || (result.data && result.data.movement) || { id_movement: result.id_movement, date_movement: result.date_movement, type: movementType };
-
-        row.cells[2].textContent = stock && stock.no_part ? stock.no_part : (result.no_part || 'N/A');
-        row.cells[3].textContent = stock && stock.no_project ? stock.no_project : (result.no_project || 'N/A');
-        row.cells[4].textContent = stock && stock.rack ? stock.rack : (result.rack || 'N/A');
-
-        row.cells[5].textContent = movement && movement.date_movement ? new Date(movement.date_movement).toLocaleString() : (new Date().toLocaleString());
-
-        row.cells[6].textContent = movementType === 'INBOUND' ? 'INBOUND' : 'OUTBOUND';
-        row.cells[6].className = movementType === 'INBOUND' ? 'fw-bold text-success' : 'fw-bold text-danger';
-
-        // Consultar cantidad disponible (actualizada)
-        try {
-          const availRes = await fetch(`${API_BASE}/api/stock/available/${qr}`);
-          if (availRes.ok) {
-            const availData = await availRes.json();
-            row.cells[8].textContent = availData.available || 0;
-          } else {
             row.cells[8].textContent = '-';
           }
+
+          showToast(`Movimiento ${movementType} registrado`, 'success');
         } catch (err) {
-          console.warn('fetchAvailable error', err); 
-          row.cells[8].textContent = '-';
+          row.remove();
+          const msg = (err && err.message) ? err.message : String(err || 'Unknown error');
+          showToast(`Error: ${msg}`, "danger");
         }
-
-        showToast(`Movimiento ${movementType} registrado`, 'success');
-
       } catch (err) {
-        console.error('registerMovement error:', err);
-        row.cells[8].textContent = "Not registered";
-        row.cells[8].className = "fw-bold text-danger";
-        row.cells[9].textContent = '-';
-
-        const msg = (err && err.message) ? err.message : String(err || 'Unknown error');
-        let userMsg = msg;
-        if (String(msg).toLowerCase().includes('failed to fetch')) {
-          userMsg += ' — Por favor verifica que el servidor backend esté en ejecución y accesible.';
-        }
-        const details = err && err.stack ? err.stack : (typeof err === 'object' ? JSON.stringify(err, Object.getOwnPropertyNames(err), 2) : '');
-        showToast(`${userMsg}`, "danger", details);
+        showToast(`Error: ${err && err.message ? err.message : String(err)}`, "danger");
       }
     }
 
@@ -741,7 +912,6 @@
         document.getElementById('historyStats').classList.remove('d-none');
 
       } catch (error) {
-        console.error('Error loading history:', error);
         tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Error: ${error.message}</td></tr>`;
       }
     }

@@ -12,7 +12,7 @@
   <script>
     PurchaseAuth.requireAuth({
       allowedRoles: ['Administrador', 'Compras'],
-      deniedMessage: 'Solo Administrador y Compras tienen acceso a esta seccion.'
+      deniedMessage: 'Only Administrator and Purchases have access to this section.'
     });
   </script>
   <style>
@@ -282,7 +282,8 @@
             });
             contenedorSugerencias.style.display = data.length ? 'block' : 'none';
           } catch (err) {
-            console.error(err);
+
+
           }
         });
 
@@ -297,6 +298,11 @@
         inputProject.addEventListener('input', async () => {
           const term = inputProject.value.trim();
           hiddenProjectName.value = '';
+          // Limpiar el tipo de producto al cambiar de proyecto
+          const typePInput = document.querySelector('.type_p-input');
+          if (typePInput) {
+            typePInput.value = '';
+          }
           if (!term) {
             contenedorSugerencias.style.display = 'none';
             return;
@@ -314,12 +320,17 @@
                 inputProject.value = item.no_project;
                 hiddenProjectName.value = item.name_project;
                 contenedorSugerencias.style.display = 'none';
+                // Limpiar el tipo de producto al seleccionar proyecto
+                if (typePInput) {
+                  typePInput.value = '';
+                }
               });
               contenedorSugerencias.appendChild(div);
             });
             contenedorSugerencias.style.display = data.length ? 'block' : 'none';
           } catch (err) {
-            console.error(err);
+
+
           }
         });
 
@@ -333,13 +344,24 @@
       function inicializarAutocompletadoTypeP(inputTypeP, contenedorSugerencias) {
         inputTypeP.addEventListener('input', async () => {
           const term = inputTypeP.value.trim();
+          const projectInput = document.querySelector('.no_project');
+          const noProject = projectInput ? projectInput.value.trim() : '';
+
+          // Si no hay proyecto seleccionado, no mostrar sugerencias
+          if (!noProject) {
+            contenedorSugerencias.style.display = 'none';
+            return;
+          }
+
           if (!term) {
             contenedorSugerencias.style.display = 'none';
             return;
           }
 
           try {
-            const res = await fetch(`${baseURL}/products/types?term=${encodeURIComponent(term)}`);
+            // Obtener SOLO los tipos del proyecto seleccionado
+            const url = `${baseURL}/products/types-by-project/${encodeURIComponent(noProject)}?term=${encodeURIComponent(term)}`;
+            const res = await fetch(url);
             const data = await res.json();
 
             contenedorSugerencias.innerHTML = '';
@@ -360,7 +382,8 @@
             contenedorSugerencias.style.display = data.length ? 'block' : 'none';
 
           } catch (err) {
-            console.error(err);
+
+
           }
         });
 
@@ -414,7 +437,8 @@
           const productos = await res.json();
           return productos;
         } catch (err) {
-          console.error('Error cargarProductosConBOM:', err);
+
+
           return [];
         }
       }
@@ -477,7 +501,8 @@
               }
             }
           } catch (err) {
-            console.error('Error consultando stock AUT-STOCK:', err);
+
+
             const autStockCell = nuevaFila.querySelector('.aut-stock-cell');
             autStockCell.innerHTML = '';
             autStockCell.classList.remove('table-success');
@@ -645,14 +670,14 @@
         if (!vendorSelect) return;
         vendorSelect.innerHTML = '<option value="">Select vendor...</option>';
         data.forEach(v => vendorSelect.innerHTML += `<option value="${v.id_vendor}">${v.name_vendor}</option>`);
-      }).catch(err => console.error(err));
+      }).catch(err => {});
 
       fetch(`${baseURL}/networks`).then(r => r.json()).then(data => {
         const networkSelect = document.querySelector('select[name="network"]');
         if (!networkSelect) return;
         networkSelect.innerHTML = '<option value="">Select network...</option>';
         data.forEach(n => networkSelect.innerHTML += `<option value="${n.network}">${n.network}</option>`);
-      }).catch(err => console.error(err));
+      }).catch(err => {});
 
       // Evento para mostrar el balance al seleccionar una network 
       const networkSelectElem = document.getElementById('networkSelect');
@@ -667,7 +692,8 @@
                 document.getElementById('balanceInfo').style.display = 'block';
               })
               .catch(err => {
-                console.error('Error fetching balance:', err);
+
+
                 document.getElementById('balanceInfo').style.display = 'none';
               });
           } else {
@@ -718,7 +744,8 @@
             const balanceData = await balanceRes.json();
             balanceActual = parseFloat(balanceData.balance);
           } catch (err) {
-            console.error('Error fetching balance:', err);
+
+
           }
         }
 
@@ -769,7 +796,8 @@
             alert('Error: ' + result.error);
           }
         } catch (err) {
-          console.error(err);
+
+
           alert('Connection error with server');
         } finally {
           button.disabled = false;

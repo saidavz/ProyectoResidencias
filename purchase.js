@@ -149,7 +149,6 @@ app.post('/api/auth/validate-qr', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error validating user:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Error al validar usuario: ' + error.message 
@@ -162,7 +161,6 @@ app.get('/api/products', async (req, res) => {
     const result = await pool.query('SELECT no_part, description FROM product ORDER BY no_part');
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching products:', error);
     res.status(500).json({ error: 'Error al cargar productos' });
   }
 });
@@ -180,7 +178,6 @@ app.get('/api/products/search', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Error searching products:', err);
     res.status(500).json({ error: 'Error al buscar productos' });
   }
 });
@@ -242,7 +239,8 @@ app.get("/api/products/bom-calculation", async (req, res) => {
     res.json(productosCalculados);
 
   } catch (error) {
-    console.error("Error en cálculo BOM:", error);
+
+
     res.status(500).send("Error en el servidor");
   }
 });
@@ -266,7 +264,6 @@ app.get("/api/products/byType", async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error("Error al obtener productos por type_p:", error);
     res.status(500).send("Error en el servidor");
   }
 });
@@ -295,7 +292,6 @@ app.get('/api/projects/search', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Error searching projects:', err);
     res.status(500).json({ error: 'Error al buscar proyectos' });
   }
 });
@@ -319,7 +315,8 @@ app.get('/api/bom-projects/search', async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
-    console.error('Error searching bom projects:', err);
+
+
     res.status(500).json({ error: 'Error al buscar no_project en BOM' });
   }
 });
@@ -382,7 +379,7 @@ app.post('/api/requisitions/save', async (req, res) => {
       if (bomCheck.rows.length === 0) {
         await pool.query(
           'INSERT INTO bom_project (no_project, no_qis, no_part, quantity_project, status) VALUES ($1, $2, $3, $4, $5)',
-          [finalNoProject, no_qis, partNumber, quantity, 'Active']
+          [finalNoProject, no_qis, partNumber, quantity, 'Quoted']
         );
       }
     }
@@ -394,7 +391,8 @@ app.post('/api/requisitions/save', async (req, res) => {
       items_saved: items.length
     });
   } catch (err) {
-    console.error('Error saving requisition:', err);
+
+
     res.status(500).json({ error: 'Error al guardar requisición: ' + err.message });
   }
 });
@@ -415,8 +413,35 @@ app.get('/api/products/types', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Error searching product types:', err);
+
+
     res.status(500).json({ error: 'Error al buscar tipos de producto' });
+  }
+});
+
+// Obtener tipos de productos que pertenecen a un proyecto específico
+app.get('/api/products/types-by-project/:no_project', async (req, res) => {
+  const { no_project } = req.params;
+  const term = req.query.term || '';
+  
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT p.type_p
+       FROM product p
+       INNER JOIN bom_project bp ON p.no_part = bp.no_part
+       WHERE bp.no_project = $1
+         AND p.type_p IS NOT NULL 
+         AND p.type_p != ''
+         AND p.type_p ILIKE $2
+       ORDER BY p.type_p 
+       LIMIT 10`,
+      [no_project, `%${term}%`]
+    );
+    res.json(result.rows);
+  } catch (err) {
+
+
+    res.status(500).json({ error: 'Error al buscar tipos de producto del proyecto' });
   }
 });
 
@@ -425,7 +450,8 @@ app.get('/api/vendors', async (req, res) => {
     const result = await pool.query('SELECT id_vendor, name_vendor FROM vendor ORDER BY name_vendor');
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching vendors:', error);
+
+
     res.status(500).json({ error: 'Error al cargar proveedores' });
   }
 });
@@ -441,7 +467,25 @@ app.get('/api/projects/all', async (req, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching projects:', error);
+
+
+    res.status(500).json({ error: 'Error al cargar proyectos' });
+  }
+});
+
+// Endpoint para obtener todos los proyectos incluyendo inactivos (para AUT-STOCK modal)
+app.get('/api/projects/all-including-inactive', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT no_project, name_project, status
+      FROM project
+      WHERE no_project NOT LIKE '%STOCK%'
+      ORDER BY status DESC, name_project`
+    );
+    res.json(result.rows);
+  } catch (error) {
+
+
     res.status(500).json({ error: 'Error al cargar proyectos' });
   }
 });
@@ -453,9 +497,28 @@ app.get('/api/projects/check/:no_project', async (req, res) => {
       'SELECT no_project, name_project, status FROM project WHERE no_project = $1',
       [no_project]
     );
-    res.json({ exists: result.rows.length > 0, project: result.rows[0] || null });
+    
+    // Verificar si el proyecto existe
+    const projectExists = result.rows.length > 0;
+    
+    // Verificar si el proyecto tiene BOM
+    let hasBOM = false;
+    if (projectExists) {
+      const bomCheck = await pool.query(
+        'SELECT COUNT(*) FROM bom_project WHERE no_project = $1',
+        [no_project]
+      );
+      hasBOM = parseInt(bomCheck.rows[0].count) > 0;
+    }
+    
+    res.json({ 
+      exists: projectExists, 
+      hasBOM: hasBOM,
+      project: result.rows[0] || null 
+    });
   } catch (error) {
-    console.error('Error checking project:', error);
+
+
     res.status(500).json({ error: 'Error al verificar proyecto' });
   }
 });
@@ -482,7 +545,8 @@ app.post('/api/projects', async (req, res) => {
       res.json({ message: 'Proyecto creado y activado exitosamente', project: result.rows[0] });
     }
   } catch (error) {
-    console.error('Error creating/activating project:', error);
+
+
     res.status(500).json({ error: 'Error al crear/activar proyecto' });
   }
 });
@@ -515,7 +579,8 @@ app.put('/api/projects/:no_project/status', async (req, res) => {
 
     res.json({ message: `Proyecto ${status === 'Active' ? 'activado' : 'desactivado'} exitosamente` });
   } catch (error) {
-    console.error('Error updating project status:', error);
+
+
     res.status(500).json({ error: 'Error al actualizar estado del proyecto' });
   }
 });
@@ -525,7 +590,8 @@ app.get('/api/networks', async (req, res) => {
     const result = await pool.query('SELECT network, balance FROM network ORDER BY network');
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching networks:', error);
+
+
     res.status(500).json({ error: 'Error al cargar networks' });
   }
 });
@@ -585,7 +651,8 @@ app.get('/api/purchases', async (req, res) => {
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
-    console.error(error);
+
+
     res.status(500).json({ error: 'Error al cargar las compras' });
   }
 });
@@ -610,7 +677,8 @@ app.put('/api/purchases/status', async (req, res) => {
 
     // Si no hubo coincidencias, informar pero no romper la operación
     if (bomResult.rows.length === 0) {
-      console.warn('No bom_project items updated for purchase', id_purchase, no_project);
+
+
     }
 
     // Actualizar po en purchase (por compra) si se proporciona
@@ -631,7 +699,8 @@ app.put('/api/purchases/status', async (req, res) => {
 
     res.json({ message: 'Status y campos actualizados exitosamente', item: bomResult.rows[0] });
   } catch (error) {
-    console.error('Error updating status:', error);
+
+
     res.status(500).json({ message: 'Error al actualizar el status', error: error.message });
   }
 });
@@ -728,7 +797,8 @@ app.post('/api/purchases', async (req, res) => {
     });
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Error saving purchase:', error);
+
+
     res.status(500).json({ success: false, error: 'Error saving purchase: ' + error.message });
   } finally {
     client.release();
@@ -747,7 +817,8 @@ app.get('/api/network/balance/:network', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching network balance:', error);
+
+
     res.status(500).json({ error: 'Error al cargar el balance de la network' });
   }
 });
@@ -777,7 +848,8 @@ app.post('/api/networks', async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Error creating network:', error);
+
+
     res.status(500).json({ error: 'Error creating network' });
   }
 });
@@ -817,7 +889,8 @@ app.put('/api/networks/:network', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error updating network:', error);
+
+
     res.status(500).json({ error: 'Error updating network' });
   }
 });
@@ -838,7 +911,8 @@ app.delete('/api/networks/:network', async (req, res) => {
 
     res.json({ message: 'Network deleted successfully' });
   } catch (error) {
-    console.error('Error deleting network:', error);
+
+
     res.status(500).json({ error: 'Error deleting network' });
   }
 });
@@ -872,7 +946,8 @@ app.get('/api/paquetes-calculados', async (req, res) => {
     const cantidad_calculada = Math.ceil(quantity_project / quantity);
     res.json({ cantidad_calculada });
   } catch (error) {
-    console.error('Error en /api/paquetes-calculados:', error);
+
+
     res.status(500).json({ error: 'Error en el servidor' });
   }
 });
@@ -892,7 +967,8 @@ app.get('/api/projects/with-movements', async (req, res) => {
     const result = await pool.query(query);
     res.json(result.rows.map(r => r.no_project));
   } catch (error) {
-    console.error('/api/projects/with-movements error', error);
+
+
     res.status(500).json({ error: "Error fetching projects" });
   }
 });
@@ -970,7 +1046,8 @@ app.get('/api/stock/by-project', async (req, res) => {
     const result = await pool.query(query, [no_project]);
     res.json(result.rows);
   } catch (error) {
-    console.error('/api/stock/by-project error', error);
+
+
     res.status(500).json({ error: "Error fetching stock by project" });
   }
 });
@@ -1027,7 +1104,8 @@ app.get('/api/stock/distinct-filters', async (req, res) => {
       brands: brandsRes.rows.map(r => r.brand)
     });
   } catch (error) {
-    console.error('/api/stock/distinct-filters error', error);
+
+
     res.status(500).json({ error: 'Error fetching distinct stock filters' });
   }
 });
@@ -1082,7 +1160,8 @@ app.get('/api/stock/summary', async (req, res) => {
     const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
-    console.error('/api/stock/summary error', error);
+
+
     res.status(500).json({ error: "Error fetching stock summary" });
   }
 });
@@ -1126,7 +1205,8 @@ app.get("/api/stock", async (req, res) => {
     const result = await pool.query(query);
     res.json(result.rows);
   } catch (error) {
-    console.error(error);
+
+
     res.status(500).json({ error: "Error fetching stock data" });
   }
 });
@@ -1169,7 +1249,8 @@ app.get("/api/stock/qr-code", async (req, res) => {
       res.json({ qr_code: null });
     }
   } catch (error) {
-    console.error('Error getting QR code:', error);
+
+
     res.status(500).json({ error: 'Error al obtener el código QR' });
   }
 });
@@ -1201,7 +1282,8 @@ app.get("/api/stock/first-rack", async (req, res) => {
       res.json({ rack: null });
     }
   } catch (error) {
-    console.error('Error getting first rack:', error);
+
+
     res.status(500).json({ error: 'Error al obtener el rack' });
   }
 });
@@ -1221,6 +1303,39 @@ app.post("/api/stock/entry", async (req, res) => {
   }
 
   try {
+    console.log('=== /api/stock/entry ===');
+    console.log('Recibido:', { normalizedRack, normalizedNoPart, normalizedNoProject });
+    // Verificar si el proyecto es inactivo
+    let projectToStore = normalizedNoProject;
+    let qrPrefix = `I`;
+    let useSimpleQR = false;
+    
+    const projectCheck = await pool.query(
+      'SELECT status FROM project WHERE no_project = $1',
+      [normalizedNoProject]
+    );
+    
+    console.log(`Project found: ${projectCheck.rows.length > 0}`);
+    
+    if (projectCheck.rows.length > 0) {
+      // Si el proyecto existe, verificar si es inactivo
+      const projectStatus = projectCheck.rows[0].status;
+      console.log(`Status value: "${projectStatus}" (type: ${typeof projectStatus})`);
+      const isInactive = !projectStatus || projectStatus.toUpperCase() !== 'ACTIVE';
+      console.log(`Is inactive: ${isInactive}`);
+      
+      if (isInactive) {
+        // Si el proyecto es inactivo (NULL o diferente a 'ACTIVE'), cambiar a AUT-STOCK
+        projectToStore = 'AUT-STOCK';
+        useSimpleQR = true; // Usar formato STOCK-[NOPART] para inactivos
+        console.log(`✓ Using STOCK format for AUT-STOCK`);
+      } else {
+        console.log(`✓ Using I#### format for active project`);
+      }
+    } else {
+      console.log(`WARNING: Project not found!`);
+    }
+    
     // Buscar por no_part y no_project (SIN rack) para verificar si ya existe
     const checkQuery = `
       SELECT * FROM stock
@@ -1230,12 +1345,16 @@ app.post("/api/stock/entry", async (req, res) => {
       LIMIT 1
     `;
 
-    const existingResult = await pool.query(checkQuery, [normalizedNoPart, normalizedNoProject]);
+    const existingResult = await pool.query(checkQuery, [normalizedNoPart, projectToStore]);
+    
+    console.log(`Checking for existing: no_part=${normalizedNoPart}, no_project=${projectToStore}`);
+    console.log(`Existing records found: ${existingResult.rows.length}`);
 
     if (existingResult.rows.length > 0) {
       // Si ya existe el registro de stock para este no_part+no_project,
       // no incrementamos disponible al generar el QR. Simplemente devolvemos el registro.
-      console.log(`Registro de stock existente para ${normalizedNoPart} proyecto ${normalizedNoProject} - no se modifica available`);
+      console.log(`✓ Found existing QR: ${existingResult.rows[0].qr_code}`);
+
       return res.json({
         success: true,
         message: 'QR ya existente, no se modificó available',
@@ -1243,41 +1362,52 @@ app.post("/api/stock/entry", async (req, res) => {
       });
     }
 
-    // Si no existe, crear uno nuevo
-    const lastQrQuery = `
-      SELECT qr_code FROM stock 
-      WHERE qr_code LIKE $1
-      ORDER BY id_stock DESC 
-      LIMIT 1
-    `;
+    // Generar código QR
+    let qrCode;
     
-    const pattern = `I%-${normalizedNoProject}`;
-    const lastQrResult = await pool.query(lastQrQuery, [pattern]);
-    
-    let nextNumber = 1; 
-    if (lastQrResult.rows.length > 0 && lastQrResult.rows[0].qr_code) {
-      const lastCode = lastQrResult.rows[0].qr_code;
-      const match = lastCode.match(/^I(\d+)-/);
-      if (match && match[1]) {
-        const lastNumber = parseInt(match[1]);
-        if (!isNaN(lastNumber)) {
-          nextNumber = lastNumber + 1;
+    if (useSimpleQR) {
+      // Para AUT-STOCK: STOCK-[NO_PART]
+      qrCode = `STOCK-${normalizedNoPart}`;
+      console.log(`Generated STOCK QR: ${qrCode}`);
+    } else {
+      // Para proyectos activos: mantener formato original I0001-PROJECT
+      const lastQrQuery = `
+        SELECT qr_code FROM stock 
+        WHERE qr_code LIKE $1
+        ORDER BY id_stock DESC 
+        LIMIT 1
+      `;
+      
+      const pattern = `I%-${normalizedNoProject}`;
+      const lastQrResult = await pool.query(lastQrQuery, [pattern]);
+      
+      let nextNumber = 1; 
+      if (lastQrResult.rows.length > 0 && lastQrResult.rows[0].qr_code) {
+        const lastCode = lastQrResult.rows[0].qr_code;
+        const match = lastCode.match(/^I(\d+)-/);
+        if (match && match[1]) {
+          const lastNumber = parseInt(match[1]);
+          if (!isNaN(lastNumber)) {
+            nextNumber = lastNumber + 1;
+          }
         }
       }
+      
+      const consecutivo = String(nextNumber).padStart(4, '0');
+      qrCode = `I${consecutivo}-${normalizedNoProject}`;
+      console.log(`Generated I#### QR: ${qrCode}`);
     }
-    
-    // Generar código en formato: I0001-AUT-2026-00
-    const consecutivo = String(nextNumber).padStart(4, '0');
-    const qrCode = `I${consecutivo}-${normalizedNoProject}`;
 
-    // Insertar en la tabla stock con available = 0 (sin existencias hasta un INBOUND)
+    // Insertar en la tabla stock con el proyecto determinado (AUT-STOCK si inactivo, original si activo)
     const query = `
       INSERT INTO stock (rack, no_part, no_project, qr_code, available)
       VALUES ($1, $2, $3, $4, 0)
       RETURNING id_stock, rack, no_part, no_project, qr_code, available
     `;
 
-    const result = await pool.query(query, [normalizedRack, normalizedNoPart, normalizedNoProject, qrCode]);
+    const result = await pool.query(query, [normalizedRack, normalizedNoPart, projectToStore, qrCode]);
+
+    console.log(`✓ Inserted into DB: rack=${normalizedRack}, no_part=${normalizedNoPart}, no_project=${projectToStore}, qr_code=${qrCode}`);
 
     res.json({
       success: true,
@@ -1285,7 +1415,8 @@ app.post("/api/stock/entry", async (req, res) => {
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('Error creating stock entry:', error);
+
+
     res.status(500).json({ 
       success: false, 
       error: 'Error al crear entrada en stock: ' + error.message 
@@ -1301,7 +1432,8 @@ function normalizeHeader(h) {
     let cleaned = String(h).replace(/[\uFEFF\u00A0]/g, "");
     return cleaned.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
   } catch (e) {
-    console.error("Error normalizing headers:", h, e);
+
+
     return "";
   }
 }
@@ -1339,7 +1471,8 @@ app.get("/api/projects/active", async (req, res) => {
     const result = await pool.query("SELECT no_project, name_project FROM Project WHERE status ILIKE 'active'");
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching active projects:', error);
+
+
     res.status(500).json({ error: 'Error al cargar proyectos activos' });
   }
 });
@@ -1361,7 +1494,8 @@ app.post("/api/projects", async (req, res) => {
     );
     res.json({ message: "Proyecto creado exitosamente", project: result.rows[0] });
   } catch (error) {
-    console.error('Error creating project:', error);
+
+
     res.status(500).json({ message: "Error al crear el proyecto", error: error.message });
   }
 });
@@ -1380,7 +1514,7 @@ function normalizeText(value) {
 // Ruta POST para subir BOM (archivo Excel)
 app.post('/api/bom', upload.single('file'), async (req, res) => {
   const client = await pool.connect();
-  const { no_project } = req.body;
+  const { no_project, updateMode } = req.body;
   if (!no_project) return res.status(400).json({ message: "Select a project" });
   if (!req.file) return res.status(400).json({ message: "No file was uploaded" });
 
@@ -1410,6 +1544,20 @@ app.post('/api/bom', upload.single('file'), async (req, res) => {
 
     // Recolectar los números de parte del nuevo BOM
     const newPartNumbers = [];
+    let addedItemsCount = 0;
+
+    // Si está en updateMode, obtener las partes existentes
+    let existingParts = new Set();
+    if (updateMode === 'true') {
+      const existingResult = await client.query(
+        `SELECT no_part FROM bom_project WHERE no_project = $1`,
+        [no_project]
+      );
+      // Normalizar los no_part para comparación correcta y filtrar nulos
+      existingParts = new Set(existingResult.rows
+        .filter(row => row.no_part !== null && row.no_part !== undefined)
+        .map(row => row.no_part.toString().toUpperCase().trim()));
+    }
 
     // Procesar cada fila
     for (const rowObj of data) {
@@ -1433,51 +1581,78 @@ app.post('/api/bom', upload.single('file'), async (req, res) => {
       );
 
       // Verificar si la parte ya existe en el BOM del proyecto
-      const existingPart = await client.query(
-        `SELECT * FROM bom_project WHERE no_project = $1 AND no_part = $2`,
-        [no_project, no_part]
-      );
+      const partExists = existingParts.has(no_part);
 
-      if (existingPart.rows.length > 0) {
-        // Parte ya existe: actualizar solo quantity_project, mantener el status
-        await client.query(
-          `UPDATE bom_project 
-           SET quantity_project = $1
-           WHERE no_project = $2 AND no_part = $3`,
-          [quantity_p, no_project, no_part]
-        );
+      if (updateMode === 'true') {
+        // Modo actualización: solo agregar items nuevos (no repetidos)
+        if (!partExists) {
+          // Parte nueva: insertarla
+          if (quantity_p !== null) {
+            await client.query(
+              `INSERT INTO bom_project (no_project, quantity_project, no_part, status)
+               VALUES ($1, $2, $3, $4)`,
+              [no_project, quantity_p, no_part, "Quoted"]
+            );
+            addedItemsCount++;
+          }
+        }
+        // Si ya existe, no hacer nada (no actualizar ni eliminar)
       } else {
-        // Parte nueva: insertarla
-        if (quantity_p !== null) {
+        // Modo regular: comportamiento anterior (reemplazar todo)
+        if (partExists) {
+          // Parte ya existe: actualizar solo quantity_project, mantener el status
           await client.query(
-            `INSERT INTO bom_project (no_project, quantity_project, no_part, status)
-             VALUES ($1, $2, $3, $4)`,
-            [no_project, quantity_p, no_part, "Quoted"]
+            `UPDATE bom_project 
+             SET quantity_project = $1
+             WHERE no_project = $2 AND no_part = $3`,
+            [quantity_p, no_project, no_part]
           );
+        } else {
+          // Parte nueva: insertarla
+          if (quantity_p !== null) {
+            await client.query(
+              `INSERT INTO bom_project (no_project, quantity_project, no_part, status)
+               VALUES ($1, $2, $3, $4)`,
+              [no_project, quantity_p, no_part, "Quoted"]
+            );
+          }
         }
       }
     }
 
-    // Eliminar partes que NO están en el nuevo BOM
-    if (newPartNumbers.length > 0) {
-      await client.query(
-        `DELETE FROM bom_project 
-         WHERE no_project = $1 AND no_part != ALL($2::text[])`,
-        [no_project, newPartNumbers]
-      );
-    } else {
-      // Si el nuevo BOM está vacío, eliminar todo el BOM anterior
-      await client.query(
-        `DELETE FROM bom_project WHERE no_project = $1`,
-        [no_project]
-      );
+    // Solo eliminar partes si NO está en updateMode
+    if (updateMode !== 'true') {
+      // Eliminar partes que NO están en el nuevo BOM
+      if (newPartNumbers.length > 0) {
+        await client.query(
+          `DELETE FROM bom_project 
+           WHERE no_project = $1 AND no_part != ALL($2::text[])`,
+          [no_project, newPartNumbers]
+        );
+      } else {
+        // Si el nuevo BOM está vacío, eliminar todo el BOM anterior
+        await client.query(
+          `DELETE FROM bom_project WHERE no_project = $1`,
+          [no_project]
+        );
+      }
     }
 
     await client.query('COMMIT');
-    res.json({ message: `File processed successfully for the project ${no_project}` });
+    
+    // Retornar respuesta diferenciada según el modo
+    if (updateMode === 'true') {
+      res.json({ 
+        message: `File processed successfully for the project ${no_project}`,
+        addedItems: addedItemsCount
+      });
+    } else {
+      res.json({ message: `File processed successfully for the project ${no_project}` });
+    }
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error("ERROR:", err);
+
+
     res.status(500).json({ message: "Error processing file", error: String(err) });
   } finally {
     client.release();
@@ -1491,7 +1666,8 @@ app.delete("/api/bom/:no_project", async (req, res) => {
     await pool.query('DELETE FROM bom_project WHERE no_project = $1', [no_project]);
     res.json({ message: `BOM deleted successfully for project ${no_project}` });
   } catch (err) {
-    console.error("ERROR deleting BOM:", err);
+
+
     res.status(500).json({ message: "Error deleting BOM", error: String(err) });
   }
 });
@@ -1528,7 +1704,8 @@ app.get('/api/bomView', async (req, res) => {
     const result = await pool.query(query, queryParams);
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching BOM data:', error);
+
+
     res.status(500).json({ error: 'Error al cargar los datos del BOM' });
   }
 });
@@ -1600,7 +1777,8 @@ app.get('/api/trackingCards', async (req, res) => {
     const result = await pool.query(sql, params);
     res.json(result.rows[0] || {});
   } catch (error) {
-    console.error(error);
+
+
     res.status(500).json({ error: 'Error al cargar porcentajes' });
   }
 });
@@ -1624,7 +1802,8 @@ app.get('/api/projects-with-purchase', async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching projects with purchases:', error);
+
+
     res.status(500).json({ error: 'Failed to fetch projects' });
   }
 });
@@ -1635,19 +1814,21 @@ app.get(['/api/projects-po', '/api/projects-shopping-cart'], async (req, res) =>
     const result = await pool.query(`
       SELECT DISTINCT
         pr.no_project,
-        pr.name_project
+        pr.name_project,
+        pr.status
       FROM project pr
       INNER JOIN purchase pu ON pu.no_project = pr.no_project
       INNER JOIN purchase_detail pd ON pd.id_purchase = pu.id_purchase
       INNER JOIN bom_project bp ON bp.no_project = pr.no_project AND bp.no_part = pd.no_part
-      WHERE bp.status ILIKE 'PO'
+      WHERE (bp.status ILIKE 'PO' OR bp.status ILIKE 'Pending Delivery' OR bp.status ILIKE 'Delivered')
         AND pd.no_part IS NOT NULL
-      ORDER BY pr.name_project
+      ORDER BY pr.status DESC, pr.name_project
     `);
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching PO projects:', error);
+
+
     res.status(500).json({ error: 'Failed to fetch projects' });
   }
 });
@@ -1655,7 +1836,8 @@ app.get(['/api/projects-po', '/api/projects-shopping-cart'], async (req, res) =>
 
 app.get('/api/bomView/debug', async (req, res) => {
   const noProject = req.query.no_project;
-  console.log('/api/bomView/debug called with no_project=', noProject);
+
+
   try {
     let query =
       `SELECT 
@@ -1676,13 +1858,15 @@ app.get('/api/bomView/debug', async (req, res) => {
     const result = await pool.query(query, params);
     res.json({ received: noProject ?? null, count: result.rows.length, sample: result.rows.slice(0, 5) });
   } catch (err) {
-    console.error('/api/bomView/debug error:', err);
+
+
     res.status(500).json({ error: String(err) });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+
+
 });
 // ======================================================
 // STOCK - obtener cantidad disponible (INBOUND - OUTBOUND)
@@ -1705,7 +1889,35 @@ app.get('/api/stock/available/:qr_code', async (req, res) => {
       available: stock.available 
     });
   } catch (err) {
-    console.error('/api/stock/available error', err);
+
+
+    res.status(500).json({ message: 'Error en servidor', error: String(err) });
+  }
+});
+
+// ======================================================
+// GET existing rack for AUT-STOCK item by part number
+// ======================================================
+app.get('/api/stock/by-part-austocked/:noPart', async (req, res) => {
+  try {
+    const noPart = (req.params.noPart || '').toString().trim();
+    if (!noPart) return res.status(400).json({ message: 'noPart requerido' });
+
+    // Buscar si existe stock en AUT-STOCK con ese no_part
+    const stockQ = `SELECT id_stock, no_part, no_project, rack, available FROM stock WHERE UPPER(BTRIM(no_part)) = UPPER(BTRIM($1)) AND no_project = 'AUT-STOCK' LIMIT 1`;
+    const stockR = await pool.query(stockQ, [noPart]);
+    
+    if (stockR.rows.length === 0) {
+      return res.status(404).json({ message: 'No AUT-STOCK record found for this part' });
+    }
+    
+    const stock = stockR.rows[0];
+    res.json({ 
+      no_part: stock.no_part, 
+      rack: stock.rack,
+      available: stock.available 
+    });
+  } catch (err) {
     res.status(500).json({ message: 'Error en servidor', error: String(err) });
   }
 });
@@ -1772,14 +1984,16 @@ app.post("/api/inbound", async (req, res) => {
       });
     } catch (errInner) {
       await client.query('ROLLBACK');
-      console.error('ERROR /api/inbound transaction', errInner);
+
+
       return res.status(500).json({ ok: false, message: 'Error registrando INBOUND', error: String(errInner) });
     } finally {
       client.release();
     }
 
   } catch (error) {
-    console.error("ERROR /api/inbound:", error);
+
+
 
     return res.status(500).json({
       ok: false,
@@ -1809,7 +2023,8 @@ app.get('/api/movements/last', async (req, res) => {
 
     return res.json({ movement: movR.rows[0], stock });
   } catch (err) {
-    console.error('/api/movements/last error', err);
+
+
     res.status(500).json({ message: 'Error en servidor', error: String(err) });
   }
 });
@@ -1819,13 +2034,13 @@ app.get('/api/movements/last', async (req, res) => {
 // ======================================================
 app.post('/api/movements', async (req, res) => {
   try {
-    const { qr_code, type, pid, cantidad } = req.body;
-    console.log('Parsed params:', { qr_code, type, pid, cantidad });
+    const { qr_code, type, pid, cantidad, original_project } = req.body;
+
     
     const t = (type || '').toString().trim().toUpperCase();
     const qty = cantidad && !isNaN(cantidad) ? parseInt(cantidad) : 1;
     
-    console.log('Processed params:', { t, qty });
+
     
     if (!qr_code) return res.status(400).json({ ok: false, message: 'qr_code requerido' });
     if (!t || (t !== 'INBOUND' && t !== 'OUTBOUND')) return res.status(400).json({ ok: false, message: 'type debe ser INBOUND u OUTBOUND' });
@@ -1843,6 +2058,40 @@ app.post('/api/movements', async (req, res) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      
+      // Si es INBOUND y se proporciona original_project, marcar directamente como 'Delivered'
+      if (t === 'INBOUND' && original_project && String(original_project).trim()) {
+        const noPart = stockRow.no_part;
+        const origProj = String(original_project).trim();
+        
+        // Actualizar status en bom_project a 'Delivered' para este no_part y proyecto original
+        await client.query(
+          'UPDATE bom_project SET status = $1 WHERE no_project = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
+          ['Delivered', origProj, noPart]
+        );
+      } else if (t === 'INBOUND') {
+        // Si NO se proporciona original_project, verificar si el proyecto está inactivo
+        const projectCheck = await client.query(
+          'SELECT status FROM project WHERE no_project = $1',
+          [stockRow.no_project]
+        );
+        
+        const projectInactive = projectCheck.rows.length > 0 && 
+                               projectCheck.rows[0].status && 
+                               projectCheck.rows[0].status.toUpperCase() !== 'ACTIVE';
+        
+        if (projectInactive) {
+          const noPart = stockRow.no_part;
+
+          // Cambiar no_project en stock a 'AUT-STOCK'
+          await client.query(
+            'UPDATE stock SET no_project = $1 WHERE id_stock = $2',
+            ['AUT-STOCK', stockRow.id_stock]
+          );
+          stockRow.no_project = 'AUT-STOCK';
+        }
+      }
+      
       let newAvailable = stockRow.available;
       const adjustment = t === 'INBOUND' ? qty : -qty;
       
@@ -1870,13 +2119,15 @@ app.post('/api/movements', async (req, res) => {
       });
     } catch (errInner) {
       await client.query('ROLLBACK');
-      console.error('/api/movements POST transaction error', errInner);
+
+
       return res.status(500).json({ ok: false, message: 'Error en el servidor', error: String(errInner) });
     } finally {
       client.release();
     }
   } catch (err) {
-    console.error('/api/movements POST error', err);
+
+
     res.status(500).json({ ok: false, message: 'Error en el servidor', error: String(err) });
   }
 });
@@ -1912,13 +2163,15 @@ app.post('/api/outbound', async (req, res) => {
       return res.json({ ok: true, message: 'Salida registrada', stock: stockRow, movement: movementResult.rows[0] });
     } catch (errInner) {
       await client.query('ROLLBACK');
-      console.error('/api/outbound transaction error', errInner);
+
+
       return res.status(500).json({ ok: false, message: 'Error en servidor', error: String(errInner) });
     } finally {
       client.release();
     }
   } catch (err) {
-    console.error('/api/outbound error', err);
+
+
     res.status(500).json({ ok: false, message: 'Error en servidor', error: String(err) });
   }
 });
@@ -1979,7 +2232,8 @@ app.get('/api/movements/history', async (req, res) => {
     });
     
   } catch (err) {
-    console.error('/api/movements/history error', err);
+
+
     res.status(500).json({ 
       success: false, 
       error: 'Error al obtener historial de movimientos', 
@@ -2032,7 +2286,8 @@ app.patch('/api/bom-project/update-status', async (req, res) => {
       item: result.rows[0] 
     });
   } catch (error) {
-    console.error('Error en /api/bom-project/update-status:', error);
+
+
     res.status(500).json({ 
       ok: false, 
       message: 'Error al actualizar el status', 

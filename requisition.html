@@ -12,7 +12,7 @@
   <script>
     PurchaseAuth.requireAuth({
       allowedRoles: ['Administrador', 'Compras'],
-      deniedMessage: 'Solo Administrador y Compras tienen acceso a esta seccion.'
+      deniedMessage: 'Only Administrator and Purchases have access to this section.'
     });
   </script>
 </head>
@@ -451,7 +451,8 @@
         })
           .then(res => res.json())
           .catch(err => {
-            console.error('Error saving requisition:', err);
+
+
             throw err;
           });
       }
@@ -662,7 +663,7 @@
       requisitionOkBtn.addEventListener('click', () => {
         const text = requisitionInput.value.trim();
         if (!text) {
-          updateFeedback('Pegue informacion antes de presionar OK.', 'error');
+          updateFeedback('Paste information before pressing OK.', 'error');
           return;
         }
 
@@ -670,19 +671,19 @@
           requisitionProjectInput ? requisitionProjectInput.value : ''
         );
         if (!selectedNoProject) {
-          updateFeedback('Seleccione un no_project antes de presionar OK.', 'error');
+          updateFeedback('Select a project before pressing OK.', 'error');
           return;
         }
 
         const parsed = parseOrderDetailsText(text);
 
         if (!parsed.orderNumber || parsed.orderNumber === '-') {
-          updateFeedback('No se detecto el Number del pedido.', 'error');
+          updateFeedback('Purchase order number could not be detected.', 'error');
           return;
         }
 
         if (!parsed.items.length) {
-          updateFeedback('No se detectaron items validos en el texto pegado.', 'error');
+          updateFeedback('No valid items were detected in the pasted text.', 'error');
           return;
         }
 
@@ -698,18 +699,18 @@
           
           const addedCount = newItems.length;
           if (addedCount === 0) {
-            updateFeedback(`Requisición ${parsed.orderNumber}: No hay items nuevos para agregar.`, 'error');
+            updateFeedback(`Requisition ${parsed.orderNumber}: No new items to add.`, 'error');
             requisitionInput.value = '';
             return;
           }
           updateFeedback(
-            `Requisición ${parsed.orderNumber}: ${addedCount} item(s) nuevo(s) agregado(s). Total: ${finalItems.length} items.`,
+            `Requisition ${parsed.orderNumber}: ${addedCount} new item(s) added. Total: ${finalItems.length} items.`,
             'success'
           );
         } else {
           // Nueva requisición, reemplazar todo
           updateFeedback(
-            `Requisición ${parsed.orderNumber} cargada con ${parsed.items.length} items para proyecto ${selectedNoProject}.`,
+            `Requisition ${parsed.orderNumber} loaded with ${parsed.items.length} items for project ${selectedNoProject}.`,
             'success'
           );
         }
@@ -728,7 +729,7 @@
       if (requisitionClearBtn) {
         requisitionClearBtn.addEventListener('click', async () => {
           if (!requisitionState.items.length) {
-            updateFeedback('No hay datos para guardar.', 'error');
+            updateFeedback('No data to save.', 'error');
             return;
           }
 
@@ -750,9 +751,10 @@
             clearProjectSearchInput();
             requisitionInput.value = '';
             renderState();
-            updateFeedback('Save completado exitosamente.', 'success');
+            updateFeedback('Save completed successfully.', 'success');
+            alert(`Requisition #${payload.no_qis} has been saved successfully!`);
           } catch (error) {
-            updateFeedback('Error al guardar la requisición: ' + error.message, 'error');
+            updateFeedback('Error saving requisition: ' + error.message, 'error');
           }
         });
       }

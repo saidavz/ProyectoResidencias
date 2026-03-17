@@ -12,7 +12,7 @@
     <script>
         PurchaseAuth.requireAuth({
             allowedRoles: ['Administrador', 'Compras'],
-            deniedMessage: 'Solo Administrador y Compras tienen acceso a esta seccion.'
+            deniedMessage: 'Only Administrator and Purchases have access to this section.'
         });
     </script>
 </head>
@@ -103,7 +103,7 @@
                     </thead>
                     <tbody id="bomTableBody">
                         <tr>
-                            <td colspan="9" class="text-center">Cargando datos...</td>
+                            <td colspan="9" class="text-center">Loading data...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -135,7 +135,8 @@
                     const res = await fetch(`${BASE}/projects/all`);
                     allProjects = await res.json();
                 } catch (err) {
-                    console.error('Error loading projects:', err);
+
+
                 }
             }
             // Buscador de proyectos
@@ -209,36 +210,40 @@
                     url += '?' + params.toString();
                 }
                 try {
-                    console.log('Fetching BOM URL:', url);
+
+
                     const response = await fetch(url);
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     const data = await response.json();
-                    console.log('BOM response length:', Array.isArray(data) ? data.length : 'not-array', data);
+
                     displayBOMData(data);
                 } catch (error) {
-                    console.error('Error al cargar BOM:', error);
+
+
                     document.getElementById('bomTableBody').innerHTML =
-                        '<tr><td colspan="9" class="text-center text-danger">Error al cargar los datos</td></tr>';
+                        '<tr><td colspan="9" class="text-center text-danger">Error loading data</td></tr>';
                 }
             }
             // Cargar todos los BOM al inicio
             async function loadAllBOMData() {
                 let url = `${BASE}/bomView`;
                 try {
-                    console.log('Fetching all BOM URL:', url);
+
+
                     const response = await fetch(url);
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     const data = await response.json();
-                    console.log('BOM response length:', Array.isArray(data) ? data.length : 'not-array', data);
+
                     displayBOMData(data);
                 } catch (error) {
-                    console.error('Error al cargar BOM:', error);
+
+
                     document.getElementById('bomTableBody').innerHTML =
-                        '<tr><td colspan="9" class="text-center text-danger">Error al cargar los datos</td></tr>';
+                        '<tr><td colspan="9" class="text-center text-danger">Error loading data</td></tr>';
                 }
             }
             function displayBOMData(data) {
