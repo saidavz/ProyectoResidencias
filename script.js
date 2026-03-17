@@ -12,13 +12,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   let searchActive = false;
   let currentProjectData = []; // Guardar datos del proyecto actual para filtros adicionales
 
-  // cargar valores únicos desde stock (projects, vendors, parts, brands)
+  // cargar valores ï¿½nicos desde stock (projects, vendors, parts, brands)
   async function loadDistinctStockFilters() {
     try {
       const res = await fetch('http://localhost:3000/api/stock/distinct-filters');
       const data = await res.json();
       allProjects = data.projects || [];
-      // Agregar manualmente la opción 'Material disponible' (AUT-STOCK) si no existe
+      // Agregar manualmente la opciï¿½n 'Material disponible' (AUT-STOCK) si no existe
       const autStockExists = allProjects.some(p => p.no_project === 'AUT-STOCK');
       if (!autStockExists) {
         allProjects.unshift({
@@ -103,13 +103,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
 
-    const showPurchaseCols = !(currentMode === 'general' && !searchActive);
-    updateTableHeaders(showPurchaseCols);
+    const hiddenColumnIndices = getHiddenColumnIndices();
+    updateTableHeaders(hiddenColumnIndices);
 
     rowsToRender.forEach(item => {
       const tr = document.createElement("tr");
 
-      // Obtener el valor disponible correcto según el modo
+      // Obtener el valor disponible correcto segï¿½n el modo
       const valorDisponible = item.available !== undefined && item.available !== null 
         ? item.available 
         : (item.cantidad_disponible !== undefined && item.cantidad_disponible !== null 
@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const alertIcon =
         !isNaN(cantidad) && cantidad <= 10
-          ? '<span style="position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:1.3em; pointer-events:none;">??</span>'
+          ? '<i class="bi bi-exclamation-triangle-fill text-danger" aria-label="Low stock" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:1.1em; pointer-events:none;"></i>'
           : '';
 
       tr.innerHTML = `
@@ -148,12 +148,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         </td>
       `;
 
-      if (!showPurchaseCols) {
-        const hideIndices = [3, 5, 6, 7];
-        hideIndices.forEach(i => {
-          if (tr.children[i]) tr.children[i].style.display = 'none';
-        });
-      }
+      hiddenColumnIndices.forEach(i => {
+        if (tr.children[i]) tr.children[i].style.display = 'none';
+      });
 
       tabla.appendChild(tr);
     });
@@ -194,13 +191,29 @@ document.addEventListener("DOMContentLoaded", async () => {
       .replace(/[\u0300-\u036f]/g, '');
   }
 
-  function updateTableHeaders(showPurchase) {
+  function getHiddenColumnIndices() {
+    // Column indices:
+    // 0 Descripcion, 1 Tipo, 2 Numero de Parte, 3 QIS, 4 Proveedor,
+    // 5 Marca, 6 PR, 7 Shopping, 8 PO, 9 Rack, 10 Cantidad Producto,
+    // 11 Unidad, 12 Cantidad Disponible
+    if (currentMode === 'general') {
+      // Show only: Descripcion, Tipo, Numero de Parte, Cantidad Producto, Unidad, Cantidad Disponible
+      return [3, 4, 5, 6, 7, 8, 9]; // QIS, Proveedor, Marca, PR, Shopping, PO, Rack
+    }
+
+    if (currentMode === 'project') {
+      return [9]; // Rack
+    }
+
+    return [];
+  }
+
+  function updateTableHeaders(hiddenIndices) {
     const ths = document.querySelectorAll('#tablaInventario thead th');
     if (!ths || ths.length === 0) return;
 
-    const indices = [3, 5, 6, 7];
-    indices.forEach(i => {
-      if (ths[i]) ths[i].style.display = showPurchase ? '' : 'none';
+    ths.forEach((th, index) => {
+      th.style.display = hiddenIndices.includes(index) ? 'none' : '';
     });
   }
 
@@ -276,7 +289,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const suggestions = [];
 
-        // Agregar opción especial para material disponible
+        // Agregar opciï¿½n especial para material disponible
         allProjects.forEach(p => {
           const pname = normalizeText(p.name_project || '');
           const pid = normalizeText((p.no_project || '').toString());
