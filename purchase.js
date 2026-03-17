@@ -23,7 +23,7 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
   password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
@@ -1305,36 +1305,8 @@ app.post("/api/stock/entry", async (req, res) => {
   try {
     console.log('=== /api/stock/entry ===');
     console.log('Recibido:', { normalizedRack, normalizedNoPart, normalizedNoProject });
-    // Verificar si el proyecto es inactivo
-    let projectToStore = normalizedNoProject;
-    let qrPrefix = `I`;
-    let useSimpleQR = false;
-    
-    const projectCheck = await pool.query(
-      'SELECT status FROM project WHERE no_project = $1',
-      [normalizedNoProject]
-    );
-    
-    console.log(`Project found: ${projectCheck.rows.length > 0}`);
-    
-    if (projectCheck.rows.length > 0) {
-      // Si el proyecto existe, verificar si es inactivo
-      const projectStatus = projectCheck.rows[0].status;
-      console.log(`Status value: "${projectStatus}" (type: ${typeof projectStatus})`);
-      const isInactive = !projectStatus || projectStatus.toUpperCase() !== 'ACTIVE';
-      console.log(`Is inactive: ${isInactive}`);
-      
-      if (isInactive) {
-        // Si el proyecto es inactivo (NULL o diferente a 'ACTIVE'), cambiar a AUT-STOCK
-        projectToStore = 'AUT-STOCK';
-        useSimpleQR = true; // Usar formato STOCK-[NOPART] para inactivos
-        console.log(`✓ Using STOCK format for AUT-STOCK`);
-      } else {
-        console.log(`✓ Using I#### format for active project`);
-      }
-    } else {
-      console.log(`WARNING: Project not found!`);
-    }
+    // Siempre conservar el proyecto recibido y usar formato I####-PROYECTO.
+    const projectToStore = normalizedNoProject;
     
     // Buscar por no_part y no_project (SIN rack) para verificar si ya existe
     const checkQuery = `
@@ -1362,43 +1334,34 @@ app.post("/api/stock/entry", async (req, res) => {
       });
     }
 
-    // Generar código QR
-    let qrCode;
-    
-    if (useSimpleQR) {
-      // Para AUT-STOCK: STOCK-[NO_PART]
-      qrCode = `STOCK-${normalizedNoPart}`;
-      console.log(`Generated STOCK QR: ${qrCode}`);
-    } else {
-      // Para proyectos activos: mantener formato original I0001-PROJECT
-      const lastQrQuery = `
-        SELECT qr_code FROM stock 
-        WHERE qr_code LIKE $1
-        ORDER BY id_stock DESC 
-        LIMIT 1
-      `;
-      
-      const pattern = `I%-${normalizedNoProject}`;
-      const lastQrResult = await pool.query(lastQrQuery, [pattern]);
-      
-      let nextNumber = 1; 
-      if (lastQrResult.rows.length > 0 && lastQrResult.rows[0].qr_code) {
-        const lastCode = lastQrResult.rows[0].qr_code;
-        const match = lastCode.match(/^I(\d+)-/);
-        if (match && match[1]) {
-          const lastNumber = parseInt(match[1]);
-          if (!isNaN(lastNumber)) {
-            nextNumber = lastNumber + 1;
-          }
+    // Generar código QR con formato I000N-PROYECTO.
+    const lastQrQuery = `
+      SELECT qr_code FROM stock 
+      WHERE qr_code LIKE $1
+      ORDER BY id_stock DESC 
+      LIMIT 1
+    `;
+
+    const pattern = `I%-${normalizedNoProject}`;
+    const lastQrResult = await pool.query(lastQrQuery, [pattern]);
+
+    let nextNumber = 1; 
+    if (lastQrResult.rows.length > 0 && lastQrResult.rows[0].qr_code) {
+      const lastCode = lastQrResult.rows[0].qr_code;
+      const match = lastCode.match(/^I(\d+)-/);
+      if (match && match[1]) {
+        const lastNumber = parseInt(match[1]);
+        if (!isNaN(lastNumber)) {
+          nextNumber = lastNumber + 1;
         }
       }
-      
-      const consecutivo = String(nextNumber).padStart(4, '0');
-      qrCode = `I${consecutivo}-${normalizedNoProject}`;
-      console.log(`Generated I#### QR: ${qrCode}`);
     }
 
-    // Insertar en la tabla stock con el proyecto determinado (AUT-STOCK si inactivo, original si activo)
+    const consecutivo = String(nextNumber).padStart(4, '0');
+    const qrCode = `I${consecutivo}-${normalizedNoProject}`;
+    console.log(`Generated I#### QR: ${qrCode}`);
+
+    // Insertar en la tabla stock con el proyecto recibido.
     const query = `
       INSERT INTO stock (rack, no_part, no_project, qr_code, available)
       VALUES ($1, $2, $3, $4, 0)
