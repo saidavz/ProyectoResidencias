@@ -24,7 +24,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  password: '150403kim', //verifica bien al cambiarlo
   port: 5432,
 });
 // Endpoint para verificar estructura de BD
@@ -1885,6 +1885,39 @@ app.get('/api/stock/by-part-austocked/:noPart', async (req, res) => {
   }
 });
 
+// Buscar el mismo no_part en proyectos inactivos (excluyendo AUT-STOCK)
+app.get('/api/stock/by-part-inactive/:noPart', async (req, res) => {
+  try {
+    const noPart = (req.params.noPart || '').toString().trim();
+    if (!noPart) return res.status(400).json({ message: 'noPart requerido' });
+
+    // Buscar si existe stock en proyectos inactivos con ese no_part (excluyendo AUT-STOCK)
+    const stockQ = `
+      SELECT s.id_stock, s.no_part, s.no_project, s.rack, s.available 
+      FROM stock s
+      INNER JOIN project p ON s.no_project = p.no_project
+      WHERE UPPER(BTRIM(s.no_part)) = UPPER(BTRIM($1)) 
+        AND s.no_project != 'AUT-STOCK'
+        AND (p.status IS NULL OR UPPER(BTRIM(p.status)) != 'ACTIVE')
+      LIMIT 1
+    `;
+    const stockR = await pool.query(stockQ, [noPart]);
+    
+    if (stockR.rows.length === 0) {
+      return res.status(404).json({ message: 'No inactive project record found for this part' });
+    }
+    
+    const stock = stockR.rows[0];
+    res.json({ 
+      no_part: stock.no_part, 
+      rack: stock.rack,
+      available: stock.available 
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error en servidor', error: String(err) });
+  }
+});
+
 // ======================================================
 // INBOUND - ESCANEO QR
 // Busca el QR en stock y registra movimiento INBOUND
@@ -1921,7 +1954,27 @@ app.post("/api/inbound", async (req, res) => {
 
     const stockRow = stockResult.rows[0];
 
-    // 2) Incrementar available en stock y luego insertar movimiento INBOUND
+    // 2) Check if project is INACTIVE - if so, ask for rack selection
+    const projectCheck = await pool.query(
+      'SELECT status FROM project WHERE no_project = $1',
+      [stockRow.no_project]
+    );
+
+    const projectIsActive = projectCheck.rows.length > 0 && 
+                           projectCheck.rows[0].status && 
+                           projectCheck.rows[0].status.toUpperCase() === 'ACTIVE';
+
+    // If INACTIVE project, need rack selection
+    if (!projectIsActive && stockRow.no_project !== 'AUT-STOCK') {
+      return res.status(200).json({
+        ok: true,
+        needsRackSelection: true,
+        message: 'Inactive project - rack selection required',
+        stock: stockRow
+      });
+    }
+
+    // 3) For ACTIVE projects or AUT-STOCK: process INBOUND normally
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -1935,6 +1988,37 @@ app.post("/api/inbound", async (req, res) => {
         RETURNING id_movement, date_movement, type_movement, id_stock, pid
       `;
       const movementResult = await client.query(movementQuery, [stockRow.id_stock]);
+
+      // Process ACTIVE projects
+      if (projectIsActive) {
+        const bomProductQuery = `
+          SELECT bp.quantity_project, p.quantity
+          FROM bom_project bp
+          INNER JOIN product p ON bp.no_part = p.no_part
+          WHERE bp.no_project = $1 AND UPPER(BTRIM(bp.no_part)) = UPPER(BTRIM($2))
+          LIMIT 1
+        `;
+        const bomProductResult = await client.query(bomProductQuery, [stockRow.no_project, stockRow.no_part]);
+
+        if (bomProductResult.rows.length > 0) {
+          const quantityProject = bomProductResult.rows[0].quantity_project;
+          const quantityPerPackage = bomProductResult.rows[0].quantity || 1;
+          
+          const packagesRequired = Math.ceil(quantityProject / quantityPerPackage);
+          const packagesArrived = newAvailable;
+          
+          let newStatus = 'Pending Delivery';
+          if (packagesArrived >= packagesRequired) {
+            newStatus = 'Delivered';
+          }
+
+          await client.query(
+            'UPDATE bom_project SET status = $1 WHERE no_project = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
+            [newStatus, stockRow.no_project, stockRow.no_part]
+          );
+        }
+      }
+
       await client.query('COMMIT');
 
       stockRow.available = newAvailable;
@@ -1947,17 +2031,12 @@ app.post("/api/inbound", async (req, res) => {
       });
     } catch (errInner) {
       await client.query('ROLLBACK');
-
-
       return res.status(500).json({ ok: false, message: 'Error registrando INBOUND', error: String(errInner) });
     } finally {
       client.release();
     }
 
   } catch (error) {
-
-
-
     return res.status(500).json({
       ok: false,
       message: "Error en el servidor",
@@ -1965,9 +2044,137 @@ app.post("/api/inbound", async (req, res) => {
     });
   }
 });
- 
+
 // ======================================================
-// MOVEMENTS - obtener último movimiento por qr_code
+// INBOUND WITH RACK - Para proyectos inactivos que requieren selección de rack
+// ======================================================
+app.post("/api/inbound-with-rack", async (req, res) => {
+  try {
+    const { qr_code, rack } = req.body;
+
+    if (!qr_code || qr_code.trim() === "" || !rack || rack.trim() === "") {
+      return res.status(400).json({
+        ok: false,
+        message: "QR y rack requeridos"
+      });
+    }
+
+    const qrClean = qr_code.trim().toUpperCase();
+    const rackClean = rack.trim();
+
+    // 1) Buscar QR en stock
+    const stockQuery = `
+      SELECT id_stock, rack, available, no_part, no_project, qr_code
+      FROM stock
+      WHERE UPPER(qr_code) = $1
+      LIMIT 1
+    `;
+
+    const stockResult = await pool.query(stockQuery, [qrClean]);
+
+    if (stockResult.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        message: `QR no encontrado en Stock: ${qrClean}`
+      });
+    }
+
+    const stockRow = stockResult.rows[0];
+    const noPart = stockRow.no_part;
+    const noProjectOriginal = stockRow.no_project;
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // 2) Update rack for ALL matching parts in AUT-STOCK and inactive projects
+      await client.query(
+        `UPDATE stock 
+         SET rack = $1 
+         WHERE UPPER(BTRIM(no_part)) = UPPER(BTRIM($2))
+         AND (no_project = 'AUT-STOCK' OR no_project IN (
+           SELECT no_project FROM project WHERE status != 'ACTIVE'
+         ))`,
+        [rackClean, noPart]
+      );
+
+      // 3) Increment available
+      const updateQ = `UPDATE stock SET available = available + 1 WHERE id_stock = $1 RETURNING available`;
+      const updR = await client.query(updateQ, [stockRow.id_stock]);
+      const newAvailable = updR.rows[0] ? updR.rows[0].available : stockRow.available;
+
+      // 4) Insert INBOUND movement
+      const movementQuery = `
+        INSERT INTO movements (date_movement, type_movement, id_stock, pid)
+        VALUES (NOW(), 'INBOUND', $1, NULL)
+        RETURNING id_movement, date_movement, type_movement, id_stock, pid
+      `;
+      const movementResult = await client.query(movementQuery, [stockRow.id_stock]);
+
+      // 5) Update bom_project status
+      const bomProductQuery = `
+        SELECT bp.quantity_project, p.quantity
+        FROM bom_project bp
+        INNER JOIN product p ON bp.no_part = p.no_part
+        WHERE bp.no_project = $1 AND UPPER(BTRIM(bp.no_part)) = UPPER(BTRIM($2))
+        LIMIT 1
+      `;
+      const bomProductResult = await client.query(bomProductQuery, [noProjectOriginal, noPart]);
+
+      if (bomProductResult.rows.length > 0) {
+        const quantityProject = bomProductResult.rows[0].quantity_project;
+        const quantityPerPackage = bomProductResult.rows[0].quantity || 1;
+        
+        const packagesRequired = Math.ceil(quantityProject / quantityPerPackage);
+        const packagesArrived = newAvailable;
+        
+        let newStatus = 'Pending Delivery';
+        if (packagesArrived >= packagesRequired) {
+          newStatus = 'Delivered';
+        }
+
+        await client.query(
+          'UPDATE bom_project SET status = $1 WHERE no_project = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
+          [newStatus, noProjectOriginal, noPart]
+        );
+      }
+
+      // 6) Change no_project to AUT-STOCK in stock
+      await client.query(
+        'UPDATE stock SET no_project = $1 WHERE id_stock = $2',
+        ['AUT-STOCK', stockRow.id_stock]
+      );
+
+      await client.query('COMMIT');
+
+      stockRow.available = newAvailable;
+      stockRow.rack = rackClean;
+      stockRow.no_project = 'AUT-STOCK';
+
+      return res.json({
+        ok: true,
+        message: "Inbound completado con rack seleccionado",
+        stock: stockRow,
+        movement: movementResult.rows[0]
+      });
+    } catch (errInner) {
+      await client.query('ROLLBACK');
+      return res.status(500).json({ ok: false, message: 'Error en inbound-with-rack', error: String(errInner) });
+    } finally {
+      client.release();
+    }
+
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      message: "Error en el servidor",
+      error: error.message
+    });
+  }
+});
+
+// ======================================================
+// MOVEMENTS - obtener último movimiento por qr_code  
 // ======================================================
 app.get('/api/movements/last', async (req, res) => {
   try {
@@ -1986,9 +2193,7 @@ app.get('/api/movements/last', async (req, res) => {
 
     return res.json({ movement: movR.rows[0], stock });
   } catch (err) {
-
-
-    res.status(500).json({ message: 'Error en servidor', error: String(err) });
+    res.status(500).json({ message: 'Error', error: String(err) });
   }
 });
 
@@ -2016,6 +2221,17 @@ app.post('/api/movements', async (req, res) => {
     const stockR = await pool.query(stockQ, [qr]);
     if (stockR.rows.length === 0) return res.status(404).json({ ok: false, message: `QR no encontrado en Stock: ${qr}` });
     const stockRow = stockR.rows[0];
+    
+    // Verificar estado del proyecto al inicio
+    const projectCheckInitial = await pool.query(
+      'SELECT status FROM project WHERE no_project = $1',
+      [stockRow.no_project]
+    );
+    const projectIsActiveInitial = projectCheckInitial.rows.length > 0 && 
+                                   projectCheckInitial.rows[0].status && 
+                                   projectCheckInitial.rows[0].status.toUpperCase() === 'ACTIVE';
+    const projectInactiveInitial = !projectIsActiveInitial;
+    const projectInactiveNoOriginal = projectInactiveInitial ? stockRow.no_project : null;
 
     // Ajustar available según tipo y cantidad dentro de una transacción
     const client = await pool.connect();
@@ -2032,27 +2248,12 @@ app.post('/api/movements', async (req, res) => {
           'UPDATE bom_project SET status = $1 WHERE no_project = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
           ['Delivered', origProj, noPart]
         );
-      } else if (t === 'INBOUND') {
-        // Si NO se proporciona original_project, verificar si el proyecto está inactivo
-        const projectCheck = await client.query(
-          'SELECT status FROM project WHERE no_project = $1',
-          [stockRow.no_project]
+      } else if (t === 'INBOUND' && projectInactiveInitial && !original_project) {
+        // Proyecto INACTIVO: Cambiar no_project en stock a 'AUT-STOCK'
+        await client.query(
+          'UPDATE stock SET no_project = $1 WHERE id_stock = $2',
+          ['AUT-STOCK', stockRow.id_stock]
         );
-        
-        const projectInactive = projectCheck.rows.length > 0 && 
-                               projectCheck.rows[0].status && 
-                               projectCheck.rows[0].status.toUpperCase() !== 'ACTIVE';
-        
-        if (projectInactive) {
-          const noPart = stockRow.no_part;
-
-          // Cambiar no_project en stock a 'AUT-STOCK'
-          await client.query(
-            'UPDATE stock SET no_project = $1 WHERE id_stock = $2',
-            ['AUT-STOCK', stockRow.id_stock]
-          );
-          stockRow.no_project = 'AUT-STOCK';
-        }
       }
       
       let newAvailable = stockRow.available;
@@ -2061,6 +2262,41 @@ app.post('/api/movements', async (req, res) => {
       const updateQuery = `UPDATE stock SET available = GREATEST(available + $2, 0) WHERE id_stock = $1 RETURNING available`;
       const updateResult = await client.query(updateQuery, [stockRow.id_stock, adjustment]);
       newAvailable = updateResult.rows[0] ? updateResult.rows[0].available : newAvailable;
+
+      // Si es INBOUND, actualizar status en bom_project con lógica de paquetes
+      if (t === 'INBOUND' && !original_project) {
+        // Determinar el proyecto sobre el que actualizar (original si era inactivo, actual si era activo)
+        const projectForUpdate = projectInactiveNoOriginal || stockRow.no_project;
+        
+        // Obtener quantity_project y quantity de product
+        const bomProductQuery = `
+          SELECT bp.quantity_project, p.quantity
+          FROM bom_project bp
+          INNER JOIN product p ON bp.no_part = p.no_part
+          WHERE bp.no_project = $1 AND UPPER(BTRIM(bp.no_part)) = UPPER(BTRIM($2))
+          LIMIT 1
+        `;
+        const bomProductResult = await client.query(bomProductQuery, [projectForUpdate, stockRow.no_part]);
+
+        if (bomProductResult.rows.length > 0) {
+          const quantityProject = bomProductResult.rows[0].quantity_project;
+          const quantityPerPackage = bomProductResult.rows[0].quantity || 1;
+          
+          // newAvailable ya son paquetes
+          const packagesRequired = Math.ceil(quantityProject / quantityPerPackage);
+          const packagesArrived = newAvailable;
+          
+          let newStatus = 'Pending Delivery';
+          if (packagesArrived >= packagesRequired) {
+            newStatus = 'Delivered';
+          }
+
+          await client.query(
+            'UPDATE bom_project SET status = $1 WHERE no_project = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
+            [newStatus, projectForUpdate, stockRow.no_part]
+          );
+        }
+      }
 
       // Insertar múltiples movimientos si cantidad > 1
       const movements = [];

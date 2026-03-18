@@ -143,6 +143,35 @@
         </div>
     </main>
 
+    <!-- Modal para seleccionar Rack -->
+    <div class="modal fade" id="selectRackModal" tabindex="-1" aria-labelledby="selectRackModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="selectRackModalLabel">Select Rack Number</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Rack Number</label>
+                        <select class="form-select bg-secondary text-light" id="modalRackSelect">
+                            <option value="">Select Rack Number</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmRackSelectBtn">Select Rack</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de confirmación para regenerar QR -->
     <div class="modal fade" id="confirmQRModal" tabindex="-1" aria-labelledby="confirmQRModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -193,7 +222,9 @@
             const tbody = document.getElementById('projectProductsBody');
             const emptyState = document.getElementById('projectEmptyState');
             const confirmQRModal = new bootstrap.Modal(document.getElementById('confirmQRModal'));
+            const selectRackModal = new bootstrap.Modal(document.getElementById('selectRackModal'));
             let currentQRAction = null; // Para guardar la acción pendiente del QR
+            let pendingRackSelection = null; // Para guardar la acción pendiente de selección de rack
 
             let allRows = [];
 
@@ -308,8 +339,8 @@
                 const isInactive = !projectStatus || projectStatus.toUpperCase() !== 'ACTIVE';
 
                 if (isInactive) {
-                    // Proyecto inactivo - permitir seleccionar rack para primer alta en AUT-STOCK
-                    rackSelect.disabled = false;
+                    // Proyecto inactivo - deshabilitar selección de rack
+                    rackSelect.disabled = true;
                     rackSelect.value = '';
                 } else {
                     // Proyecto activo - habilitar y verificar si ya tiene QRs
@@ -387,6 +418,28 @@
                 }
             });
 
+            // Evento para confirmar la selección de rack
+            document.getElementById('confirmRackSelectBtn').addEventListener('click', () => {
+                const modalRackSelect = document.getElementById('modalRackSelect');
+                const selectedRack = modalRackSelect.value;
+
+                if (!selectedRack) {
+                    alert('Please select a rack number');
+                    return;
+                }
+
+                if (pendingRackSelection) {
+                    selectRackModal.hide();
+                    createNewQR(
+                        pendingRackSelection.no_part,
+                        selectedRack,
+                        pendingRackSelection.no_project
+                    );
+                    pendingRackSelection = null;
+                    modalRackSelect.value = '';
+                }
+            });
+
             // Obtiene rack existente para no_part en AUT-STOCK.
             async function getExistingRackForAUTSTOCK(noPart) {
                 try {
@@ -396,6 +449,19 @@
                     return data?.rack ? String(data.rack).trim() : null;
                 } catch (err) {
                     console.error('Error fetching AUT-STOCK rack:', err);
+                    return null;
+                }
+            }
+
+            // Obtiene rack existente para no_part en proyectos inactivos (excluyendo AUT-STOCK)
+            async function getExistingRackForInactiveProjects(noPart) {
+                try {
+                    const res = await fetch(`${baseURL}/api/stock/by-part-inactive/${encodeURIComponent(noPart)}`);
+                    if (!res.ok) return null;
+                    const data = await res.json();
+                    return data?.rack ? String(data.rack).trim() : null;
+                } catch (err) {
+                    console.error('Error fetching inactive projects rack:', err);
                     return null;
                 }
             }
@@ -422,34 +488,45 @@
                 const isInactive = !projectStatus || projectStatus.toUpperCase() !== 'ACTIVE';
 
                 if (isInactive) {
-                    // Si ya existe en AUT-STOCK, conservar su rack.
-                    const existingAutStockRack = await getExistingRackForAUTSTOCK(normalizedNoPart);
-                    if (existingAutStockRack) {
-                        createNewQR(normalizedNoPart, existingAutStockRack, noProject);
+                    // PROYECTO INACTIVO: Buscar rack en AUT-STOCK
+                    let existingRack = await getExistingRackForAUTSTOCK(normalizedNoPart);
+                    
+                    if (existingRack) {
+                        // Si existe en AUT-STOCK, usar su rack automáticamente
+                        createNewQR(normalizedNoPart, existingRack, noProject);
                         return;
                     }
 
-                    // Primera vez en AUT-STOCK: permitir el rack seleccionado por el usuario.
-                    const selectedRack = rackSelect.value;
-                    if (!selectedRack) {
-                        alert('Please select a rack number');
+                    // Si no existe en AUT-STOCK, buscar en otros proyectos inactivos
+                    existingRack = await getExistingRackForInactiveProjects(normalizedNoPart);
+                    
+                    if (existingRack) {
+                        // Si existe en otro proyecto inactivo, usar ese rack automáticamente
+                        createNewQR(normalizedNoPart, existingRack, noProject);
                         return;
                     }
-                    createNewQR(normalizedNoPart, selectedRack, noProject);
+
+                    // Si no existe en ningún lugar, mostrar modal para seleccionar rack
+                    pendingRackSelection = {
+                        no_part: normalizedNoPart,
+                        no_project: noProject
+                    };
+                    document.getElementById('modalRackSelect').value = '';
+                    selectRackModal.show();
                     return;
                 }
 
+                // PROYECTO ACTIVO: Usar rack del formulario principal
                 const rack = rackSelect.value;
                 if (!rack) {
                     alert('Please select a rack number');
                     return;
                 }
 
-                // Para proyecto activo: usar la lógica actual
                 // Verificar si ya existe un QR previo
                 getExistingQR(normalizedNoPart, noProject).then(existingQR => {
                     if (existingQR) {
-                        // Si existe QR previo, mostrar confirmación
+                        // Si existe QR previo, mostrar confirmación de regeneración
                         currentQRAction = {
                             qr_code: existingQR,
                             no_part: normalizedNoPart,

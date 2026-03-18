@@ -111,48 +111,43 @@
 
     <div id="toast" class="alert d-none" role="alert"></div>
     
-    <!-- Modal for selecting original project from AUT-STOCK -->
-    <div class="modal fade" id="originalProjectModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header bg-info">
-            <h5 class="modal-title">Select Original Project</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <p class="text-info fw-bold">This item is in AUT-STOCK. Which project was it originally from?</p>
-            <div class="mb-3">
-              <label class="form-label">Select Project:</label>
-              <select id="originalProjectSelect" class="form-control">
-                <option value="">-- Select a project --</option>
-              </select>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary" id="confirmProjectBtn">Confirm</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Modal for selecting rack for inactive projects -->
+    <!-- Modal para cambiar rack de proyecto inactivo -->
     <div class="modal fade" id="rackSelectionModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header bg-warning">
-            <h5 class="modal-title" id="rackSelectionLabel">Inactive Project - Select Rack</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content bg-dark text-light border-secondary">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title">Proyecto Inactivo - Seleccionar Rack</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <p id="inactiveProjectMessage" class="text-danger fw-bold"></p>
-            <label class="form-label">Select Rack for all items of this part and project:</label>
-            <input type="text" id="rackInput" class="form-control" placeholder="Enter rack number or location..." autofocus />
-            <small class="text-muted mt-2 d-block">This rack will be used for all items of this part number from inactive projects.</small>
+            <!-- Estado 1: Mostrar rack actual y opciones -->
+            <div id="rackSelectionStep1">
+              <div class="alert alert-info" role="alert">
+                <strong>Número de Parte:</strong> <span id="partNumberDisplay" class="text-monospace"></span><br>
+                <strong>Rack Actual:</strong> <span id="currentRackDisplay" class="text-monospace fw-bold"></span>
+              </div>
+              <p class="mb-3">Esta parte se está agregando desde un proyecto inactivo.</p>
+              <p class="text-muted small">Este rack se asignará a todos los números de parte coincidentes en proyectos inactivos y AUT-STOCK.</p>
+            </div>
+            <!-- Estado 2: Mostrar input para nuevo rack (oculto inicialmente) -->
+            <div id="rackSelectionStep2" style="display:none;">
+              <label class="form-label fw-bold">Ingresar Nuevo Rack:</label>
+              <input type="text" id="newRackInput" class="form-control bg-secondary text-light border-secondary" placeholder="Ingrese número de rack o ubicación..." autofocus />
+              <small class="text-muted mt-2 d-block">Este nuevo rack reemplazará el actual para todos los números de parte coincidentes.</small>
+            </div>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary" id="confirmRackBtn">Confirm Rack</button>
+          <div class="modal-footer border-secondary">
+            <!-- Botones para paso 1 -->
+            <div id="step1Buttons">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button type="button" class="btn btn-warning" id="useCurrentRackBtn">Usar Este Rack</button>
+              <button type="button" class="btn btn-primary" id="changeRackBtn">Cambiar Rack</button>
+            </div>
+            <!-- Botones para paso 2 (ocultos inicialmente) -->
+            <div id="step2Buttons" style="display:none;">
+              <button type="button" class="btn btn-secondary" id="backToStep1Btn">Atrás</button>
+              <button type="button" class="btn btn-success" id="confirmNewRackBtn">Confirmar Nuevo Rack</button>
+            </div>
           </div>
         </div>
       </div>
@@ -328,7 +323,6 @@
     
     // Variables para manejar proyectos inactivos y AUT-STOCK
     let rackSelectionModal = null; // Lazy initialization
-    let originalProjectModal = null; // Lazy initialization
     let pendingRackSelection = null;
     let selectedRackForInactiveProject = null;
     const inactiveProjectRackMap = {}; // Map para almacenar rack por proyecto:parte
@@ -393,104 +387,96 @@
       return false;
     }
 
-    // Función que muestra el modal para seleccionar proyecto original de AUT-STOCK
-    function promptOriginalProjectForAUTSTOCK(no_part) {
-      return new Promise(async (resolve, reject) => {
-        // Lazy initialization of modal
-        if (!originalProjectModal) {
-          originalProjectModal = new bootstrap.Modal(document.getElementById('originalProjectModal'));
-        }
-        
-        const projectSelect = document.getElementById('originalProjectSelect');
-        const confirmBtn = document.getElementById('confirmProjectBtn');
-        
-        // Si allProjects está vacío, cargar ahora
-        if (!allProjects || allProjects.length === 0) {
-          await loadProjectsList();
-        }
-        
-        // Poblar opciones de proyectos (excluir AUT-STOCK)
-        projectSelect.innerHTML = '<option value="">-- Select a project --</option>';
-        if (allProjects && allProjects.length > 0) {
-          allProjects.forEach(proj => {
-            if (proj.no_project && proj.no_project !== 'AUT-STOCK') {
-              const option = document.createElement('option');
-              option.value = proj.no_project;
-              option.textContent = proj.name_project ? `${proj.no_project} - ${proj.name_project}` : proj.no_project;
-              projectSelect.appendChild(option);
-            }
-          });
-        }
-        
-        // Limpiar listeners previos
-        confirmBtn.onclick = null;
-        
-        // Agregar listener para confirmar
-        const onConfirm = () => {
-          const selectedProject = projectSelect.value.trim();
-          if (!selectedProject) {
-            showToast('Please select a project', 'warning');
-            return;
-          }
-          originalProjectModal.hide();
-          resolve(selectedProject);
-        };
-        
-        const onCancel = () => {
-          originalProjectModal.hide();
-          reject(new Error('User cancelled project selection'));
-        };
-        
-        confirmBtn.onclick = onConfirm;
-        projectSelect.onkeydown = (e) => {
-          if (e.key === 'Enter') onConfirm();
-          if (e.key === 'Escape') onCancel();
-        };
-        
-        // Mostrar modal
-        originalProjectModal.show();
-        projectSelect.focus();
-      });
-    }
-
-    // Función que muestra el modal para seleccionar rack y espera la confirmación
+    // Función que muestra el modal para mostrar rack actual y permitir cambio
     function promptRackForInactiveProject(no_project, no_part) {
-      return new Promise((resolve) => {
+      return new Promise(async (resolve) => {
         // Lazy initialization of modal
         if (!rackSelectionModal) {
           rackSelectionModal = new bootstrap.Modal(document.getElementById('rackSelectionModal'));
         }
         
-        const rackInput = document.getElementById('rackInput');
-        const confirmBtn = document.getElementById('confirmRackBtn');
-        const messageEl = document.getElementById('inactiveProjectMessage');
+        const partNumberDisplay = document.getElementById('partNumberDisplay');
+        const currentRackDisplay = document.getElementById('currentRackDisplay');
+        const newRackInput = document.getElementById('newRackInput');
+        const step1Buttons = document.getElementById('step1Buttons');
+        const step2Buttons = document.getElementById('step2Buttons');
+        const step1 = document.getElementById('rackSelectionStep1');
+        const step2 = document.getElementById('rackSelectionStep2');
+        const useCurrentRackBtn = document.getElementById('useCurrentRackBtn');
+        const changeRackBtn = document.getElementById('changeRackBtn');
+        const backToStep1Btn = document.getElementById('backToStep1Btn');
+        const confirmNewRackBtn = document.getElementById('confirmNewRackBtn');
         
-        // Limpiar inputs previos
-        rackInput.value = '';
-        messageEl.textContent = `Project ${no_project} is inactive. Please select a rack for part ${no_part}.`;
+        // Obtener rack actual
+        let currentRack = '';
+        try {
+          const res = await fetch(`${API_BASE}/api/stock/by-part-inactive/${encodeURIComponent(no_part)}`);
+          if (res.ok) {
+            const data = await res.json();
+            currentRack = data.rack || 'Not assigned';
+          }
+        } catch (err) {
+          currentRack = 'Not assigned';
+        }
+        
+        // Mostrar información en el modal
+        partNumberDisplay.textContent = no_part;
+        currentRackDisplay.textContent = currentRack || 'Not assigned';
+        newRackInput.value = '';
+        
+        // Reset a paso 1
+        step1.style.display = 'block';
+        step2.style.display = 'none';
+        step1Buttons.style.display = 'flex';
+        step2Buttons.style.display = 'none';
         
         // Limpiar listeners previos
-        confirmBtn.onclick = null;
+        useCurrentRackBtn.onclick = null;
+        changeRackBtn.onclick = null;
+        backToStep1Btn.onclick = null;
+        confirmNewRackBtn.onclick = null;
         
-        // Agregar listener para confirmar
-        const onConfirm = () => {
-          const selectedRack = rackInput.value.trim();
+        // Listener para "Usar este rack"
+        useCurrentRackBtn.onclick = () => {
+          rackSelectionModal.hide();
+          resolve(currentRack);
+        };
+        
+        // Listener para "Cambiar rack"
+        changeRackBtn.onclick = () => {
+          step1.style.display = 'none';
+          step2.style.display = 'block';
+          step1Buttons.style.display = 'none';
+          step2Buttons.style.display = 'flex';
+          newRackInput.focus();
+        };
+        
+        // Listener para "Atrás"
+        backToStep1Btn.onclick = () => {
+          step1.style.display = 'block';
+          step2.style.display = 'none';
+          step1Buttons.style.display = 'flex';
+          step2Buttons.style.display = 'none';
+        };
+        
+        // Listener para "Confirmar nuevo rack"
+        confirmNewRackBtn.onclick = () => {
+          const selectedRack = newRackInput.value.trim();
           if (!selectedRack) {
-            showToast('Please enter a rack number', 'warning');
+            showToast('Por favor ingrese un número de rack', 'warning');
             return;
           }
           rackSelectionModal.hide();
           resolve(selectedRack);
         };
         
-        confirmBtn.onclick = onConfirm;
-        rackInput.onkeydown = (e) => {
-          if (e.key === 'Enter') onConfirm();
+        // Permitir Enter en el input del nuevo rack
+        newRackInput.onkeydown = (e) => {
+          if (e.key === 'Enter') confirmNewRackBtn.onclick();
         };
         
         // Mostrar modal
         rackSelectionModal.show();
-        rackInput.focus();
       });
     }
 
@@ -544,18 +530,50 @@
         return data;
       }
 
-      // Try generic /api/movements
+      // For INBOUND, always use /api/inbound to check for rack selection requirement
+      if (movementType === 'INBOUND') {
+        try {
+          const legacyPayload = { 
+            qr_code, 
+            pid: currentUser ? currentUser.pid : null 
+          };
+          
+          // Send to /api/inbound and check for needsRackSelection
+          const response = await tryPost(`${API_BASE}/api/inbound`, legacyPayload);
+          
+          // Check if this is an inactive project requiring rack selection
+          if (response.needsRackSelection === true) {
+            // Show modal for rack selection
+            const selectedRack = await promptRackForInactiveProject(
+              response.stock?.no_project || 'Unknown Project',
+              response.stock?.no_part || 'Unknown Part'
+            );
+            
+            // Call the inbound-with-rack endpoint to complete the inbound
+            const rackPayload = { qr_code, rack: selectedRack };
+            const finalResponse = await tryPost(`${API_BASE}/api/inbound-with-rack`, rackPayload);
+            
+            showToast(`Inbound completado con rack: ${selectedRack}`, 'success');
+            return finalResponse;
+          }
+          
+          return response;
+        } catch (err) {
+          throw err;
+        }
+      }
+
+      // For OUTBOUND, try generic /api/movements first
       try {
         return await tryPost(`${API_BASE}/api/movements`, payload);
       } catch (err) {}
 
-      // Fallbacks: try legacy endpoints if present
+      // Fallback for OUTBOUND
       try {
         const legacyPayload = { 
           qr_code, 
           pid: currentUser ? currentUser.pid : null 
         };
-        if (movementType === 'INBOUND') return await tryPost(`${API_BASE}/api/inbound`, legacyPayload);
         if (movementType === 'OUTBOUND') return await tryPost(`${API_BASE}/api/outbound`, legacyPayload);
       } catch (err) {
         throw err;
@@ -566,7 +584,7 @@
 
     async function handleScan() {
       if (!currentUser) {
-        showToast('Sesion expirada. Redirigiendo al inicio.', 'warning');
+        showToast('Sesión expirada. Redirigiendo al inicio.', 'warning');
         setTimeout(() => {
           PurchaseAuth.logout('index.html');
         }, 250);
@@ -620,7 +638,7 @@
 
         const newValue = parseInt(e.target.value, 10);
         if (isNaN(newValue) || newValue < 0) {
-          showToast('Invalid quantity', 'danger');
+          showToast('Cantidad no válida', 'danger');
           e.target.value = previousValue;
           return;
         }
@@ -643,60 +661,6 @@
           const addedQr = row.cells[1].textContent;
           const units = Math.abs(delta);
 
-          // Si es INBOUND y delta > 0, validar contra paquetes-calculados y verificar si proyecto es inactivo
-          if (movementType === 'INBOUND' && delta > 0) {
-            const no_part = row.cells[2].textContent;
-            const no_project = row.cells[3].textContent;
-            if (no_part && no_project) {
-              try {
-                // Verificar si el proyecto es inactivo
-                const inactive = await isProjectInactive(no_project);
-                
-                if (inactive) {
-                  // Crear key única para este proyecto:parte
-                  const projectPartKey = `${no_project}:${no_part}`;
-                  
-                  // Si no hemos pedido rack para este proyecto:parte, pedirlo ahora
-                  if (!inactiveProjectRackMap[projectPartKey]) {
-                    const selectedRack = await promptRackForInactiveProject(no_project, no_part);
-                    inactiveProjectRackMap[projectPartKey] = selectedRack;
-                    showToast(`Rack selected for project ${no_project}, part ${no_part}: ${selectedRack}`, 'info');
-                  }
-                }
-                
-                const paquetesRes = await fetch(`${API_BASE}/api/paquetes-calculados?no_project=${encodeURIComponent(no_project)}&no_part=${encodeURIComponent(no_part)}`);
-                if (paquetesRes.ok) {
-                  const paquetesData = await paquetesRes.json();
-                  const cantidad_calculada = paquetesData.cantidad_calculada || 0;
-                  // Obtener cantidad disponible actual
-                  const availRes = await fetch(`${API_BASE}/api/stock/available/${addedQr}`);
-                  if (availRes.ok) {
-                    const availData = await availRes.json();
-                    const currentAvailable = availData.available || 0;
-                    if ((currentAvailable + delta) > cantidad_calculada) {
-                      window.alert(`Warning: available stock exceeds the requested amount for this part number in this project.\nRequested: ${cantidad_calculada}\nAvailable: ${currentAvailable}\nInbound attempt: ${delta}`);
-                    }
-                    // Actualizar status en bom_project
-                    const newStatus = (currentAvailable + delta) >= cantidad_calculada ? 'Delivered' : 'Pending Delivery';
-                    try {
-                      await fetch(`${API_BASE}/api/bom-project/update-status`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          no_project,
-                          no_part,
-                          status: newStatus
-                        })
-                      });
-                    } catch (err) {
-                    }
-                  }
-                }
-              } catch (err) {
-              }
-            }
-          }
-
           // registrar los movimientos en unidades de 1 si es necesario
           if (units > 1) {
             for (let i = 0; i < units; i++) {
@@ -706,7 +670,7 @@
             await registerMovement(addedQr, movementType, units);
           }
 
-          showToast(`Movement recorded`, 'success');
+          showToast(`Movimiento registrado`, 'success');
 
           // Actualizar cantidad disponible
           try {
@@ -720,7 +684,7 @@
 
           previousValue = newValue;
         } catch (err) {
-          showToast('Error registering additional movement', 'danger');
+          showToast('Error al registrar movimiento', 'danger');
           e.target.value = previousValue;
         }
         });
@@ -752,22 +716,9 @@
         } catch (err) {
         }
 
-        // Si es INBOUND y el QR es de AUT-STOCK, preguntar por el proyecto original ANTES de registrar
-        let originalProjectForAUTSTOCK = null;
-        if (movementType === 'INBOUND' && no_project === 'AUT-STOCK' && no_part) {
-          try {
-            originalProjectForAUTSTOCK = await promptOriginalProjectForAUTSTOCK(no_part);
-            showToast(`Proyecto original seleccionado: ${originalProjectForAUTSTOCK}`, 'info');
-          } catch (err) {
-            // Usuario canceló la selección - remover la fila
-            row.remove();
-            return;
-          }
-        }
-
         // Registrar el movimiento
         try {
-          const result = await registerMovement(qr, movementType, cantidad, originalProjectForAUTSTOCK);
+          const result = await registerMovement(qr, movementType, cantidad, null);
           
           // Actualizar celdas con la información del stock
           if (!stockData) {
@@ -799,14 +750,14 @@
             row.cells[8].textContent = '-';
           }
 
-          showToast(`Movimiento ${movementType} registrado`, 'success');
+          showToast(`${movementType === 'INBOUND' ? 'Entrada' : 'Salida'} registrada`, 'success');
         } catch (err) {
           row.remove();
-          const msg = (err && err.message) ? err.message : String(err || 'Unknown error');
+          const msg = (err && err.message) ? err.message : String(err || 'Error desconocido');
           showToast(`Error: ${msg}`, "danger");
         }
       } catch (err) {
-        showToast(`Error: ${err && err.message ? err.message : String(err)}`, "danger");
+        showToast(`Error: ${err && err.message ? err.message : 'Error desconocido'}`, "danger");
       }
     }
 
@@ -882,8 +833,7 @@
           idStockCell.textContent = mov.id_stock || '-';
           idStockCell.className = 'cell-gray';
           
-          // no_part (de tabla stock)
-          row.insertCell().textContent = mov.no_part || '-';
+            row.insertCell().textContent = mov.no_part || '-';
           
           // no_project (de tabla stock)
           row.insertCell().textContent = mov.no_project || '-';
