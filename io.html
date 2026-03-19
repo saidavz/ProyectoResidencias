@@ -116,37 +116,37 @@
       <div class="modal-dialog">
         <div class="modal-content bg-dark text-light border-secondary">
           <div class="modal-header border-secondary">
-            <h5 class="modal-title">Proyecto Inactivo - Seleccionar Rack</h5>
+            <h5 class="modal-title">Inactive Project - Select Rack</h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <!-- Estado 1: Mostrar rack actual y opciones -->
             <div id="rackSelectionStep1">
               <div class="alert alert-info" role="alert">
-                <strong>Número de Parte:</strong> <span id="partNumberDisplay" class="text-monospace"></span><br>
-                <strong>Rack Actual:</strong> <span id="currentRackDisplay" class="text-monospace fw-bold"></span>
+                <strong>Part Number:</strong> <span id="partNumberDisplay" class="text-monospace"></span><br>
+                <strong>Current Rack:</strong> <span id="currentRackDisplay" class="text-monospace fw-bold"></span>
               </div>
-              <p class="mb-3">Esta parte se está agregando desde un proyecto inactivo.</p>
-              <p class="text-muted small">Este rack se asignará a todos los números de parte coincidentes en proyectos inactivos y AUT-STOCK.</p>
+              <p class="mb-3">This part is being added from an inactive project.</p>
+              <p class="text-muted small">This rack will be assigned to all matching part numbers in inactive projects and AUT-STOCK.</p>
             </div>
             <!-- Estado 2: Mostrar input para nuevo rack (oculto inicialmente) -->
             <div id="rackSelectionStep2" style="display:none;">
-              <label class="form-label fw-bold">Ingresar Nuevo Rack:</label>
-              <input type="text" id="newRackInput" class="form-control bg-secondary text-light border-secondary" placeholder="Ingrese número de rack o ubicación..." autofocus />
-              <small class="text-muted mt-2 d-block">Este nuevo rack reemplazará el actual para todos los números de parte coincidentes.</small>
+              <label class="form-label fw-bold">Enter New Rack:</label>
+              <input type="text" id="newRackInput" class="form-control bg-secondary text-light border-secondary" placeholder="Enter rack number or location..." autofocus />
+              <small class="text-muted mt-2 d-block">This new rack will replace the current one for all matching part numbers.</small>
             </div>
           </div>
           <div class="modal-footer border-secondary">
             <!-- Botones para paso 1 -->
             <div id="step1Buttons">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-              <button type="button" class="btn btn-warning" id="useCurrentRackBtn">Usar Este Rack</button>
-              <button type="button" class="btn btn-primary" id="changeRackBtn">Cambiar Rack</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-warning" id="useCurrentRackBtn">Use This Rack</button>
+              <button type="button" class="btn btn-primary" id="changeRackBtn">Change Rack</button>
             </div>
             <!-- Botones para paso 2 (ocultos inicialmente) -->
             <div id="step2Buttons" style="display:none;">
-              <button type="button" class="btn btn-secondary" id="backToStep1Btn">Atrás</button>
-              <button type="button" class="btn btn-success" id="confirmNewRackBtn">Confirmar Nuevo Rack</button>
+              <button type="button" class="btn btn-secondary" id="backToStep1Btn">Back</button>
+              <button type="button" class="btn btn-success" id="confirmNewRackBtn">Confirm New Rack</button>
             </div>
           </div>
         </div>
@@ -463,7 +463,7 @@
         confirmNewRackBtn.onclick = () => {
           const selectedRack = newRackInput.value.trim();
           if (!selectedRack) {
-            showToast('Por favor ingrese un número de rack', 'warning');
+            showToast('Please enter a rack number', 'warning');
             return;
           }
           rackSelectionModal.hide();
@@ -553,7 +553,7 @@
             const rackPayload = { qr_code, rack: selectedRack };
             const finalResponse = await tryPost(`${API_BASE}/api/inbound-with-rack`, rackPayload);
             
-            showToast(`Inbound completado con rack: ${selectedRack}`, 'success');
+            showToast(`Inbound completed with rack: ${selectedRack}`, 'success');
             return finalResponse;
           }
           
@@ -584,7 +584,7 @@
 
     async function handleScan() {
       if (!currentUser) {
-        showToast('Sesión expirada. Redirigiendo al inicio.', 'warning');
+        showToast('Session expired. Redirecting to home page.', 'warning');
         setTimeout(() => {
           PurchaseAuth.logout('index.html');
         }, 250);
@@ -638,7 +638,7 @@
 
         const newValue = parseInt(e.target.value, 10);
         if (isNaN(newValue) || newValue < 0) {
-          showToast('Cantidad no válida', 'danger');
+          showToast('Invalid quantity', 'danger');
           e.target.value = previousValue;
           return;
         }
@@ -670,7 +670,7 @@
             await registerMovement(addedQr, movementType, units);
           }
 
-          showToast(`Movimiento registrado`, 'success');
+          showToast(`Movement recorded`, 'success');
 
           // Actualizar cantidad disponible
           try {
@@ -684,7 +684,7 @@
 
           previousValue = newValue;
         } catch (err) {
-          showToast('Error al registrar movimiento', 'danger');
+          showToast('Error registering movement', 'danger');
           e.target.value = previousValue;
         }
         });
@@ -750,14 +750,14 @@
             row.cells[8].textContent = '-';
           }
 
-          showToast(`${movementType === 'INBOUND' ? 'Entrada' : 'Salida'} registrada`, 'success');
+          showToast(`Movement ${movementType} recorded`, 'success');
         } catch (err) {
           row.remove();
-          const msg = (err && err.message) ? err.message : String(err || 'Error desconocido');
+          const msg = (err && err.message) ? err.message : String(err || 'Unknown error');
           showToast(`Error: ${msg}`, "danger");
         }
       } catch (err) {
-        showToast(`Error: ${err && err.message ? err.message : 'Error desconocido'}`, "danger");
+        showToast(`Error: ${err && err.message ? err.message : 'Unknown error'}`, "danger");
       }
     }
 

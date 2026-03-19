@@ -326,74 +326,118 @@ app.post('/api/requisitions/save', async (req, res) => {
   const { no_project, no_qis, projectTitle, items } = req.body;
 
   if (!no_project || !no_qis || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'Datos incompletos para guardar requisición' });
+    return res.status(400).json({ error: 'Incomplete data to save requisition' });
   }
 
+  const client = await pool.connect();
+  
   try {
-    // Verificar si el no_project existe en la tabla project
-    const projectCheck = await pool.query(
+    const savedItems = [];
+    const skippedItems = [];
+
+    await client.query('BEGIN');
+
+    // Verify if no_project exists in project table
+    const projectCheck = await client.query(
       'SELECT no_project FROM project WHERE no_project = $1',
       [no_project]
     );
 
     let finalNoProject = no_project;
 
-    // Si el proyecto NO existe, crear entrada con no_qis como no_project
+    // If project does NOT exist, create entry with no_qis as no_project
     if (projectCheck.rows.length === 0) {
-      await pool.query(
+      await client.query(
         'INSERT INTO project (no_project, name_project, status) VALUES ($1, $2, $3)',
-        [no_qis, projectTitle || 'Sin título', 'Active']
+        [no_qis, projectTitle || 'Untitled', 'Active']
       );
       finalNoProject = no_qis;
     }
 
-    // Procesar cada item: insertar en product si no existe, luego en bom_project
+    // Process each item: insert in product if not exists, then in bom_project
     for (const item of items) {
       const { partNumber, description, quantity, units } = item;
       
+      // Validate minimum required fields
       if (!partNumber || !quantity) {
+        skippedItems.push({
+          index: items.indexOf(item),
+          partNumber: partNumber || 'UNKNOWN',
+          reason: 'Missing part number or quantity'
+        });
         continue;
       }
 
-      // Verificar si el producto ya existe en la tabla product
-      const productCheck = await pool.query(
-        'SELECT no_part FROM product WHERE no_part = $1',
-        [partNumber]
-      );
-
-      // Si el producto NO existe, crearlo
-      if (productCheck.rows.length === 0) {
-        await pool.query(
-          'INSERT INTO product (no_part, brand, description, quantity, unit, type_p) VALUES ($1, $2, $3, $4, $5, $6)',
-          [partNumber, 'OTRA', description || '', 1, units || '', 'OTRO']
+      try {
+        // Check if product already exists in product table
+        const productCheck = await client.query(
+          'SELECT no_part FROM product WHERE no_part = $1',
+          [partNumber]
         );
-      }
 
-      // Verificar si el item ya existe en bom_project para este no_qis
-      const bomCheck = await pool.query(
-        'SELECT no_part FROM bom_project WHERE no_project = $1 AND no_qis = $2 AND no_part = $3',
-        [finalNoProject, no_qis, partNumber]
-      );
+        // If product does NOT exist, create it
+        if (productCheck.rows.length === 0) {
+          await client.query(
+            'INSERT INTO product (no_part, brand, description, quantity, unit, type_p) VALUES ($1, $2, $3, $4, $5, $6)',
+            [partNumber, 'OTHER', description || '', 1, units || '', 'OTHER']
+          );
+        }
 
-      // Solo insertar si no existe
-      if (bomCheck.rows.length === 0) {
-        await pool.query(
-          'INSERT INTO bom_project (no_project, no_qis, no_part, quantity_project, status) VALUES ($1, $2, $3, $4, $5)',
-          [finalNoProject, no_qis, partNumber, quantity, 'Quoted']
+        // Check if item already exists in bom_project for this no_qis
+        const bomCheck = await client.query(
+          'SELECT no_part FROM bom_project WHERE no_project = $1 AND no_qis = $2 AND no_part = $3',
+          [finalNoProject, no_qis, partNumber]
         );
+
+        // Only insert if it doesn't exist
+        if (bomCheck.rows.length === 0) {
+          await client.query(
+            'INSERT INTO bom_project (no_project, no_qis, no_part, quantity_project, status) VALUES ($1, $2, $3, $4, $5)',
+            [finalNoProject, no_qis, partNumber, quantity, 'Quoted']
+          );
+          savedItems.push({
+            partNumber,
+            description: description || '',
+            quantity,
+            units: units || ''
+          });
+        } else {
+          skippedItems.push({
+            index: items.indexOf(item),
+            partNumber,
+            reason: 'Item already exists in this requisition'
+          });
+        }
+      } catch (itemError) {
+        skippedItems.push({
+          index: items.indexOf(item),
+          partNumber,
+          reason: 'Database error: ' + (itemError.message || 'Unknown error')
+        });
       }
     }
 
+    await client.query('COMMIT');
+
     res.json({
       success: true,
-      message: `Requisición ${no_qis} guardada exitosamente`,
+      message: `Requisition ${no_qis} saved successfully`,
       no_project: finalNoProject,
-      items_saved: items.length
+      items_received: items.length,
+      items_saved: savedItems.length,
+      items_skipped: skippedItems.length,
+      saved_items: savedItems,
+      skipped_details: skippedItems.length > 0 ? skippedItems : undefined
     });
   } catch (err) {
-
-
-    res.status(500).json({ error: 'Error al guardar requisición: ' + err.message });
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      // Ignore rollback errors
+    }
+    res.status(500).json({ error: 'Error saving requisition: ' + err.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -1303,8 +1347,6 @@ app.post("/api/stock/entry", async (req, res) => {
   }
 
   try {
-    console.log('=== /api/stock/entry ===');
-    console.log('Recibido:', { normalizedRack, normalizedNoPart, normalizedNoProject });
     // Siempre conservar el proyecto recibido y usar formato I####-PROYECTO.
     const projectToStore = normalizedNoProject;
     
@@ -1318,14 +1360,10 @@ app.post("/api/stock/entry", async (req, res) => {
     `;
 
     const existingResult = await pool.query(checkQuery, [normalizedNoPart, projectToStore]);
-    
-    console.log(`Checking for existing: no_part=${normalizedNoPart}, no_project=${projectToStore}`);
-    console.log(`Existing records found: ${existingResult.rows.length}`);
 
     if (existingResult.rows.length > 0) {
       // Si ya existe el registro de stock para este no_part+no_project,
       // no incrementamos disponible al generar el QR. Simplemente devolvemos el registro.
-      console.log(`✓ Found existing QR: ${existingResult.rows[0].qr_code}`);
 
       return res.json({
         success: true,
@@ -1359,7 +1397,6 @@ app.post("/api/stock/entry", async (req, res) => {
 
     const consecutivo = String(nextNumber).padStart(4, '0');
     const qrCode = `I${consecutivo}-${normalizedNoProject}`;
-    console.log(`Generated I#### QR: ${qrCode}`);
 
     // Insertar en la tabla stock con el proyecto recibido.
     const query = `
@@ -1370,7 +1407,6 @@ app.post("/api/stock/entry", async (req, res) => {
 
     const result = await pool.query(query, [normalizedRack, normalizedNoPart, projectToStore, qrCode]);
 
-    console.log(`✓ Inserted into DB: rack=${normalizedRack}, no_part=${normalizedNoPart}, no_project=${projectToStore}, qr_code=${qrCode}`);
 
     res.json({
       success: true,

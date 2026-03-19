@@ -558,20 +558,56 @@
             continue;
           }
 
-          if (index + 3 >= sectionLines.length) {
-            break;
+          // Try to extract description (next non-noise line)
+          let descIndex = index + 1;
+          while (descIndex < sectionLines.length && isNoiseLine(sectionLines[descIndex])) {
+            descIndex += 1;
           }
 
-          const description = normalizeSpace(sectionLines[index + 1]).toUpperCase();
-          const quantity = normalizeSpace(sectionLines[index + 2]);
-          const units = normalizeSpace(sectionLines[index + 3]).toUpperCase();
-
-          if (!description || !looksLikeQuantity(quantity) || !looksLikeUnit(units)) {
+          if (descIndex >= sectionLines.length) {
+            // No description available, skip
             index += 1;
             continue;
           }
 
-          let cursor = index + 4;
+          const description = normalizeSpace(sectionLines[descIndex]).toUpperCase();
+          if (!description) {
+            index += 1;
+            continue;
+          }
+
+          // Try to extract quantity (next line after description)
+          let qtyIndex = descIndex + 1;
+          while (qtyIndex < sectionLines.length && isNoiseLine(sectionLines[qtyIndex])) {
+            qtyIndex += 1;
+          }
+
+          const quantity = (qtyIndex < sectionLines.length) 
+            ? normalizeSpace(sectionLines[qtyIndex]) 
+            : '1';
+
+          if (!looksLikeQuantity(quantity)) {
+            index += 1;
+            continue;
+          }
+
+          // Try to extract units (next line after quantity)
+          let unitIndex = qtyIndex + 1;
+          while (unitIndex < sectionLines.length && isNoiseLine(sectionLines[unitIndex])) {
+            unitIndex += 1;
+          }
+
+          const units = (unitIndex < sectionLines.length)
+            ? normalizeSpace(sectionLines[unitIndex]).toUpperCase()
+            : 'PZ';
+
+          if (!looksLikeUnit(units)) {
+            index += 1;
+            continue;
+          }
+
+          // Extract optional fields: price, currency, supplier
+          let cursor = unitIndex + 1;
           let unitPrice = '-';
           let currency = '-';
           let supplier = '-';
@@ -598,6 +634,7 @@
             cursor += 1;
           }
 
+          // Check if next lines look like another item or a supplier
           if (cursor < sectionLines.length) {
             const maybeSupplier = normalizeSpace(sectionLines[cursor]).toUpperCase();
             const maybeDescription = normalizeSpace(sectionLines[cursor + 1] || '').toUpperCase();
@@ -613,8 +650,9 @@
               supplier = maybeSupplier;
               cursor += 1;
             }
-        }
+          }
 
+          // Add the item - ALL items with part number, description, and quantity get saved
           items.push({
             partNumber,
             description,
@@ -625,7 +663,8 @@
             supplier
           });
 
-          index = Math.max(cursor, index + 4);
+          // Move to next item
+          index = Math.max(cursor, unitIndex + 1);
           while (index < sectionLines.length && isNoiseLine(sectionLines[index])) {
             index += 1;
           }
@@ -737,11 +776,27 @@
             const payload = {
               no_project: requisitionState.selectedNoProject,
               no_qis: requisitionState.orderNumber,
-              projectTitle: requisitionState.projectTitle || 'Sin título',
+              projectTitle: requisitionState.projectTitle || 'Untitled',
               items: requisitionState.items
             };
 
-            await saveOrderMock(payload);
+            const response = await saveOrderMock(payload);
+
+            // Detailed response handling
+            let feedbackMessage = `Requisition #${payload.no_qis} saved successfully!`;
+            if (response.items_saved !== undefined) {
+              feedbackMessage += ` (${response.items_saved}/${response.items_received} items saved)`;
+            }
+
+            if (response.items_skipped > 0) {
+              let skipDetails = '\n\nSkipped items:';
+              if (response.skipped_details && Array.isArray(response.skipped_details)) {
+                response.skipped_details.forEach(skip => {
+                  skipDetails += `\n- ${skip.partNumber}: ${skip.reason}`;
+                });
+              }
+              feedbackMessage += skipDetails;
+            }
 
             requisitionState.selectedNoProject = '-';
             requisitionState.orderNumber = '-';
@@ -751,8 +806,8 @@
             clearProjectSearchInput();
             requisitionInput.value = '';
             renderState();
-            updateFeedback('Save completed successfully.', 'success');
-            alert(`Requisition #${payload.no_qis} has been saved successfully!`);
+            updateFeedback(feedbackMessage, 'success');
+            alert(feedbackMessage);
           } catch (error) {
             updateFeedback('Error saving requisition: ' + error.message, 'error');
           }
