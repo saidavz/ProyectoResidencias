@@ -325,7 +325,10 @@ app.get('/api/bom-projects/search', async (req, res) => {
 app.post('/api/requisitions/save', async (req, res) => {
   const { no_project, no_qis, projectTitle, items } = req.body;
 
-  if (!no_project || !no_qis || !Array.isArray(items) || items.length === 0) {
+  const normalizedNoProject = String(no_project || '').trim();
+  const normalizedNoQis = String(no_qis || '').trim();
+
+  if (!normalizedNoProject || !normalizedNoQis || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'Incomplete data to save requisition' });
   }
 
@@ -337,81 +340,186 @@ app.post('/api/requisitions/save', async (req, res) => {
 
     await client.query('BEGIN');
 
+    const lengthInfo = await client.query(
+      `SELECT table_name, column_name, character_maximum_length
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND (
+           (table_name = 'product' AND column_name IN ('no_part', 'brand', 'description', 'unit', 'type_p'))
+           OR (table_name = 'bom_project' AND column_name IN ('no_project', 'no_qis', 'no_part', 'status'))
+         )`
+    );
+
+    const maxLengths = {};
+    for (const row of lengthInfo.rows) {
+      if (!maxLengths[row.table_name]) {
+        maxLengths[row.table_name] = {};
+      }
+      maxLengths[row.table_name][row.column_name] = row.character_maximum_length;
+    }
+
+    const fitText = (tableName, columnName, value) => {
+      if (value === null || value === undefined) return '';
+      const strValue = String(value).trim();
+      const limit = maxLengths[tableName] && maxLengths[tableName][columnName];
+      if (!limit || strValue.length <= limit) return strValue;
+      return strValue.slice(0, limit);
+    };
+
     // Verify if no_project exists in project table
     const projectCheck = await client.query(
       'SELECT no_project FROM project WHERE no_project = $1',
-      [no_project]
+      [normalizedNoProject]
     );
 
-    let finalNoProject = no_project;
+    let finalNoProject = normalizedNoProject;
 
-    // If project does NOT exist, create entry with no_qis as no_project
+    // If project does NOT exist, create it preserving the selected no_project value.
     if (projectCheck.rows.length === 0) {
       await client.query(
         'INSERT INTO project (no_project, name_project, status) VALUES ($1, $2, $3)',
-        [no_qis, projectTitle || 'Untitled', 'Active']
+        [normalizedNoProject, projectTitle || 'Untitled', 'Active']
       );
-      finalNoProject = no_qis;
+      finalNoProject = normalizedNoProject;
     }
 
     // Process each item: insert in product if not exists, then in bom_project
-    for (const item of items) {
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index];
       const { partNumber, description, quantity, units } = item;
+
+      const normalizedPartNumber = fitText('product', 'no_part', partNumber);
+      const normalizedDescription = fitText('product', 'description', description || '');
+      const normalizedUnit = fitText('product', 'unit', units || '');
       
       // Validate minimum required fields
-      if (!partNumber || !quantity) {
+      if (!normalizedPartNumber || !quantity) {
         skippedItems.push({
-          index: items.indexOf(item),
-          partNumber: partNumber || 'UNKNOWN',
+          index,
+          partNumber: normalizedPartNumber || 'UNKNOWN',
           reason: 'Missing part number or quantity'
         });
         continue;
       }
 
+      const savepointName = `req_item_${index}`;
+      await client.query(`SAVEPOINT ${savepointName}`);
+
       try {
         // Check if product already exists in product table
         const productCheck = await client.query(
           'SELECT no_part FROM product WHERE no_part = $1',
-          [partNumber]
+          [normalizedPartNumber]
         );
 
         // If product does NOT exist, create it
         if (productCheck.rows.length === 0) {
           await client.query(
             'INSERT INTO product (no_part, brand, description, quantity, unit, type_p) VALUES ($1, $2, $3, $4, $5, $6)',
-            [partNumber, 'OTHER', description || '', 1, units || '', 'OTHER']
+            [
+              normalizedPartNumber,
+              fitText('product', 'brand', 'OTHER'),
+              normalizedDescription,
+              1,
+              normalizedUnit,
+              fitText('product', 'type_p', 'OTHER')
+            ]
           );
         }
 
         // Check if item already exists in bom_project for this no_qis
+        const legacyQisPartCheck = await client.query(
+          `SELECT no_project
+           FROM bom_project
+           WHERE no_qis = $1
+             AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($2))
+           LIMIT 1`,
+          [
+            fitText('bom_project', 'no_qis', normalizedNoQis),
+            fitText('bom_project', 'no_part', normalizedPartNumber)
+          ]
+        );
+
+        if (legacyQisPartCheck.rows.length > 0) {
+          const legacyNoProject = String(legacyQisPartCheck.rows[0].no_project || '').trim();
+          const targetNoProject = fitText('bom_project', 'no_project', finalNoProject);
+
+          if (legacyNoProject && legacyNoProject !== targetNoProject) {
+            await client.query(
+              `UPDATE bom_project
+               SET no_project = $1,
+                   quantity_project = $2,
+                   status = $3
+               WHERE no_qis = $4
+                 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($5))`,
+              [
+                targetNoProject,
+                quantity,
+                fitText('bom_project', 'status', 'Quoted'),
+                fitText('bom_project', 'no_qis', normalizedNoQis),
+                fitText('bom_project', 'no_part', normalizedPartNumber)
+              ]
+            );
+
+            savedItems.push({
+              partNumber: normalizedPartNumber,
+              description: normalizedDescription,
+              quantity,
+              units: normalizedUnit
+            });
+
+            await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+            continue;
+          }
+        }
+
         const bomCheck = await client.query(
-          'SELECT no_part FROM bom_project WHERE no_project = $1 AND no_qis = $2 AND no_part = $3',
-          [finalNoProject, no_qis, partNumber]
+          'SELECT no_part FROM bom_project WHERE no_project = $1 AND no_qis = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
+          [
+            fitText('bom_project', 'no_project', finalNoProject),
+            fitText('bom_project', 'no_qis', normalizedNoQis),
+            fitText('bom_project', 'no_part', normalizedPartNumber)
+          ]
         );
 
         // Only insert if it doesn't exist
         if (bomCheck.rows.length === 0) {
           await client.query(
             'INSERT INTO bom_project (no_project, no_qis, no_part, quantity_project, status) VALUES ($1, $2, $3, $4, $5)',
-            [finalNoProject, no_qis, partNumber, quantity, 'Quoted']
+            [
+              fitText('bom_project', 'no_project', finalNoProject),
+              fitText('bom_project', 'no_qis', normalizedNoQis),
+              fitText('bom_project', 'no_part', normalizedPartNumber),
+              quantity,
+              fitText('bom_project', 'status', 'Quoted')
+            ]
           );
           savedItems.push({
-            partNumber,
-            description: description || '',
+            partNumber: normalizedPartNumber,
+            description: normalizedDescription,
             quantity,
-            units: units || ''
+            units: normalizedUnit
           });
         } else {
           skippedItems.push({
-            index: items.indexOf(item),
-            partNumber,
+            index,
+            partNumber: normalizedPartNumber,
             reason: 'Item already exists in this requisition'
           });
         }
+
+        await client.query(`RELEASE SAVEPOINT ${savepointName}`);
       } catch (itemError) {
+        try {
+          await client.query(`ROLLBACK TO SAVEPOINT ${savepointName}`);
+          await client.query(`RELEASE SAVEPOINT ${savepointName}`);
+        } catch (savepointError) {
+          // If savepoint rollback fails, keep original error reason.
+        }
+
         skippedItems.push({
-          index: items.indexOf(item),
-          partNumber,
+          index,
+          partNumber: normalizedPartNumber,
           reason: 'Database error: ' + (itemError.message || 'Unknown error')
         });
       }
