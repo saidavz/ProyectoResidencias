@@ -231,6 +231,13 @@
           .normalize('NFD')
           .replace(/[\u0300-\u036f]/g, '');
       }
+
+      function filterActiveProjectRows(rows) {
+        return (Array.isArray(rows) ? rows : []).filter(row => {
+          return String(row.project_status || '').trim().toLowerCase() === 'active';
+        });
+      }
+
       // Cargar todos los proyectos al inicio
       async function loadAllProjects() {
         try {
@@ -321,10 +328,11 @@
           }
           const response = await fetch(url);
           const data = await response.json();
+          const activeData = filterActiveProjectRows(data);
 
 
-          allPurchasesData = data; // Guardar datos globalmente
-          populateSupplierFilter(data); // Poblar filtro de proveedores
+          allPurchasesData = activeData; // Guardar datos globalmente
+          populateSupplierFilter(activeData); // Poblar filtro de proveedores
           applyFilters(); // Aplicar filtros actuales
         } catch (error) {
 
@@ -366,10 +374,11 @@
         try {
           const response = await fetch('http://localhost:3000/api/purchases');
           const data = await response.json();
-          allPurchasesData = data; // Guardar datos globalmente
-          populateSupplierFilter(data); // Poblar filtro de proveedores
-          displayPurchasesData(data);
-          updateCumulativePercentages(data);
+          const activeData = filterActiveProjectRows(data);
+          allPurchasesData = activeData; // Guardar datos globalmente
+          populateSupplierFilter(activeData); // Poblar filtro de proveedores
+          displayPurchasesData(activeData);
+          updateCumulativePercentages(activeData);
         } catch (error) {
           document.getElementById('purchasesTableBody').innerHTML =
             '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';

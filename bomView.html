@@ -132,7 +132,7 @@
             // Cargar todos los proyectos al iniciar
             async function loadAllProjects() {
                 try {
-                    const res = await fetch(`${BASE}/projects/all`);
+                    const res = await fetch(`${BASE}/projects/all-including-inactive`);
                     allProjects = await res.json();
                 } catch (err) {
 

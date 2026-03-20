@@ -1,6 +1,14 @@
 (function () {
   const AUTH_STORAGE_KEY = 'purchaseSystem.auth.user';
   const AUTH_NOTICE_KEY = 'purchaseSystem.auth.notice';
+  const AUTH_ACTIVITY_KEY = 'purchaseSystem.auth.lastActivity';
+  const AUTH_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+  const AUTH_IDLE_CHECK_INTERVAL_MS = 15 * 1000;
+  const AUTH_ACTIVITY_WRITE_INTERVAL_MS = 10 * 1000;
+  const TECHNICIAN_ROLE = 'tecnico';
+
+  let inactivityIntervalId = null;
+  let activityEventsBound = false;
 
   function getApiBase() {
     return (location.protocol === 'file:' || location.port !== '3000')
@@ -9,7 +17,208 @@
   }
 
   function normalizeRole(value) {
-    return String(value || '').trim().toLowerCase();
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function getSessionItem(key) {
+    try {
+      return sessionStorage.getItem(key);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function setSessionItem(key, value) {
+    try {
+      sessionStorage.setItem(key, value);
+    } catch (error) {
+      // Ignore storage access failures.
+    }
+  }
+
+  function removeSessionItem(key) {
+    try {
+      sessionStorage.removeItem(key);
+    } catch (error) {
+      // Ignore storage access failures.
+    }
+  }
+
+  function removeLegacyPersistentSession() {
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    } catch (error) {
+      // Ignore storage access failures.
+    }
+  }
+
+  function getStoredUser() {
+    const raw = getSessionItem(AUTH_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      const normalizedUser = normalizeUser(JSON.parse(raw));
+      if (!normalizedUser) {
+        removeSessionItem(AUTH_STORAGE_KEY);
+        return null;
+      }
+      return normalizedUser;
+    } catch (error) {
+      removeSessionItem(AUTH_STORAGE_KEY);
+      return null;
+    }
+  }
+
+  function getLastActivityTimestamp() {
+    const raw = getSessionItem(AUTH_ACTIVITY_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  function setLastActivityTimestamp(timestamp) {
+    setSessionItem(AUTH_ACTIVITY_KEY, String(timestamp));
+  }
+
+  function clearLastActivityTimestamp() {
+    removeSessionItem(AUTH_ACTIVITY_KEY);
+  }
+
+  function isTechnicianUser(user) {
+    const normalizedUser = normalizeUser(user);
+    if (!normalizedUser) {
+      return false;
+    }
+
+    return normalizeRole(normalizedUser.rol) === TECHNICIAN_ROLE;
+  }
+
+  function shouldExpireByInactivity(user) {
+    const normalizedUser = normalizeUser(user);
+    if (!normalizedUser) {
+      return false;
+    }
+
+    return isTechnicianUser(normalizedUser);
+  }
+
+  function shouldSessionExpire(user, now) {
+    if (!shouldExpireByInactivity(user)) {
+      return false;
+    }
+
+    const lastActivity = getLastActivityTimestamp();
+    if (!lastActivity) {
+      return false;
+    }
+
+    return now - lastActivity >= AUTH_IDLE_TIMEOUT_MS;
+  }
+
+  function stopInactivityTimer() {
+    if (inactivityIntervalId !== null) {
+      window.clearInterval(inactivityIntervalId);
+      inactivityIntervalId = null;
+    }
+  }
+
+  function touchActivity(forceWrite) {
+    const currentUser = getStoredUser();
+    if (!currentUser || !shouldExpireByInactivity(currentUser)) {
+      return;
+    }
+
+    const now = Date.now();
+    const lastActivity = getLastActivityTimestamp();
+
+    if (!forceWrite && lastActivity && (now - lastActivity) < AUTH_ACTIVITY_WRITE_INTERVAL_MS) {
+      return;
+    }
+
+    setLastActivityTimestamp(now);
+  }
+
+  function expireSessionByInactivity() {
+    setNotice('Tu sesion se cerro por inactividad. Escanea tu QR para ingresar nuevamente.');
+    clearUser();
+    window.location.replace('index.html');
+  }
+
+  function checkSessionInactivity() {
+    const currentUser = getStoredUser();
+    if (!currentUser) {
+      stopInactivityTimer();
+      return;
+    }
+
+    if (!shouldExpireByInactivity(currentUser)) {
+      clearLastActivityTimestamp();
+      stopInactivityTimer();
+      return;
+    }
+
+    const now = Date.now();
+    const lastActivity = getLastActivityTimestamp();
+
+    if (!lastActivity) {
+      setLastActivityTimestamp(now);
+      return;
+    }
+
+    if ((now - lastActivity) >= AUTH_IDLE_TIMEOUT_MS) {
+      expireSessionByInactivity();
+    }
+  }
+
+  function bindActivityEvents() {
+    if (activityEventsBound || typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'pointerdown'];
+    const onActivity = function () {
+      touchActivity(false);
+    };
+
+    activityEvents.forEach(function (eventName) {
+      window.addEventListener(eventName, onActivity, { passive: true });
+    });
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') {
+        touchActivity(true);
+      }
+    });
+
+    activityEventsBound = true;
+  }
+
+  function syncInactivityMonitor(user) {
+    if (!user || !shouldExpireByInactivity(user)) {
+      clearLastActivityTimestamp();
+      stopInactivityTimer();
+      return;
+    }
+
+    bindActivityEvents();
+    touchActivity(true);
+
+    if (inactivityIntervalId === null) {
+      inactivityIntervalId = window.setInterval(checkSessionInactivity, AUTH_IDLE_CHECK_INTERVAL_MS);
+    }
   }
 
   function normalizeUser(user) {
@@ -50,17 +259,25 @@
   }
 
   function getUser() {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) {
+    removeLegacyPersistentSession();
+
+    const currentUser = getStoredUser();
+    if (!currentUser) {
+      stopInactivityTimer();
       return null;
     }
 
-    try {
-      return normalizeUser(JSON.parse(raw));
-    } catch (error) {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+    if (shouldSessionExpire(currentUser, Date.now())) {
+      clearUser();
       return null;
     }
+
+    if (shouldExpireByInactivity(currentUser) && !getLastActivityTimestamp()) {
+      setLastActivityTimestamp(Date.now());
+    }
+
+    syncInactivityMonitor(currentUser);
+    return currentUser;
   }
 
   function setUser(user) {
@@ -69,12 +286,24 @@
       throw new Error('Usuario invalido para sesion.');
     }
 
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(normalizedUser));
+    removeLegacyPersistentSession();
+    setSessionItem(AUTH_STORAGE_KEY, JSON.stringify(normalizedUser));
+
+    if (shouldExpireByInactivity(normalizedUser)) {
+      setLastActivityTimestamp(Date.now());
+    } else {
+      clearLastActivityTimestamp();
+    }
+
+    syncInactivityMonitor(normalizedUser);
     return normalizedUser;
   }
 
   function clearUser() {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+    removeSessionItem(AUTH_STORAGE_KEY);
+    clearLastActivityTimestamp();
+    removeLegacyPersistentSession();
+    stopInactivityTimer();
   }
 
   function hasAnyRole(user, roles) {
@@ -96,13 +325,13 @@
       return;
     }
 
-    sessionStorage.setItem(AUTH_NOTICE_KEY, String(message));
+    setSessionItem(AUTH_NOTICE_KEY, String(message));
   }
 
   function consumeNotice() {
-    const message = sessionStorage.getItem(AUTH_NOTICE_KEY);
+    const message = getSessionItem(AUTH_NOTICE_KEY);
     if (message) {
-      sessionStorage.removeItem(AUTH_NOTICE_KEY);
+      removeSessionItem(AUTH_NOTICE_KEY);
     }
     return message;
   }
