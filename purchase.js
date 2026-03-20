@@ -24,7 +24,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim', //verifica bien al cambiarlo
+  password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
 // Endpoint para verificar estructura de BD
@@ -2151,6 +2151,7 @@ app.post("/api/inbound", async (req, res) => {
     }
 
     const stockRow = stockResult.rows[0];
+    const previousAvailable = stockRow.available || 0;
 
     // 2) Check if project is INACTIVE - if so, ask for rack selection
     const projectCheck = await pool.query(
@@ -2179,6 +2180,7 @@ app.post("/api/inbound", async (req, res) => {
       const updateQ = `UPDATE stock SET available = available + 1 WHERE id_stock = $1 RETURNING available`;
       const updR = await client.query(updateQ, [stockRow.id_stock]);
       const newAvailable = updR.rows[0] ? updR.rows[0].available : stockRow.available;
+      let overEntry = null;
 
       const movementQuery = `
         INSERT INTO movements (date_movement, type_movement, id_stock, pid)
@@ -2201,12 +2203,13 @@ app.post("/api/inbound", async (req, res) => {
         if (bomProductResult.rows.length > 0) {
           const quantityProject = bomProductResult.rows[0].quantity_project;
           const quantityPerPackage = bomProductResult.rows[0].quantity || 1;
-          
-          const packagesRequired = Math.ceil(quantityProject / quantityPerPackage);
+
+          const quantity_calculated = quantityProject / quantityPerPackage;
+          const packagesRequiredRounded = Math.ceil(quantity_calculated);
           const packagesArrived = newAvailable;
-          
+
           let newStatus = 'Pending Delivery';
-          if (packagesArrived >= packagesRequired) {
+          if (packagesArrived >= packagesRequiredRounded) {
             newStatus = 'Delivered';
           }
 
@@ -2214,6 +2217,17 @@ app.post("/api/inbound", async (req, res) => {
             'UPDATE bom_project SET status = $1 WHERE no_project = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
             [newStatus, stockRow.no_project, stockRow.no_part]
           );
+
+          // Over-entry: only when previous available + entering (1) exceeds packages required
+          if ((previousAvailable + 1) > packagesRequiredRounded) {
+            overEntry = {
+              quantity_project: quantityProject,
+              quantity_calculated: quantity_calculated,
+              available: previousAvailable,
+              entering: 1,
+              packages_required: packagesRequiredRounded
+            };
+          }
         }
       }
 
@@ -2225,7 +2239,8 @@ app.post("/api/inbound", async (req, res) => {
         ok: true,
         message: "Movimiento registrado correctamente",
         stock: stockRow,
-        movement: movementResult.rows[0]
+        movement: movementResult.rows[0],
+        overEntry: overEntry || null
       });
     } catch (errInner) {
       await client.query('ROLLBACK');
@@ -2278,6 +2293,7 @@ app.post("/api/inbound-with-rack", async (req, res) => {
     }
 
     const stockRow = stockResult.rows[0];
+    const previousAvailable = stockRow.available || 0;
     const noPart = stockRow.no_part;
     const noProjectOriginal = stockRow.no_project;
 
@@ -2300,6 +2316,7 @@ app.post("/api/inbound-with-rack", async (req, res) => {
       const updateQ = `UPDATE stock SET available = available + 1 WHERE id_stock = $1 RETURNING available`;
       const updR = await client.query(updateQ, [stockRow.id_stock]);
       const newAvailable = updR.rows[0] ? updR.rows[0].available : stockRow.available;
+      let overEntry = null;
 
       // 4) Insert INBOUND movement
       const movementQuery = `
@@ -2322,12 +2339,13 @@ app.post("/api/inbound-with-rack", async (req, res) => {
       if (bomProductResult.rows.length > 0) {
         const quantityProject = bomProductResult.rows[0].quantity_project;
         const quantityPerPackage = bomProductResult.rows[0].quantity || 1;
-        
-        const packagesRequired = Math.ceil(quantityProject / quantityPerPackage);
+
+        const quantity_calculated = quantityProject / quantityPerPackage;
+        const packagesRequiredRounded = Math.ceil(quantity_calculated);
         const packagesArrived = newAvailable;
-        
+
         let newStatus = 'Pending Delivery';
-        if (packagesArrived >= packagesRequired) {
+        if (packagesArrived >= packagesRequiredRounded) {
           newStatus = 'Delivered';
         }
 
@@ -2335,6 +2353,16 @@ app.post("/api/inbound-with-rack", async (req, res) => {
           'UPDATE bom_project SET status = $1 WHERE no_project = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
           [newStatus, noProjectOriginal, noPart]
         );
+
+        if ((previousAvailable + 1) > packagesRequiredRounded) {
+          overEntry = {
+            quantity_project: quantityProject,
+            quantity_calculated: quantity_calculated,
+            available: previousAvailable,
+            entering: 1,
+            packages_required: packagesRequiredRounded
+          };
+        }
       }
 
       // 6) Change no_project to AUT-STOCK in stock
@@ -2353,7 +2381,8 @@ app.post("/api/inbound-with-rack", async (req, res) => {
         ok: true,
         message: "Inbound completado con rack seleccionado",
         stock: stockRow,
-        movement: movementResult.rows[0]
+        movement: movementResult.rows[0],
+        overEntry: overEntry || null
       });
     } catch (errInner) {
       await client.query('ROLLBACK');
@@ -2455,11 +2484,13 @@ app.post('/api/movements', async (req, res) => {
       }
       
       let newAvailable = stockRow.available;
+      const previousAvailable = stockRow.available || 0;
       const adjustment = t === 'INBOUND' ? qty : -qty;
-      
+
       const updateQuery = `UPDATE stock SET available = GREATEST(available + $2, 0) WHERE id_stock = $1 RETURNING available`;
       const updateResult = await client.query(updateQuery, [stockRow.id_stock, adjustment]);
       newAvailable = updateResult.rows[0] ? updateResult.rows[0].available : newAvailable;
+      let overEntry = null;
 
       // Si es INBOUND, actualizar status en bom_project con lógica de paquetes
       if (t === 'INBOUND' && !original_project) {
@@ -2479,13 +2510,14 @@ app.post('/api/movements', async (req, res) => {
         if (bomProductResult.rows.length > 0) {
           const quantityProject = bomProductResult.rows[0].quantity_project;
           const quantityPerPackage = bomProductResult.rows[0].quantity || 1;
-          
-          // newAvailable ya son paquetes
-          const packagesRequired = Math.ceil(quantityProject / quantityPerPackage);
+
+          // Use exact calculation quantity_project / quantity
+          const quantity_calculated = quantityProject / quantityPerPackage;
+          const packagesRequiredRounded = Math.ceil(quantity_calculated);
           const packagesArrived = newAvailable;
-          
+
           let newStatus = 'Pending Delivery';
-          if (packagesArrived >= packagesRequired) {
+          if (packagesArrived >= packagesRequiredRounded) {
             newStatus = 'Delivered';
           }
 
@@ -2493,6 +2525,17 @@ app.post('/api/movements', async (req, res) => {
             'UPDATE bom_project SET status = $1 WHERE no_project = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
             [newStatus, projectForUpdate, stockRow.no_part]
           );
+
+          // Over-entry only if previousAvailable + entering (qty) exceeds required packages
+          if ((previousAvailable + qty) > packagesRequiredRounded) {
+            overEntry = {
+              quantity_project: quantityProject,
+              quantity_calculated: quantity_calculated,
+              available: previousAvailable,
+              entering: qty,
+              packages_required: packagesRequiredRounded
+            };
+          }
         }
       }
 

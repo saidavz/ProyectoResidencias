@@ -373,6 +373,25 @@
       }, 4000);
     }
 
+    // Over-entry specific toast (separate element so it doesn't affect default toasts)
+    const overEntryToast = document.createElement('div');
+    overEntryToast.id = 'overEntryToast';
+    overEntryToast.className = 'alert d-none';
+    overEntryToast.setAttribute('role', 'alert');
+    document.body.appendChild(overEntryToast);
+
+    function showOverEntry(message, details = '') {
+      try { overEntryToast.style.position = 'fixed'; overEntryToast.style.top = '80px'; overEntryToast.style.right = '20px'; overEntryToast.style.zIndex = 1060; overEntryToast.style.maxWidth = '520px'; } catch (e) {}
+      overEntryToast.classList.remove('d-none');
+      overEntryToast.classList.remove('alert-success', 'alert-danger', 'alert-info', 'alert-warning');
+      overEntryToast.classList.add('alert', 'alert-warning');
+      const safeMessage = escapeHtml(message);
+      const safeDetails = details ? escapeHtml(details) : '';
+      overEntryToast.innerHTML = `<div>${safeMessage}</div>` + (safeDetails ? `<small class="d-block text-monospace mt-1" style="opacity:.85; white-space:pre-wrap;">${safeDetails}</small>` : '');
+      // Longer timeout for important warning
+      setTimeout(() => { overEntryToast.classList.add('d-none'); }, 8000);
+    }
+
     // Función para verificar si un proyecto es inactivo
     async function isProjectInactive(no_project) {
       try {
@@ -540,6 +559,19 @@
           
           // Send to /api/inbound and check for needsRackSelection
           const response = await tryPost(`${API_BASE}/api/inbound`, legacyPayload);
+
+          // If server signals an over-entry, show alert with details (still allow entry)
+          if (response && response.overEntry) {
+            try {
+              const oe = response.overEntry;
+              const part = response.stock && response.stock.no_part ? response.stock.no_part : '';
+              const proj = response.stock && response.stock.no_project ? response.stock.no_project : '';
+              const msg = `Para el número de parte ${part} en el proyecto ${proj} se solicitó ${oe.quantity_project} unidades; la entrada excede lo pedido.`;
+              const packs = oe.packages_required || Math.ceil(oe.quantity_calculated || 0);
+              const details = `Paquetes requeridos: ${packs}\nCantidad disponible (antes): ${oe.available}\nCantidad que entra: ${oe.entering}`;
+              showOverEntry(msg, details);
+            } catch (e) {}
+          }
           
           // Check if this is an inactive project requiring rack selection
           if (response.needsRackSelection === true) {
@@ -552,7 +584,20 @@
             // Call the inbound-with-rack endpoint to complete the inbound
             const rackPayload = { qr_code, rack: selectedRack };
             const finalResponse = await tryPost(`${API_BASE}/api/inbound-with-rack`, rackPayload);
-            
+
+            // If server signals an over-entry, show alert with details (still allow entry)
+            if (finalResponse && finalResponse.overEntry) {
+              try {
+                const oe = finalResponse.overEntry;
+                const part = finalResponse.stock && finalResponse.stock.no_part ? finalResponse.stock.no_part : '';
+                const proj = finalResponse.stock && finalResponse.stock.no_project ? finalResponse.stock.no_project : '';
+                const msg = `Para el número de parte ${part} en el proyecto ${proj} se solicitó ${oe.quantity_project} unidades; la entrada excede lo pedido.`;
+                const packs = oe.packages_required || Math.ceil(oe.quantity_calculated || 0);
+                const details = `Paquetes requeridos: ${packs}\nCantidad disponible (antes): ${oe.available}\nCantidad que entra: ${oe.entering}`;
+                showOverEntry(msg, details);
+              } catch (e) {}
+            }
+
             showToast(`Inbound completed with rack: ${selectedRack}`, 'success');
             return finalResponse;
           }
@@ -563,9 +608,21 @@
         }
       }
 
-      // For OUTBOUND, try generic /api/movements first
-      try {
-        return await tryPost(`${API_BASE}/api/movements`, payload);
+      // For OUTBOUND (and generic), try /api/movements first and check overEntry
+        try {
+        const resp = await tryPost(`${API_BASE}/api/movements`, payload);
+        if (resp && resp.overEntry) {
+          try {
+            const oe = resp.overEntry;
+            const part = resp.stock && resp.stock.no_part ? resp.stock.no_part : '';
+            const proj = resp.stock && resp.stock.no_project ? resp.stock.no_project : '';
+            const msg = `Para el número de parte ${part} en el proyecto ${proj} se solicitó ${oe.quantity_project} unidades; la entrada excede lo pedido.`;
+            const packs = oe.packages_required || Math.ceil(oe.quantity_calculated || 0);
+            const details = `Paquetes requeridos: ${packs}\nCantidad disponible (antes): ${oe.available}\nCantidad que entra: ${oe.entering}`;
+            showOverEntry(msg, details);
+          } catch (e) {}
+        }
+        return resp;
       } catch (err) {}
 
       // Fallback for OUTBOUND
