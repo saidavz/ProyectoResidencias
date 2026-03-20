@@ -24,7 +24,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim', //verifica bien al cambiarlo
+  password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
 // Endpoint para verificar estructura de BD
@@ -388,7 +388,7 @@ app.post('/api/requisitions/save', async (req, res) => {
       const item = items[index];
       const { partNumber, description, quantity, units } = item;
 
-      const normalizedPartNumber = fitText('product', 'no_part', partNumber);
+      let normalizedPartNumber = fitText('product', 'no_part', partNumber);
       const normalizedDescription = fitText('product', 'description', description || '');
       const normalizedUnit = fitText('product', 'unit', units || '');
       
@@ -406,14 +406,58 @@ app.post('/api/requisitions/save', async (req, res) => {
       await client.query(`SAVEPOINT ${savepointName}`);
 
       try {
-        // Check if product already exists in product table
+        // Check if product already exists in product table (get description too)
         const productCheck = await client.query(
-          'SELECT no_part FROM product WHERE no_part = $1',
+          'SELECT no_part, COALESCE(description,\'\') AS description FROM product WHERE no_part = $1',
           [normalizedPartNumber]
         );
 
-        // If product does NOT exist, create it
-        if (productCheck.rows.length === 0) {
+        // If product exists but description differs, create a new distinct no_part derived from the description
+        if (productCheck.rows.length > 0) {
+          const existingDesc = String(productCheck.rows[0].description || '');
+          const normalizeDescForCompare = (s) => String(s || '').replace(/[^a-z0-9]+/gi, ' ').trim().toLowerCase();
+          const a = normalizeDescForCompare(existingDesc);
+          const b = normalizeDescForCompare(normalizedDescription);
+
+          if (a !== b && a && b) {
+            // Generate a short slug from the incoming description
+            let slug = String(normalizedDescription || '')
+              .replace(/[^a-zA-Z0-9]+/g, '_')
+              .replace(/^_+|_+$/g, '')
+              .replace(/_+/g, '_')
+              .toUpperCase();
+            if (!slug) slug = 'DESC';
+            slug = slug.slice(0, 20);
+
+            // Candidate new part
+            let candidate = fitText('product', 'no_part', `${normalizedPartNumber}__${slug}`);
+
+            // Ensure candidate is unique
+            let attempt = 0;
+            while (true) {
+              const exists = await client.query('SELECT 1 FROM product WHERE no_part = $1', [candidate]);
+              if (exists.rows.length === 0) break;
+              attempt += 1;
+              candidate = fitText('product', 'no_part', `${normalizedPartNumber}__${slug}_${attempt}`);
+              if (attempt > 10) break;
+            }
+
+            // Use the candidate as the new part number and insert product
+            normalizedPartNumber = candidate;
+            await client.query(
+              'INSERT INTO product (no_part, brand, description, quantity, unit, type_p) VALUES ($1, $2, $3, $4, $5, $6)',
+              [
+                normalizedPartNumber,
+                fitText('product', 'brand', 'OTHER'),
+                normalizedDescription,
+                1,
+                normalizedUnit,
+                fitText('product', 'type_p', 'OTHER')
+              ]
+            );
+          }
+        } else {
+          // If product does NOT exist, create it normally
           await client.query(
             'INSERT INTO product (no_part, brand, description, quantity, unit, type_p) VALUES ($1, $2, $3, $4, $5, $6)',
             [
@@ -473,12 +517,22 @@ app.post('/api/requisitions/save', async (req, res) => {
           }
         }
 
+        // Check existing BOM entries matching both part identifier and product description
+        // This allows items that share the same measurements (no_part) but have different
+        // descriptions (e.g. different materials) to be stored separately.
         const bomCheck = await client.query(
-          'SELECT no_part FROM bom_project WHERE no_project = $1 AND no_qis = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
+          `SELECT bp.no_part
+           FROM bom_project bp
+           LEFT JOIN product p ON bp.no_part = p.no_part
+           WHERE bp.no_project = $1
+             AND bp.no_qis = $2
+             AND UPPER(BTRIM(bp.no_part)) = UPPER(BTRIM($3))
+             AND UPPER(BTRIM(COALESCE(p.description, ''))) = UPPER(BTRIM($4))`,
           [
             fitText('bom_project', 'no_project', finalNoProject),
             fitText('bom_project', 'no_qis', normalizedNoQis),
-            fitText('bom_project', 'no_part', normalizedPartNumber)
+            fitText('bom_project', 'no_part', normalizedPartNumber),
+            fitText('product', 'description', normalizedDescription)
           ]
         );
 
