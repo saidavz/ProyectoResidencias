@@ -24,7 +24,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  password: '150403kim', //verifica bien al cambiarlo
   port: 5432,
 });
 // Endpoint para verificar estructura de BD
