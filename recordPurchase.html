@@ -342,29 +342,32 @@
       }
 
       function inicializarAutocompletadoTypeP(inputTypeP, contenedorSugerencias) {
-        inputTypeP.addEventListener('input', async () => {
-          const term = inputTypeP.value.trim();
+        // Función para cargar y mostrar tipos
+        async function cargarYMostrarTipos(term = '') {
           const projectInput = document.querySelector('.no_project');
           const noProject = projectInput ? projectInput.value.trim() : '';
 
-          // Si no hay proyecto seleccionado, no mostrar sugerencias
+          // Si no hay proyecto seleccionado, mostrar mensaje
           if (!noProject) {
-            contenedorSugerencias.style.display = 'none';
-            return;
-          }
-
-          if (!term) {
-            contenedorSugerencias.style.display = 'none';
+            contenedorSugerencias.innerHTML = '<div style="padding: 5px; color: #999;">Select a project first</div>';
+            contenedorSugerencias.style.display = 'block';
             return;
           }
 
           try {
             // Obtener SOLO los tipos del proyecto seleccionado
-            const url = `${baseURL}/products/types-by-project/${encodeURIComponent(noProject)}?term=${encodeURIComponent(term)}`;
+            const url = `${baseURL}/products/types-by-project/${encodeURIComponent(noProject)}${term ? `?term=${encodeURIComponent(term)}` : ''}`;
             const res = await fetch(url);
             const data = await res.json();
 
             contenedorSugerencias.innerHTML = '';
+            
+            if (data.length === 0) {
+              contenedorSugerencias.innerHTML = '<div style="padding: 5px; color: #999;">No types available</div>';
+              contenedorSugerencias.style.display = 'block';
+              return;
+            }
+
             data.forEach(item => {
               const div = document.createElement('div');
               div.textContent = item.type_p;
@@ -379,12 +382,23 @@
               contenedorSugerencias.appendChild(div);
             });
 
-            contenedorSugerencias.style.display = data.length ? 'block' : 'none';
+            contenedorSugerencias.style.display = 'block';
 
           } catch (err) {
-
-
+            contenedorSugerencias.innerHTML = '<div style="padding: 5px; color: #999;">Error loading types</div>';
+            contenedorSugerencias.style.display = 'block';
           }
+        }
+
+        // Mostrar tipos cuando hace focus
+        inputTypeP.addEventListener('focus', () => {
+          cargarYMostrarTipos(inputTypeP.value.trim());
+        });
+
+        // Filtrar tipos cuando escribe
+        inputTypeP.addEventListener('input', () => {
+          const term = inputTypeP.value.trim();
+          cargarYMostrarTipos(term);
         });
 
         document.addEventListener('click', (e) => {
@@ -424,8 +438,8 @@
 
       //Cálculo del BOM + Producto
       let tipoProductoSeleccionado = "";
-      // Conjunto de tipos ya agregados a la tabla (evitar duplicados)
-      const addedTypes = new Set();
+      // Conjunto de partes (no_part) ya agregadas a la tabla (evitar duplicados de partes específicas)
+      const addedParts = new Set();
 
       // Función para cargar productos con cálculo BOM
       async function cargarProductosConBOM(no_project, type_p) {
@@ -556,9 +570,8 @@
           nuevaFila.remove(); // Remover del DOM
           const idx = productosEnTabla.indexOf(productoObj);
           if (idx !== -1) productosEnTabla.splice(idx, 1);
-          // Si tras eliminar no quedan productos de este tipo, quitar del conjunto
-          const stillHasType = productosEnTabla.some(p => p.type_p === productoObj.type_p);
-          if (!stillHasType) addedTypes.delete(productoObj.type_p);
+          // Remover la parte del conjunto de partes agregadas
+          addedParts.delete(productoObj.no_part);
           actualizarTotal();
         });
       }
@@ -619,9 +632,8 @@
           nuevaFila.remove();
           const idx = productosEnTabla.indexOf(productoObj);
           if (idx !== -1) productosEnTabla.splice(idx, 1);
-          // Actualizar conjunto de tipos
-          const stillHasType = productosEnTabla.some(p => p.type_p === productoObj.type_p);
-          if (!stillHasType) addedTypes.delete(productoObj.type_p);
+          // Remover la parte del conjunto de partes agregadas
+          addedParts.delete(productoObj.no_part);
           actualizarTotal();
         });
 
@@ -646,22 +658,24 @@
             return;
           }
 
-          // Evitar agregar el mismo tipo dos veces
-          if (addedTypes.has(type_p)) {
-            alert('This product type has already been added. Only different product types are allowed.');
-            return;
-          }
-
           // llamar backend con cálculo BOM
           const productos = await cargarProductosConBOM(no_project, type_p);
           if (!productos || productos.length === 0) {
             alert('No products were found that match the BOM.');
             return;
           }
-          // Añadir a la tabla con cálculo (todos los productos no registrados de este tipo)
-          productos.forEach(prod => agregarProductoConCalculo(prod));
-          // Marcar este tipo como agregado
-          addedTypes.add(type_p);
+
+          // Filtrar solo los productos que aún no han sido agregados
+          const productosNuevos = productos.filter(prod => !addedParts.has(prod.no_part));
+          if (productosNuevos.length === 0) {
+            alert('All products of this type have already been added.');
+            return;
+          }
+
+          // Añadir a la tabla con cálculo (solo los productos nuevos)
+          productosNuevos.forEach(prod => agregarProductoConCalculo(prod));
+          // Marcar estas partes como agregadas
+          productosNuevos.forEach(prod => addedParts.add(prod.no_part));
         });
       }
       // Carga inicial de selects (vendors, networks)
