@@ -372,7 +372,7 @@
 
     function showToast(message, type = "success", details = "") {
       toast.classList.remove("d-none");
-      toast.classList.remove("alert-success", "alert-danger", "alert-info", "alert-danger");
+      toast.classList.remove("alert-success", "alert-warning", "alert-info", "alert-warning");
       toast.classList.add(`alert`, `alert-${type}`);
       const safeMessage = escapeHtml(message);
       const safeDetails = details ? escapeHtml(details) : "";
