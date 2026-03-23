@@ -409,6 +409,14 @@ body > .container.mt-4 {
   transform: translateX(-50%);
   margin: 0;
   text-align: center;
+  font-size: calc(1.325rem + 0.9vw);
+  line-height: 1.2;
+}
+
+@media (min-width: 1200px) {
+  .inventory-title {
+    font-size: 2rem;
+  }
 }
 
 @media (max-width: 768px) {
