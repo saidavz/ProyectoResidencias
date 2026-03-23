@@ -2117,12 +2117,60 @@ app.get('/api/stock/by-part-inactive/:noPart', async (req, res) => {
 });
 
 // ======================================================
+// GET total available for AUT-STOCK items by part number
+// Suma todos los disponibles con el mismo no_part en:
+// - AUT-STOCK 
+// - Proyectos inactivos
+// ======================================================
+app.get('/api/stock/available-austocked/:noPart', async (req, res) => {
+  try {
+    const noPart = (req.params.noPart || '').toString().trim();
+    if (!noPart) return res.status(400).json({ message: 'noPart requerido' });
+
+    // Sumar disponible de todos los registros AUT-STOCK y de proyectos inactivos con ese no_part
+    const stockQ = `
+      SELECT 
+        no_part,
+        COALESCE(SUM(available), 0) as total_available
+      FROM stock 
+      WHERE UPPER(BTRIM(no_part)) = UPPER(BTRIM($1)) 
+        AND (
+          no_project = 'AUT-STOCK'
+          OR no_project IN (
+            SELECT no_project FROM project 
+            WHERE status IS NULL OR UPPER(BTRIM(status)) != 'ACTIVE'
+          )
+        )
+      GROUP BY no_part
+    `;
+    const stockR = await pool.query(stockQ, [noPart]);
+    
+    if (stockR.rows.length === 0) {
+      // Si no hay registros, devolver 0 disponible en lugar de un error
+      return res.json({ 
+        no_part: noPart,
+        total_available: 0 
+      });
+    }
+    
+    const stock = stockR.rows[0];
+    res.json({ 
+      no_part: stock.no_part,
+      total_available: stock.total_available
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error en servidor', error: String(err) });
+  }
+});
+
+// ======================================================
 // INBOUND - ESCANEO QR
 // Busca el QR en stock y registra movimiento INBOUND
 // ======================================================
 app.post("/api/inbound", async (req, res) => {
   try {
-    const { qr_code } = req.body;
+    const { qr_code, cantidad } = req.body;
+    const cantidadToAdd = parseInt(cantidad || 1, 10);
 
     if (!qr_code || qr_code.trim() === "") {
       return res.status(400).json({
@@ -2153,18 +2201,26 @@ app.post("/api/inbound", async (req, res) => {
     const stockRow = stockResult.rows[0];
     const previousAvailable = stockRow.available || 0;
 
+    // Extraer el no_project original del QR (formato: I000XXX-NO_PROJECT)
+    const qrParts = qrClean.split('-');
+    const originalProject = qrParts.length > 1 ? qrParts.slice(1).join('-') : stockRow.no_project;
+
     // 2) Check if project is INACTIVE - if so, ask for rack selection
     const projectCheck = await pool.query(
-      'SELECT status FROM project WHERE no_project = $1',
-      [stockRow.no_project]
+      'SELECT status FROM project WHERE LOWER(BTRIM(no_project)) = LOWER(BTRIM($1))',
+      [originalProject]
     );
 
     const projectIsActive = projectCheck.rows.length > 0 && 
                            projectCheck.rows[0].status && 
                            projectCheck.rows[0].status.toUpperCase() === 'ACTIVE';
 
-    // If INACTIVE project, need rack selection
-    if (!projectIsActive && stockRow.no_project !== 'AUT-STOCK') {
+    // If project not found OR it's INACTIVE, need rack selection
+    // Only for projects that are NOT already in AUT-STOCK
+    const isProjectNotFound = projectCheck.rows.length === 0;
+    const needsRack = (isProjectNotFound || !projectIsActive) && stockRow.no_project !== 'AUT-STOCK';
+
+    if (needsRack) {
       return res.status(200).json({
         ok: true,
         needsRackSelection: true,
@@ -2177,8 +2233,24 @@ app.post("/api/inbound", async (req, res) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const updateQ = `UPDATE stock SET available = available + 1 WHERE id_stock = $1 RETURNING available`;
-      const updR = await client.query(updateQ, [stockRow.id_stock]);
+      
+      // For AUT-STOCK projects, calculate TOTAL available BEFORE increment
+      let totalAvailBefore = 0;
+      if (stockRow.no_project === 'AUT-STOCK') {
+        const totalAvailBeforeQuery = `
+          SELECT COALESCE(SUM(available), 0) as total_available
+          FROM stock
+          WHERE UPPER(BTRIM(no_part)) = UPPER(BTRIM($1))
+          AND (no_project = 'AUT-STOCK' OR no_project IN (
+            SELECT no_project FROM project WHERE status IS NULL OR status != 'ACTIVE'
+          ))
+        `;
+        const totalAvailBeforeResult = await client.query(totalAvailBeforeQuery, [stockRow.no_part]);
+        totalAvailBefore = parseInt(totalAvailBeforeResult.rows[0]?.total_available || 0);
+      }
+      
+      const updateQ = `UPDATE stock SET available = available + $1 WHERE id_stock = $2 RETURNING available`;
+      const updR = await client.query(updateQ, [cantidadToAdd, stockRow.id_stock]);
       const newAvailable = updR.rows[0] ? updR.rows[0].available : stockRow.available;
       let overEntry = null;
 
@@ -2195,10 +2267,10 @@ app.post("/api/inbound", async (req, res) => {
           SELECT bp.quantity_project, p.quantity
           FROM bom_project bp
           INNER JOIN product p ON bp.no_part = p.no_part
-          WHERE bp.no_project = $1 AND UPPER(BTRIM(bp.no_part)) = UPPER(BTRIM($2))
+          WHERE LOWER(BTRIM(bp.no_project)) = LOWER(BTRIM($1)) AND UPPER(BTRIM(bp.no_part)) = UPPER(BTRIM($2))
           LIMIT 1
         `;
-        const bomProductResult = await client.query(bomProductQuery, [stockRow.no_project, stockRow.no_part]);
+        const bomProductResult = await client.query(bomProductQuery, [originalProject, stockRow.no_part]);
 
         if (bomProductResult.rows.length > 0) {
           const quantityProject = bomProductResult.rows[0].quantity_project;
@@ -2214,17 +2286,62 @@ app.post("/api/inbound", async (req, res) => {
           }
 
           await client.query(
-            'UPDATE bom_project SET status = $1 WHERE no_project = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
-            [newStatus, stockRow.no_project, stockRow.no_part]
+            'UPDATE bom_project SET status = $1 WHERE LOWER(BTRIM(no_project)) = LOWER(BTRIM($2)) AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
+            [newStatus, originalProject, stockRow.no_part]
           );
 
-          // Over-entry: only when previous available + entering (1) exceeds packages required
-          if ((previousAvailable + 1) > packagesRequiredRounded) {
+          // Over-entry: only when previous available + entering quantity exceeds packages required
+          if ((previousAvailable + cantidadToAdd) > packagesRequiredRounded) {
             overEntry = {
               quantity_project: quantityProject,
               quantity_calculated: quantity_calculated,
               available: previousAvailable,
-              entering: 1,
+              entering: cantidadToAdd,
+              packages_required: packagesRequiredRounded
+            };
+          }
+        }
+      } else if (stockRow.no_project === 'AUT-STOCK' && originalProject && originalProject !== 'AUT-STOCK') {
+        // Para AUT-STOCK, usar directamente el proyecto original del QR para buscar el BOM
+        const bomProductQuery = `
+          SELECT bp.quantity_project, p.quantity
+          FROM bom_project bp
+          INNER JOIN product p ON bp.no_part = p.no_part
+          WHERE LOWER(BTRIM(bp.no_project)) = LOWER(BTRIM($1)) AND UPPER(BTRIM(bp.no_part)) = UPPER(BTRIM($2))
+          LIMIT 1
+        `;
+        const bomProductResult = await client.query(bomProductQuery, [originalProject, stockRow.no_part]);
+        
+        if (bomProductResult.rows.length > 0) {
+          const quantityProject = bomProductResult.rows[0].quantity_project;
+          const quantityPerPackage = bomProductResult.rows[0].quantity || 1;
+
+          const quantity_calculated = quantityProject / quantityPerPackage;
+          const packagesRequiredRounded = Math.ceil(quantity_calculated);
+          
+          // Calculate total AFTER increment for BOM status decision
+          const totalAvailAfter = totalAvailBefore + cantidadToAdd;
+
+          let newStatus = 'Pending Delivery';
+          if (totalAvailAfter >= packagesRequiredRounded) {
+            newStatus = 'Delivered';
+          }
+
+          // DEBUG LOG - shows project's available AFTER increment for BOM status
+          console.log(`BOM Update - Project: ${originalProject}, Part: ${stockRow.no_part}, Required: ${packagesRequiredRounded}, Arrived: ${totalAvailAfter}, NewStatus: ${newStatus}`);
+
+          await client.query(
+            'UPDATE bom_project SET status = $1 WHERE LOWER(BTRIM(no_project)) = LOWER(BTRIM($2)) AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
+            [newStatus, originalProject, stockRow.no_part]
+          );
+
+          // Over-entry: only when total available + entering quantity exceeds packages required
+          if ((totalAvailBefore + cantidadToAdd) > packagesRequiredRounded) {
+            overEntry = {
+              quantity_project: quantityProject,
+              quantity_calculated: quantity_calculated,
+              available: totalAvailBefore,  // Use TOTAL AUT-STOCK available, not just this QR's available
+              entering: cantidadToAdd,
               packages_required: packagesRequiredRounded
             };
           }
@@ -2263,7 +2380,8 @@ app.post("/api/inbound", async (req, res) => {
 // ======================================================
 app.post("/api/inbound-with-rack", async (req, res) => {
   try {
-    const { qr_code, rack } = req.body;
+    const { qr_code, rack, cantidad } = req.body;
+    const cantidadToAdd = parseInt(cantidad || 1, 10);
 
     if (!qr_code || qr_code.trim() === "" || !rack || rack.trim() === "") {
       return res.status(400).json({
@@ -2295,7 +2413,10 @@ app.post("/api/inbound-with-rack", async (req, res) => {
     const stockRow = stockResult.rows[0];
     const previousAvailable = stockRow.available || 0;
     const noPart = stockRow.no_part;
-    const noProjectOriginal = stockRow.no_project;
+
+    // Extraer el no_project original del QR (formato: I000XXX-NO_PROJECT)
+    const qrParts = qrClean.split('-');
+    const originalProject = qrParts.length > 1 ? qrParts.slice(1).join('-') : stockRow.no_project;
 
     const client = await pool.connect();
     try {
@@ -2312,9 +2433,9 @@ app.post("/api/inbound-with-rack", async (req, res) => {
         [rackClean, noPart]
       );
 
-      // 3) Increment available
-      const updateQ = `UPDATE stock SET available = available + 1 WHERE id_stock = $1 RETURNING available`;
-      const updR = await client.query(updateQ, [stockRow.id_stock]);
+      // 3) Increment available by cantidad
+      const updateQ = `UPDATE stock SET available = available + $1 WHERE id_stock = $2 RETURNING available`;
+      const updR = await client.query(updateQ, [cantidadToAdd, stockRow.id_stock]);
       const newAvailable = updR.rows[0] ? updR.rows[0].available : stockRow.available;
       let overEntry = null;
 
@@ -2326,15 +2447,39 @@ app.post("/api/inbound-with-rack", async (req, res) => {
       `;
       const movementResult = await client.query(movementQuery, [stockRow.id_stock]);
 
-      // 5) Update bom_project status
+      // 5) Update bom_project status usando el proyecto original extraído del QR
       const bomProductQuery = `
-        SELECT bp.quantity_project, p.quantity
+        SELECT bp.quantity_project, p.quantity, bp.no_project
         FROM bom_project bp
         INNER JOIN product p ON bp.no_part = p.no_part
-        WHERE bp.no_project = $1 AND UPPER(BTRIM(bp.no_part)) = UPPER(BTRIM($2))
+        WHERE LOWER(BTRIM(bp.no_project)) = LOWER(BTRIM($1)) AND UPPER(BTRIM(bp.no_part)) = UPPER(BTRIM($2))
         LIMIT 1
       `;
-      const bomProductResult = await client.query(bomProductQuery, [noProjectOriginal, noPart]);
+      const bomProductResult = await client.query(bomProductQuery, [originalProject, noPart]);
+
+      // Get TOTAL available BEFORE increment from ALL inactive stocks with this part (for alert display)
+      const totalAvailBeforeQuery = `
+        SELECT COALESCE(SUM(available), 0) as total_available
+        FROM stock
+        WHERE UPPER(BTRIM(no_part)) = UPPER(BTRIM($1))
+        AND (no_project = 'AUT-STOCK' OR no_project IN (
+          SELECT no_project FROM project WHERE status IS NULL OR status != 'ACTIVE'
+        ))
+      `;
+      const totalAvailBeforeResult = await client.query(totalAvailBeforeQuery, [noPart]);
+      const totalAvailBefore = parseInt(totalAvailBeforeResult.rows[0]?.total_available || 0);
+
+      // Get available BEFORE increment from THIS PROJECT with this part (for BOM log comparison)
+      // Calculate AFTER increment: projectAvailBefore + 1
+      const projectAvailBeforeQuery = `
+        SELECT COALESCE(SUM(available), 0) as total_available
+        FROM stock
+        WHERE UPPER(BTRIM(no_part)) = UPPER(BTRIM($1))
+        AND (no_project = 'AUT-STOCK' OR LOWER(BTRIM(no_project)) = LOWER(BTRIM($2)))
+      `;
+      const projectAvailBeforeResult = await client.query(projectAvailBeforeQuery, [noPart, originalProject]);
+      const projectAvailBefore = parseInt(projectAvailBeforeResult.rows[0]?.total_available || 0);
+      // Will calculate projectAvailAfter AFTER the UPDATE below
 
       if (bomProductResult.rows.length > 0) {
         const quantityProject = bomProductResult.rows[0].quantity_project;
@@ -2342,27 +2487,48 @@ app.post("/api/inbound-with-rack", async (req, res) => {
 
         const quantity_calculated = quantityProject / quantityPerPackage;
         const packagesRequiredRounded = Math.ceil(quantity_calculated);
-        const packagesArrived = newAvailable;
 
         let newStatus = 'Pending Delivery';
-        if (packagesArrived >= packagesRequiredRounded) {
-          newStatus = 'Delivered';
-        }
+        
+        // Will update bom_project status AFTER we know projectAvailAfter
+        // (continue below after UPDATE)
 
-        await client.query(
-          'UPDATE bom_project SET status = $1 WHERE no_project = $2 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
-          [newStatus, noProjectOriginal, noPart]
-        );
-
-        if ((previousAvailable + 1) > packagesRequiredRounded) {
+        if ((projectAvailBefore + cantidadToAdd) > packagesRequiredRounded) {
           overEntry = {
             quantity_project: quantityProject,
             quantity_calculated: quantity_calculated,
-            available: previousAvailable,
-            entering: 1,
+            available: totalAvailBefore,  // General available (sum of all inactive stocks) shown in table
+            entering: cantidadToAdd,
             packages_required: packagesRequiredRounded
           };
         }
+      } else {
+        // DEBUG LOG - BOM no encontrado
+        console.log(`BOM NOT FOUND - Project: ${originalProject}, Part: ${noPart}, StockProject: ${stockRow.no_project}`);
+      }
+
+      // Calculate projectAvailAfter AFTER the UPDATE has been done with cantidad
+      let projectAvailAfter = projectAvailBefore + cantidadToAdd;
+
+      // Now update BOM status if we have a BOM
+      if (bomProductResult.rows.length > 0) {
+        const quantityProject = bomProductResult.rows[0].quantity_project;
+        const quantityPerPackage = bomProductResult.rows[0].quantity || 1;
+        const quantity_calculated = quantityProject / quantityPerPackage;
+        const packagesRequiredRounded = Math.ceil(quantity_calculated);
+
+        let newStatus = 'Pending Delivery';
+        if (projectAvailAfter >= packagesRequiredRounded) {
+          newStatus = 'Delivered';
+        }
+
+        // DEBUG LOG - shows project's available AFTER increment for BOM status
+        console.log(`BOM Update - Project: ${originalProject}, Part: ${noPart}, Required: ${packagesRequiredRounded}, Arrived: ${projectAvailAfter}, NewStatus: ${newStatus}`);
+
+        await client.query(
+          'UPDATE bom_project SET status = $1 WHERE LOWER(BTRIM(no_project)) = LOWER(BTRIM($2)) AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($3))',
+          [newStatus, originalProject, noPart]
+        );
       }
 
       // 6) Change no_project to AUT-STOCK in stock
@@ -2370,6 +2536,9 @@ app.post("/api/inbound-with-rack", async (req, res) => {
         'UPDATE stock SET no_project = $1 WHERE id_stock = $2',
         ['AUT-STOCK', stockRow.id_stock]
       );
+
+      // Calculate total available AFTER increment: before + 1 (the entry just made)
+      const totalAvailAfter = totalAvailBefore + 1;
 
       await client.query('COMMIT');
 
@@ -2382,7 +2551,8 @@ app.post("/api/inbound-with-rack", async (req, res) => {
         message: "Inbound completado con rack seleccionado",
         stock: stockRow,
         movement: movementResult.rows[0],
-        overEntry: overEntry || null
+        overEntry: overEntry || null,
+        totalAvailAfter: totalAvailAfter  // Total general para la tabla (antes + 1)
       });
     } catch (errInner) {
       await client.query('ROLLBACK');
