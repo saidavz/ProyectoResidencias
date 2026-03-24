@@ -18,28 +18,75 @@
                 <i class="bi bi-qr-code-scan"></i>
             </div>
             <h2 class="login-title">Access Control</h2>
-            <p class="login-subtitle">Scan your QR badge to enter the system</p>
+            <p class="login-subtitle" id="loginSubtitle">Scan your badge to enter the system</p>
 
-            <div class="qr-input-wrapper">
-                <i class="bi bi-upc-scan"></i>
-                <input
-                    type="text"
-                    id="loginQrInput"
-                    placeholder="Scan your QR code..."
-                    autofocus
-                    autocomplete="off"
-                />
+            <!-- QR Mode -->
+            <div id="qrMode" class="login-mode-section">
+                <div class="qr-input-wrapper">
+                    <i class="bi bi-upc-scan"></i>
+                    <input
+                        type="text"
+                        id="loginQrInput"
+                        placeholder="Scan your QR code..."
+                        autofocus
+                        autocomplete="off"
+                    />
+                </div>
+
+                <div class="scanning-animation" id="scanningIndicator">
+                    <i class="bi bi-arrow-repeat"></i> Validating access...
+                </div>
             </div>
 
-            <div class="scanning-animation" id="scanningIndicator">
-                <i class="bi bi-arrow-repeat"></i> Validating access...
+            <!-- Credentials Mode (Hidden by default) -->
+            <div id="credentialsMode" class="login-mode-section d-none">
+                <div class="credentials-input-wrapper">
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input
+                            type="text"
+                            id="loginUserNameInput"
+                            class="form-control"
+                            placeholder="User Name"
+                            autocomplete="off"
+                        />
+                    </div>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input
+                            type="password"
+                            id="loginPasswordInput"
+                            class="form-control"
+                            placeholder="Password"
+                            autocomplete="off"
+                        />
+                        <button 
+                            type="button" 
+                            class="btn btn-outline-secondary toggle-password-btn" 
+                            id="togglePasswordBtn"
+                            tabindex="-1"
+                        >
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="scanning-animation" id="credentialsScanningIndicator">
+                    <i class="bi bi-arrow-repeat"></i> Validating credentials...
+                </div>
             </div>
 
             <div id="loginAlert" class="alert alert-login d-none"></div>
 
-            <button type="button" class="login-btn" id="loginBtn">
-                <i class="bi bi-shield-check me-2"></i>Verify Access
-            </button>
+            <!-- Login Mode Buttons -->
+            <div class="login-buttons-container">
+                <button type="button" class="login-btn login-btn-credentials" id="loginBtnCredentials" style="display: none;">
+                    <i class="bi bi-shield-check me-2"></i>Login
+                </button>
+                <button type="button" class="login-btn login-btn-toggle" id="toggleLoginMode">
+                    <i class="bi bi-arrow-left-right me-2"></i>Use Credentials Instead
+                </button>
+            </div>
         </div>
     </div>
 
@@ -181,19 +228,28 @@
     </div>
 
     <footer class="text-center py-3 text-white bg-gradient mt-5">
-        Purchase-Inventory Management System - BRK. Resideo.
+        <span class="footer-scroll-text">Purchase-Inventory Management System - BRK. Resideo.</span>
     </footer>
 
     <script src="auth.js"></script>
     <script>
         let homeCurrentUser = null;
         let homeLoginScanTimer;
+        let homeLoginMode = 'qr'; // 'qr' or 'credentials'
 
         const homeLoginOverlay = () => document.getElementById('loginOverlay');
         const homeLoginInput = () => document.getElementById('loginQrInput');
-        const homeLoginBtn = () => document.getElementById('loginBtn');
+        const homeLoginUserNameInput = () => document.getElementById('loginUserNameInput');
+        const homeLoginPasswordInput = () => document.getElementById('loginPasswordInput');
+        const homeLoginBtnCredentials = () => document.getElementById('loginBtnCredentials');
+        const homeToggleLoginMode = () => document.getElementById('toggleLoginMode');
+        const homeTogglePasswordBtn = () => document.getElementById('togglePasswordBtn');
         const homeLoginAlert = () => document.getElementById('loginAlert');
         const homeScanningIndicator = () => document.getElementById('scanningIndicator');
+        const homeCredentialsScanningIndicator = () => document.getElementById('credentialsScanningIndicator');
+        const homeQrMode = () => document.getElementById('qrMode');
+        const homeCredentialsMode = () => document.getElementById('credentialsMode');
+        const homeLoginSubtitle = () => document.getElementById('loginSubtitle');
         const homeUserInfoBar = () => document.getElementById('userInfoBar');
 
         function userHasFullAccess(user) {
@@ -220,7 +276,110 @@
             }, 4000);
         }
 
-        function renderHomeSession(user) {
+        function switchLoginMode(newMode) {
+            homeLoginMode = newMode;
+            const qrMode = homeQrMode();
+            const credentialsMode = homeCredentialsMode();
+            const btnCredentials = homeLoginBtnCredentials();
+            const toggleBtn = homeToggleLoginMode();
+            const subtitle = homeLoginSubtitle();
+
+            if (newMode === 'qr') {
+                if (qrMode) qrMode.classList.remove('d-none');
+                if (credentialsMode) credentialsMode.classList.add('d-none');
+                if (btnCredentials) btnCredentials.style.display = 'none';
+                if (toggleBtn) toggleBtn.innerHTML = '<i class="bi bi-arrow-left-right me-2"></i>Use Credentials Instead';
+                if (subtitle) subtitle.textContent = 'Scan your badge to enter the system';
+                const input = homeLoginInput();
+                if (input) input.focus();
+            } else {
+                if (qrMode) qrMode.classList.add('d-none');
+                if (credentialsMode) credentialsMode.classList.remove('d-none');
+                if (btnCredentials) btnCredentials.style.display = 'block';
+                if (toggleBtn) toggleBtn.innerHTML = '<i class="bi bi-arrow-left-right me-2"></i>Use QR Instead';
+                if (subtitle) subtitle.textContent = 'Enter your username and password to access the system';
+                const userNameInput = homeLoginUserNameInput();
+                if (userNameInput) userNameInput.focus();
+            }
+        }
+
+        async function handleHomeLoginQr() {
+            const input = homeLoginInput();
+            const button = document.getElementById('loginBtnQr');
+            const scanning = homeScanningIndicator();
+
+            if (!input || !scanning) return;
+
+            const qrCode = input.value.trim();
+            if (!qrCode) {
+                showHomeLoginAlert('Please scan or enter your QR code.');
+                return;
+            }
+
+            scanning.classList.add('active');
+            if (button) {
+                button.disabled = true;
+            } else {
+                input.disabled = true;
+            }
+
+            try {
+                const loggedUser = await PurchaseAuth.validateQr(qrCode);
+                renderHomeSession(loggedUser);
+            } catch (error) {
+                showHomeLoginAlert(error.message || 'Access denied.');
+                input.value = '';
+                input.focus();
+            } finally {
+                scanning.classList.remove('active');
+                if (button) {
+                    button.disabled = false;
+                } else {
+                    input.disabled = false;
+                }
+            }
+        }
+
+        async function handleHomeLoginCredentials() {
+            const userNameInput = homeLoginUserNameInput();
+            const passwordInput = homeLoginPasswordInput();
+            const button = homeLoginBtnCredentials();
+            const scanning = homeCredentialsScanningIndicator();
+
+            if (!userNameInput || !passwordInput || !button || !scanning) return;
+
+            const userName = userNameInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!userName) {
+                showHomeLoginAlert('User name es requerido.');
+                userNameInput.focus();
+                return;
+            }
+
+            if (!password) {
+                showHomeLoginAlert('Password es requerido.');
+                passwordInput.focus();
+                return;
+            }
+
+            scanning.classList.add('active');
+            button.disabled = true;
+
+            try {
+                const loggedUser = await PurchaseAuth.validateCredentials(userName, password);
+                renderHomeSession(loggedUser);
+            } catch (error) {
+                showHomeLoginAlert(error.message || 'Access denied.');
+                passwordInput.value = '';
+                userNameInput.focus();
+            } finally {
+                scanning.classList.remove('active');
+                button.disabled = false;
+            }
+        }
+
+        function renderHomeSession(user, options = {}) {
             homeCurrentUser = user;
 
             if (!userHasFullAccess(user)) {
@@ -235,11 +394,16 @@
 
             const overlay = homeLoginOverlay();
             if (overlay) {
-                overlay.style.animation = 'fadeOut 0.3s ease-out';
-                setTimeout(() => {
+                if (options.instantHide) {
                     overlay.classList.add('hidden');
                     overlay.style.animation = '';
-                }, 300);
+                } else {
+                    overlay.style.animation = 'fadeOut 0.3s ease-out';
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                        overlay.style.animation = '';
+                    }, 300);
+                }
             }
 
             const userBar = homeUserInfoBar();
@@ -248,49 +412,48 @@
             applyHomeRoleVisibility(user);
         }
 
-        async function handleHomeLogin() {
-            const input = homeLoginInput();
-            const button = homeLoginBtn();
-            const scanning = homeScanningIndicator();
-
-            if (!input || !button || !scanning) return;
-
-            const qrCode = input.value.trim();
-            if (!qrCode) {
-                showHomeLoginAlert('Please scan or enter your QR code.');
-                return;
-            }
-
-            scanning.classList.add('active');
-            button.disabled = true;
-
-            try {
-                const loggedUser = await PurchaseAuth.validateQr(qrCode);
-                renderHomeSession(loggedUser);
-            } catch (error) {
-                showHomeLoginAlert(error.message || 'Access denied.');
-                input.value = '';
-                input.focus();
-            } finally {
-                scanning.classList.remove('active');
-                button.disabled = false;
-            }
-        }
-
         document.addEventListener('DOMContentLoaded', function () {
             const input = homeLoginInput();
-            const button = homeLoginBtn();
+            const userNameInput = homeLoginUserNameInput();
+            const passwordInput = homeLoginPasswordInput();
+            const btnCredentials = homeLoginBtnCredentials();
+            const toggleBtn = homeToggleLoginMode();
+            const togglePasswordBtn = homeTogglePasswordBtn();
             const logoutBtn = document.getElementById('logoutBtn');
 
-            if (button) {
-                button.addEventListener('click', handleHomeLogin);
+            if (btnCredentials) {
+                btnCredentials.addEventListener('click', handleHomeLoginCredentials);
+            }
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', () => {
+                    const newMode = homeLoginMode === 'qr' ? 'credentials' : 'qr';
+                    switchLoginMode(newMode);
+                });
+            }
+
+            if (togglePasswordBtn) {
+                togglePasswordBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const passwordField = homeLoginPasswordInput();
+                    if (passwordField) {
+                        const currentType = passwordField.type;
+                        passwordField.type = currentType === 'password' ? 'text' : 'password';
+                        
+                        // Cambiar ícono
+                        const icon = togglePasswordBtn.querySelector('i');
+                        if (icon) {
+                            icon.className = currentType === 'password' ? 'bi bi-eye-slash' : 'bi bi-eye';
+                        }
+                    }
+                });
             }
 
             if (input) {
                 input.addEventListener('keypress', (event) => {
                     if (event.key === 'Enter') {
                         event.preventDefault();
-                        handleHomeLogin();
+                        handleHomeLoginQr();
                     }
                 });
 
@@ -298,8 +461,27 @@
                     clearTimeout(homeLoginScanTimer);
                     if (input.value.trim().length > 3) {
                         homeLoginScanTimer = setTimeout(() => {
-                            handleHomeLogin();
+                            handleHomeLoginQr();
                         }, 500);
+                    }
+                });
+            }
+
+            if (userNameInput) {
+                userNameInput.addEventListener('keypress', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        const pwInput = homeLoginPasswordInput();
+                        if (pwInput) pwInput.focus();
+                    }
+                });
+            }
+
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        handleHomeLoginCredentials();
                     }
                 });
             }
@@ -320,7 +502,7 @@
             const notice = PurchaseAuth.consumeNotice();
 
             if (existingUser) {
-                renderHomeSession(existingUser);
+                renderHomeSession(existingUser, { instantHide: true });
                 if (notice) {
                     window.alert(notice);
                 }

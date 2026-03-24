@@ -30,7 +30,7 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarMenu">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <li class="nav-item"><a class="nav-link" href="http://localhost:3000">Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               BOM
@@ -160,7 +160,7 @@
         <option value="status">Status</option>
         <option value="supplier">Supplier</option>
       </select>
-      <button id="btnClearFilters" class="btn btn-outline-secondary" style="white-space: nowrap;">
+      <button id="btnClearFilters" class="btn clear-btn-bluegray" style="white-space: nowrap; display: none;">
         <i class="bi bi-x-circle"></i> Clear
       </button>
     </div>
@@ -189,7 +189,7 @@
     </div>
   </main>
   <footer class="text-center py-3 text-white bg-gradient mt-5">
-    Purchase-Inventory Management System - BRK. Resideo.
+    <span class="footer-scroll-text">Purchase-Inventory Management System - BRK. Resideo.</span>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -599,11 +599,13 @@
       // Actualizar el dropdown según la selección
       function updateFilterDropdown() {
         const filterSelect = document.getElementById('filterSelect');
+        const btnClearFilters = document.getElementById('btnClearFilters');
         const selectedValue = filterSelect.value;
 
         // Si seleccionó "status", cambiar a opciones de status
         if (selectedValue === 'status') {
           currentFilterType = 'status';
+          btnClearFilters.style.display = 'block';
           filterSelect.innerHTML = `
             <option value="back">← Back to filters</option>
             <option value="">All Status</option>
@@ -617,6 +619,7 @@
         // Si seleccionó "supplier", cambiar a opciones de proveedores
         else if (selectedValue === 'supplier') {
           currentFilterType = 'supplier';
+          btnClearFilters.style.display = 'block';
           let options = '<option value="back">← Back to filters</option><option value="">All Suppliers</option>';
           Array.from(uniqueSuppliers).sort().forEach(supplier => {
             options += `<option value="${supplier}">${supplier}</option>`;
@@ -642,11 +645,13 @@
       // Resetear dropdown al estado inicia
       function resetFilterDropdown() {
         const filterSelect = document.getElementById('filterSelect');
+        const btnClearFilters = document.getElementById('btnClearFilters');
         filterSelect.innerHTML = `
           <option value="">Filter by...</option>
           <option value="status">Status</option>
           <option value="supplier">Supplier</option>
         `;
+        btnClearFilters.style.display = 'none';
         currentFilterType = '';
         currentFilterValue = '';
         applyFilters();

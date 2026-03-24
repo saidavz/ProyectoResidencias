@@ -341,6 +341,75 @@
     return path === '/' || path.endsWith('/index.html');
   }
 
+  function shouldHandlePageTransitionClick(event, link) {
+    if (!event || !link) {
+      return false;
+    }
+
+    if (event.defaultPrevented) {
+      return false;
+    }
+
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return false;
+    }
+
+    const rawHref = String(link.getAttribute('href') || '').trim();
+    if (!rawHref || rawHref === '#' || rawHref.startsWith('#')) {
+      return false;
+    }
+
+    if (link.hasAttribute('download') || String(link.getAttribute('target') || '').toLowerCase() === '_blank') {
+      return false;
+    }
+
+    if (/^(mailto:|tel:|javascript:)/i.test(rawHref)) {
+      return false;
+    }
+
+    let targetUrl;
+    try {
+      targetUrl = new URL(link.href, window.location.href);
+    } catch (error) {
+      return false;
+    }
+
+    if (targetUrl.origin !== window.location.origin) {
+      return false;
+    }
+
+    if (targetUrl.href === window.location.href) {
+      return false;
+    }
+
+    return true;
+  }
+
+  function initPageTransitions() {
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !document.body) {
+      return;
+    }
+
+    const body = document.body;
+    body.classList.add('page-transition');
+
+    document.addEventListener('click', function (event) {
+      const link = event.target && event.target.closest ? event.target.closest('a[href]') : null;
+      if (!shouldHandlePageTransitionClick(event, link)) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const destination = link.href;
+      body.classList.add('page-transition-exit');
+
+      window.setTimeout(function () {
+        window.location.assign(destination);
+      }, 160);
+    });
+  }
+
   function redirectToLogin(message, redirectTo) {
     const target = redirectTo || 'index.html';
     setNotice(message);
@@ -374,6 +443,40 @@
 
     if (!response.ok || !data.success || !data.user) {
       throw new Error(data.error || 'Acceso denegado. Usuario no encontrado o sin permisos.');
+    }
+
+    return setUser(data.user);
+  }
+
+  async function validateCredentials(userName, password) {
+    const normalizedUserName = String(userName || '').trim();
+    const normalizedPassword = String(password || '').trim();
+
+    if (!normalizedUserName) {
+      throw new Error('User name es requerido');
+    }
+
+    if (!normalizedPassword) {
+      throw new Error('Password es requerido');
+    }
+
+    const response = await fetch(`${getApiBase()}/api/auth/validate-credentials`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ user_name: normalizedUserName, user_password: normalizedPassword })
+    });
+
+    let data = {};
+    try {
+      data = await response.json();
+    } catch (error) {
+      data = {};
+    }
+
+    if (!response.ok || !data.success || !data.user) {
+      throw new Error(data.error || 'Acceso denegado. Usuario o contraseña incorrectos.');
     }
 
     return setUser(data.user);
@@ -550,8 +653,12 @@
 
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', autoMountUserInfoBar);
+      document.addEventListener('DOMContentLoaded', function () {
+        initPageTransitions();
+        autoMountUserInfoBar();
+      });
     } else {
+      initPageTransitions();
       autoMountUserInfoBar();
     }
   }
@@ -564,6 +671,7 @@
     getUserDisplayName,
     hasAnyRole,
     validateQr,
+    validateCredentials,
     requireAuth,
     consumeNotice,
     logout,

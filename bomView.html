@@ -30,7 +30,7 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarMenu">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link" href="http://localhost:3000">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle active" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
@@ -83,6 +83,33 @@
                 </div>
             </div>
         </div>
+
+        <!-- Filtro Dinámico -->
+        <div class="d-flex justify-content-end mb-3" style="gap: 10px; position: relative; margin-bottom: 350px;">
+            <div style="position: relative;">
+                <select id="filterSelectBom" class="form-select" style="width: 180px;">
+                    <option value="">Filter by</option>
+                    <option value="type">Type</option>
+                    <option value="brand">Brand</option>
+                    <option value="qisNumber">QIS Number</option>
+                </select>
+            </div>
+            
+            <!-- Contenedor para opciones de filtro -->
+            <div id="filterOptionsContainer" class="filter-dropdown-box" style="display: none; position: absolute; top: 50px; right: -230px; z-index: 1000; width: 200px;">
+                <div style="padding: 12px; border-bottom: 1px solid #e9ecef;">
+                    <input type="text" id="filterSearchInputBom" class="form-control form-control-sm" placeholder="Search..." autocomplete="off">
+                </div>
+                <div id="filterOptionsList" style="max-height: 250px; overflow-y: auto; padding: 8px; color: #2d3436; font-size: 0.9rem;">
+                    <div style="padding: 8px; text-align: center; color: #b2bec3;">Selecciona una opción</div>
+                </div>
+            </div>
+            
+            <button id="btnClearFiltersBom" class="btn clear-btn-bluegray" style="width: 100px; height: 50px; white-space: nowrap; display: none;">
+                <i class="bi bi-x-circle"></i> Clear
+            </button>
+        </div>
+
         <!-- Tabla del BOM -->
         <div class="enhanced-table" style="position: relative; z-index: 1;">
             <div class="table-responsive">
@@ -112,7 +139,7 @@
     </main>
 
     <footer class="text-center py-3 text-white bg-gradient mt-5">
-        Purchase-Inventory Management System - BRK. Resideo.
+        <span class="footer-scroll-text">Purchase-Inventory Management System - BRK. Resideo.</span>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -121,7 +148,16 @@
             const BASE = 'http://localhost:3000/api';
             const projectSearchInput = document.getElementById('projectSearchBomView');
             const projectSuggestions = document.getElementById('projectSuggestionsBomView');
+            const filterSelectBom = document.getElementById('filterSelectBom');
+            const filterOptionsContainer = document.getElementById('filterOptionsContainer');
+            const filterSearchInputBom = document.getElementById('filterSearchInputBom');
+            const filterOptionsList = document.getElementById('filterOptionsList');
+            const btnClearFiltersBom = document.getElementById('btnClearFiltersBom');
+            
             let allProjects = [];
+            let allBOMData = []; // Almacenar todos los datos del BOM para filtrar
+            let currentFilterType = ''; // Para guardar el tipo de filtro seleccionado
+            
             // Función para normalizar acentos y convertir a minúsculas
             function normalizeText(text) {
                 return text
@@ -129,6 +165,7 @@
                     .normalize('NFD')
                     .replace(/[\u0300-\u036f]/g, ''); // Elimina marcas diacríticas
             }
+            
             // Cargar todos los proyectos al iniciar
             async function loadAllProjects() {
                 try {
@@ -139,6 +176,7 @@
 
                 }
             }
+            
             // Buscador de proyectos
             projectSearchInput.addEventListener('input', () => {
                 const term = normalizeText(projectSearchInput.value.trim());
@@ -193,12 +231,14 @@
                 });
                 projectSuggestions.style.display = filteredProjects.length ? 'block' : 'none';
             });
+            
             // Ocultar sugerencias al hacer click fuera
             document.addEventListener('click', (e) => {
                 if (e.target !== projectSearchInput && !projectSuggestions.contains(e.target)) {
                     projectSuggestions.style.display = 'none';
                 }
             });
+            
             // Cargar BOM filtrado por proyecto
             async function loadBOMDataByProject(noProject) {
                 let url = `${BASE}/bomView`;
@@ -217,15 +257,16 @@
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     const data = await response.json();
-
-                    displayBOMData(data);
+                    allBOMData = data;
+                    applyBOMFilters();
                 } catch (error) {
 
 
                     document.getElementById('bomTableBody').innerHTML =
-                        '<tr><td colspan="9" class="text-center text-danger">Error loading data</td></tr>';
+                        '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
                 }
             }
+            
             // Cargar todos los BOM al inicio
             async function loadAllBOMData() {
                 let url = `${BASE}/bomView`;
@@ -237,15 +278,16 @@
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     const data = await response.json();
-
+                    allBOMData = data;
                     displayBOMData(data);
                 } catch (error) {
 
 
                     document.getElementById('bomTableBody').innerHTML =
-                        '<tr><td colspan="9" class="text-center text-danger">Error loading data</td></tr>';
+                        '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
                 }
             }
+            
             function displayBOMData(data) {
                 const tbody = document.getElementById('bomTableBody');
 
@@ -273,6 +315,130 @@
 
                 tbody.innerHTML = rows;
             }
+            
+            // Aplicar filtros al BOM
+            function applyBOMFilters() {
+                const filterType = currentFilterType;
+                const filterValue = filterSearchInputBom.value.trim().toLowerCase();
+                
+                let filteredData = allBOMData;
+                
+                if (filterType && filterValue) {
+                    filteredData = allBOMData.filter(item => {
+                        switch(filterType) {
+                            case 'type':
+                                return (item.type_p || '').toLowerCase().includes(filterValue);
+                            case 'brand':
+                                return (item.brand || '').toLowerCase().includes(filterValue);
+                            case 'qisNumber':
+                                return (item.no_qis || '').toLowerCase().includes(filterValue);
+                            default:
+                                return true;
+                        }
+                    });
+                }
+                
+                displayBOMData(filteredData);
+            }
+            
+            // Función para obtener valores únicos de una columna
+            function getUniqueValues(fieldName) {
+                const uniqueSet = new Set();
+                allBOMData.forEach(item => {
+                    const value = item[fieldName];
+                    if (value && value.toString().trim()) {
+                        uniqueSet.add(value.toString().trim());
+                    }
+                });
+                return Array.from(uniqueSet).sort();
+            }
+            
+            // Función para mostrar opciones en la lista
+            function displayFilterOptions() {
+                const fieldMap = {
+                    'type': 'type_p',
+                    'brand': 'brand',
+                    'qisNumber': 'no_qis'
+                };
+                
+                if (!currentFilterType || !fieldMap[currentFilterType]) {
+                    filterOptionsList.innerHTML = '<div style="padding: 10px; text-align: center; color: #b2bec3;">Selecciona una opción</div>';
+                    return;
+                }
+                
+                const fieldName = fieldMap[currentFilterType];
+                const uniqueValues = getUniqueValues(fieldName);
+                const searchTerm = filterSearchInputBom.value.trim().toLowerCase();
+                
+                // Filtrar valores según el término de búsqueda
+                const filteredValues = uniqueValues.filter(value => 
+                    value.toLowerCase().includes(searchTerm)
+                );
+                
+                if (filteredValues.length === 0) {
+                    filterOptionsList.innerHTML = '<div style="padding: 10px; text-align: center; color: #b2bec3;">No results found</div>';
+                    return;
+                }
+                
+                filterOptionsList.innerHTML = filteredValues.map(value => `
+                    <div class="filter-option-item" style="padding: 10px; cursor: pointer; border-radius: 4px; transition: background-color 0.2s ease;" 
+                         onclick="selectFilterOption('${value.replace(/'/g, "\\'")}')">
+                        ${value}
+                    </div>
+                `).join('');
+                
+                // Agregar hover effect
+                document.querySelectorAll('.filter-option-item').forEach(item => {
+                    item.addEventListener('mouseover', () => item.style.backgroundColor = '#e9ecef');
+                    item.addEventListener('mouseout', () => item.style.backgroundColor = 'transparent');
+                });
+            }
+            
+            // Función para seleccionar una opción
+            window.selectFilterOption = function(value) {
+                filterSearchInputBom.value = value;
+                applyBOMFilters();
+            }
+            
+            // Event listener para el select de filtro
+            filterSelectBom.addEventListener('change', (e) => {
+                currentFilterType = e.target.value;
+                filterSearchInputBom.value = '';
+                
+                if (currentFilterType) {
+                    filterOptionsContainer.style.display = 'block';
+                    btnClearFiltersBom.style.display = 'block';
+                    filterSearchInputBom.focus();
+                    displayFilterOptions();
+                } else {
+                    filterOptionsContainer.style.display = 'none';
+                    btnClearFiltersBom.style.display = 'none';
+                    applyBOMFilters();
+                }
+            });
+            
+            // Event listener para el input de búsqueda dentro del dropdown
+            filterSearchInputBom.addEventListener('input', displayFilterOptions);
+            
+            // Event listener para limpiar filtros
+            btnClearFiltersBom.addEventListener('click', () => {
+                filterSelectBom.value = '';
+                filterSearchInputBom.value = '';
+                filterOptionsContainer.style.display = 'none';
+                btnClearFiltersBom.style.display = 'none';
+                currentFilterType = '';
+                applyBOMFilters();
+            });
+            
+            // Cerrar el dropdown al hacer click fuera
+            document.addEventListener('click', (e) => {
+                if (e.target !== filterSelectBom && 
+                    !filterOptionsContainer.contains(e.target) && 
+                    e.target !== filterSearchInputBom) {
+                    filterOptionsContainer.style.display = 'none';
+                }
+            });
+            
             // Cargar proyectos y BOMs al iniciar
             loadAllProjects();
             loadAllBOMData();

@@ -23,8 +23,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim', //verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
 // Endpoint para verificar estructura de BD
@@ -38,39 +38,43 @@ app.get('/api/db-check', async (req, res) => {
       ORDER BY table_name
     `);
     
-    // Verificar estructura de tabla movements
-    let movementsStructure = null;
+    // Verificar estructura de tabla user_
+    let userStructure = null;
     try {
-      const movementsResult = await pool.query(`
+      const userResult = await pool.query(`
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns 
-        WHERE table_name = 'movements' AND table_schema = 'public'
+        WHERE table_name = 'user_' AND table_schema = 'public'
         ORDER BY ordinal_position
       `);
-      movementsStructure = movementsResult.rows;
+      userStructure = userResult.rows;
     } catch (e) {
-      movementsStructure = 'Table does not exist';
+      userStructure = 'Table does not exist';
     }
-    
-    // Verificar estructura de tabla stock
-    let stockStructure = null;
+
+    // Obtener todos los usuarios (sin passwords)
+    let allUsers = [];
     try {
-      const stockResult = await pool.query(`
-        SELECT column_name, data_type, is_nullable
-        FROM information_schema.columns 
-        WHERE table_name = 'stock' AND table_schema = 'public'
-        ORDER BY ordinal_position
+      const usersResult = await pool.query(`
+        SELECT 
+          pid, 
+          user_name, 
+          last_name, 
+          rol,
+          LENGTH(COALESCE(user_password, '')) as password_length
+        FROM user_
+        ORDER BY user_name
       `);
-      stockStructure = stockResult.rows;
+      allUsers = usersResult.rows;
     } catch (e) {
-      stockStructure = 'Table does not exist';
+      allUsers = 'Error: ' + e.message;
     }
     
     res.json({
       status: 'OK',
       tables: tablesResult.rows.map(r => r.table_name),
-      movements_structure: movementsStructure,
-      stock_structure: stockStructure
+      user_table_structure: userStructure,
+      all_users: allUsers
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -152,6 +156,127 @@ app.post('/api/auth/validate-qr', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Error al validar usuario: ' + error.message 
+    });
+  }
+});
+
+// Endpoint para validar login de usuario con credenciales (user_name y user_password)
+app.post('/api/auth/validate-credentials', async (req, res) => {
+  const { user_name, user_password } = req.body;
+
+  if (!user_name) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'User name es requerido' 
+    });
+  }
+
+  if (!user_password) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Password es requerido' 
+    });
+  }
+
+  try {
+    const normalizedUserName = String(user_name).trim();
+    const normalizedPassword = String(user_password).trim();
+
+    console.log('Login attempt:', { user_name: normalizedUserName, password_length: normalizedPassword.length });
+
+    // Priorizar columna "rol"; si no existe, usar "role" por compatibilidad.
+    const roleColumnResult = await pool.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'user_'
+        AND column_name IN ('rol', 'role')
+      ORDER BY CASE WHEN column_name = 'rol' THEN 0 ELSE 1 END
+      LIMIT 1
+    `);
+
+    if (roleColumnResult.rows.length === 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'La tabla user_ no tiene columna rol/role para validar permisos.'
+      });
+    }
+
+    const roleColumn = roleColumnResult.rows[0].column_name;
+
+    // Buscar usuario por user_name (sin BTRIM, solo TRIM)
+    const query = `
+      SELECT
+        pid,
+        ${roleColumn} AS rol,
+        COALESCE(user_name, '') AS user_name,
+        COALESCE(last_name, '') AS last_name,
+        COALESCE(user_password, '') AS user_password
+      FROM user_
+      WHERE TRIM(LOWER(CAST(user_name AS TEXT))) = LOWER($1)
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [normalizedUserName]);
+
+    console.log('User found:', result.rows.length > 0 ? 'YES' : 'NO');
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: 'Usuario no encontrado.'
+      });
+    }
+
+    const user = result.rows[0];
+    const dbPassword = String(user.user_password || '').trim();
+    
+    console.log('Password check:', { 
+      provided: normalizedPassword, 
+      stored: dbPassword,
+      match: dbPassword === normalizedPassword 
+    });
+
+    // Validar contraseña (comparar trimmed strings)
+    if (dbPassword !== normalizedPassword) {
+      return res.status(401).json({
+        success: false,
+        error: 'Contraseña incorrecta.'
+      });
+    }
+
+    // Validar que el usuario tenga un rol permitido
+    const userRole = String(user.rol || '').toLowerCase().trim();
+    const allowedRoles = ['administrador', 'compras', 'tecnico'];
+    
+    console.log('User role check:', { role: userRole, isAllowed: allowedRoles.includes(userRole) });
+
+    if (!allowedRoles.includes(userRole)) {
+      return res.status(401).json({
+        success: false,
+        error: 'Acceso denegado. Usuario sin permisos suficientes.'
+      });
+    }
+
+    // Retornar datos del usuario
+    console.log('Login successful for:', normalizedUserName);
+    
+    res.json({
+      success: true,
+      user: {
+        pid: user.pid,
+        rol: user.rol,
+        role: user.rol,
+        user_name: user.user_name,
+        last_name: user.last_name
+      }
+    });
+
+  } catch (error) {
+    console.error('Auth error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Error al validar credenciales: ' + error.message 
     });
   }
 });
