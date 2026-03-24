@@ -24,7 +24,7 @@ const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  password: '150403kim', //verifica bien al cambiarlo
   port: 5432,
 });
 // Endpoint para verificar estructura de BD
@@ -1626,6 +1626,24 @@ function pick(rowObj, names) {
   return null;
 }
 
+// Función para generar número de parte basado en la descripción
+function generatePartNumber(description, index) {
+  if (!description) return `AUTO-${Date.now()}-${index}`;
+  
+  // Convertir a string y eliminar vocales y caracteres especiales de la descripción
+  const cleanDesc = String(description)
+    .toUpperCase()
+    .replace(/[AEIOUÁÉÍÓÚ\s]/g, '')
+    .replace(/[^A-Z0-9]/g, '')
+    .substring(0, 8);
+  
+  // Crear un identificador único: consonantes de descripción + timestamp reducido + índice
+  const timestamp = Date.now().toString().slice(-3);
+  const uniqueId = `${cleanDesc || 'AUTO'}${timestamp}${String(index).padStart(2, '0')}`;
+  
+  return uniqueId;
+}
+
 // Ruta para obtener proyectos activos
 app.get("/api/projects/active", async (req, res) => {
   try {
@@ -1721,13 +1739,38 @@ app.post('/api/bom', upload.single('file'), async (req, res) => {
     }
 
     // Procesar cada fila
-    for (const rowObj of data) {
-      const no_part = normalizeText(pick(rowObj, ["no_parte", "numero_de_parte", "part_number"]));
-      if (!no_part) continue;
+    for (let idx = 0; idx < data.length; idx++) {
+      const rowObj = data[idx];
+      let no_part = normalizeText(pick(rowObj, ["no_parte", "numero_de_parte", "part_number"]));
+      const rawDescription = pick(rowObj, ["producto", "description", "descripcion"]);
+      const description = normalizeText(rawDescription);
+      
+      // Si no hay número de parte, intentar encontrar por descripción en updateMode
+      if (!no_part) {
+        if (updateMode === 'true' && description) {
+          // En modo actualización, buscar por descripción exacta o similar
+          const descResult = await client.query(
+            `SELECT no_part FROM product 
+             WHERE UPPER(TRIM(description)) = $1 
+             LIMIT 1`,
+            [description]
+          );
+          
+          if (descResult.rows.length > 0) {
+            // Encontró producto con descripción igual, usar su no_part
+            no_part = descResult.rows[0].no_part;
+          } else {
+            // No encontró, generar uno nuevo
+            no_part = generatePartNumber(rawDescription, idx);
+          }
+        } else {
+          // Modo regular o sin descripción: generar número de parte
+          no_part = generatePartNumber(rawDescription, idx);
+        }
+      }
 
       newPartNumbers.push(no_part);
       const brand = normalizeText(pick(rowObj, ["marca", "brand"]));
-      const description = normalizeText(pick(rowObj, ["producto", "description", "descripcion"]));
       const quantity = toInt(pick(rowObj, ["cantidad_venta", "quantity", "qty"]));
       const unit = normalizeText(pick(rowObj, ["unidad", "unit"]));
       const type_p = normalizeText(pick(rowObj, ["tipo", "type"]));
@@ -1755,9 +1798,20 @@ app.post('/api/bom', upload.single('file'), async (req, res) => {
               [no_project, quantity_p, no_part, "Quoted"]
             );
             addedItemsCount++;
+            // Agregar a existingParts para evitar duplicados en el mismo archivo
+            existingParts.add(no_part);
+          }
+        } else {
+          // Parte ya existe: actualizar cantidad en updateMode
+          if (quantity_p !== null) {
+            await client.query(
+              `UPDATE bom_project 
+               SET quantity_project = $1
+               WHERE no_project = $2 AND no_part = $3`,
+              [quantity_p, no_project, no_part]
+            );
           }
         }
-        // Si ya existe, no hacer nada (no actualizar ni eliminar)
       } else {
         // Modo regular: comportamiento anterior (reemplazar todo)
         if (partExists) {

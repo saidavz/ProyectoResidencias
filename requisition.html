@@ -279,7 +279,11 @@
 
       function looksLikeQuantity(value) {
         const normalized = String(value || '').replace(/,/g, '').trim();
-        return /^\d+(\.\d+)?$/.test(normalized);
+        if (/^\d+(\.\d+)?$/.test(normalized)) {
+          const num = parseFloat(normalized);
+          return num > 0;
+        }
+        return false;
       }
 
       function looksLikeUnit(value) {
@@ -306,6 +310,23 @@
         return CURRENCY_CODES.includes(normalized);
       }
 
+      function isPartNumberLike(value) {
+        // Detectar si un valor parece un Part Number válido
+        // Típicamente: contiene letras/números, puede tener guiones, pero NO es completamente descripción
+        const normalized = normalizeSpace(value);
+        if (!normalized || normalized.length < 3 || normalized.length > 50) {
+          return false;
+        }
+        
+        // Part numbers suelen tener: guiones, números, pocas palabras
+        // Ejemplos: MXS-BS20, ZH10BSA-07-07, 5460N13
+        const hasPattern = /^[A-Z0-9\-]+$/.test(normalized);
+        // Si tiene mucho espacio, probablemente es descripción, no Part Number
+        const wordCount = normalized.split(/\s+/).length;
+        
+        return hasPattern && wordCount <= 3;
+      }
+
       function isIconLine(value) {
         const normalized = normalizeSpace(value);
         if (!normalized) {
@@ -317,24 +338,28 @@
 
       function isNoiseLine(value) {
         const normalized = normalizeSpace(value);
-        if (!normalized) {
+        if (!normalized || normalized === '-') {
           return true;
         }
 
         const lower = normalized.toLowerCase();
+
         return (
           normalized === '- - -' ||
           normalized === 'Files' ||
           normalized === 'Add File' ||
           normalized === 'Items' ||
           lower.includes('you can add files and quotes to the items included') ||
+          lower.includes('you can specify the order number') ||
+          lower.includes('copyright') ||
+          lower.includes('version:') ||
+          lower.includes('quality information system') ||
           lower.startsWith('qiswelcome:') ||
           lower.startsWith('order details') ||
           lower.startsWith('resource loading time') ||
           lower.startsWith('request support') ||
           lower.startsWith('phone:') ||
           lower.startsWith('electr') ||
-          lower.startsWith('copyright') ||
           isIconLine(normalized)
         );
       }
@@ -506,16 +531,25 @@
       function extractItemsSection(lines) {
         let startIndex = -1;
 
+        // Buscar la sección de items
         for (let index = 0; index < lines.length; index += 1) {
           const lower = normalizeSpace(lines[index]).toLowerCase();
-          if (
-            lower.includes('part number') &&
-            lower.includes('description') &&
-            lower.includes('quantity') &&
-            lower.includes('units')
-          ) {
+          
+          // Buscar "Items" como encabezado de sección
+          if (lower === 'items') {
             startIndex = index + 1;
             break;
+          }
+        }
+
+        // Si no encontró "Items", buscar el patrón de headers de tabla directamente
+        if (startIndex === -1) {
+          for (let index = 0; index < lines.length; index += 1) {
+            const lower = normalizeSpace(lines[index]).toLowerCase();
+            if (lower.includes('part number') || lower === 'part number') {
+              startIndex = index + 1;
+              break;
+            }
           }
         }
 
@@ -523,149 +557,99 @@
           return [];
         }
 
+        // Skip table headers y líneas vacías
+        while (startIndex < lines.length) {
+          const line = normalizeSpace(lines[startIndex]);
+          if (!line || isTableHeader(line.toUpperCase())) {
+            startIndex++;
+          } else {
+            break;
+          }
+        }
+
         const section = [];
         for (let index = startIndex; index < lines.length; index += 1) {
           const value = normalizeSpace(lines[index]);
-          if (!value) {
-            continue;
-          }
-
+          
           const lower = value.toLowerCase();
+          // Detener si encontramos líneas de footer/sistema
           if (
             lower.includes('you can add files and quotes to the items included') ||
-            lower.startsWith('copyright') ||
+            lower.includes('copyright') ||
+            lower.includes('version:') ||
+            lower.includes('quality information system') ||
+            lower.includes('you can specify the order number') ||
             lower.startsWith('resource loading time') ||
-            lower.startsWith('request support')
+            lower.startsWith('request support') ||
+            lower.startsWith('electrónica brk') ||
+            lower.startsWith('phone:')
           ) {
             break;
           }
 
+          // IMPORTANTE: Incluir TODOS los valores, incluyendo vacíos ("")
+          // El parseItems se encarga de filtrar y procesar
           section.push(value);
         }
 
         return section;
       }
 
+      function isTableHeader(value) {
+        const normalized = normalizeSpace(value).toUpperCase();
+        const tableHeaders = ['PART NUMBER', 'DESCRIPTION', 'QUANTITY', 'UNITS', 'UNIT PRICE', 'CURRENCY', 'SUPPLIER', 'QTY', 'UNIT', 'PROJECT'];
+        return tableHeaders.includes(normalized);
+      }
+
       function parseItems(sectionLines) {
         const items = [];
         let index = 0;
+        let lastItem = null;  // Guardar el item anterior completo
 
         while (index < sectionLines.length) {
-          const partNumber = normalizeSpace(sectionLines[index]).toUpperCase();
+          const currentLine = normalizeSpace(sectionLines[index]);
 
-          if (!partNumber || isNoiseLine(partNumber)) {
+          // Skip empty, noise, and header lines
+          if (!currentLine || isNoiseLine(currentLine) || isTableHeader(currentLine.toUpperCase())) {
             index += 1;
             continue;
           }
 
-          // Try to extract description (next non-noise line)
-          let descIndex = index + 1;
-          while (descIndex < sectionLines.length && isNoiseLine(sectionLines[descIndex])) {
-            descIndex += 1;
-          }
-
-          if (descIndex >= sectionLines.length) {
-            // No description available, skip
-            index += 1;
-            continue;
-          }
-
-          const description = normalizeSpace(sectionLines[descIndex]).toUpperCase();
-          if (!description) {
-            index += 1;
-            continue;
-          }
-
-          // Try to extract quantity (next line after description)
-          let qtyIndex = descIndex + 1;
-          while (qtyIndex < sectionLines.length && isNoiseLine(sectionLines[qtyIndex])) {
-            qtyIndex += 1;
-          }
-
-          const quantity = (qtyIndex < sectionLines.length) 
-            ? normalizeSpace(sectionLines[qtyIndex]) 
-            : '1';
-
-          if (!looksLikeQuantity(quantity)) {
-            index += 1;
-            continue;
-          }
-
-          // Try to extract units (next line after quantity)
-          let unitIndex = qtyIndex + 1;
-          while (unitIndex < sectionLines.length && isNoiseLine(sectionLines[unitIndex])) {
-            unitIndex += 1;
-          }
-
-          const units = (unitIndex < sectionLines.length)
-            ? normalizeSpace(sectionLines[unitIndex]).toUpperCase()
-            : 'PZ';
-
-          if (!looksLikeUnit(units)) {
-            index += 1;
-            continue;
-          }
-
-          // Extract optional fields: price, currency, supplier
-          let cursor = unitIndex + 1;
-          let unitPrice = '-';
-          let currency = '-';
-          let supplier = '-';
-
-          while (cursor < sectionLines.length && isNoiseLine(sectionLines[cursor])) {
-            cursor += 1;
-          }
-
-          if (cursor < sectionLines.length && looksLikePrice(sectionLines[cursor])) {
-            unitPrice = normalizeSpace(sectionLines[cursor]);
-            cursor += 1;
-          }
-
-          while (cursor < sectionLines.length && isNoiseLine(sectionLines[cursor])) {
-            cursor += 1;
-          }
-
-          if (cursor < sectionLines.length && looksLikeCurrency(sectionLines[cursor])) {
-            currency = normalizeSpace(sectionLines[cursor]).toUpperCase();
-            cursor += 1;
-          }
-
-          while (cursor < sectionLines.length && isNoiseLine(sectionLines[cursor])) {
-            cursor += 1;
-          }
-
-          // Check if next lines look like another item or a supplier
-          if (cursor < sectionLines.length) {
-            const maybeSupplier = normalizeSpace(sectionLines[cursor]).toUpperCase();
-            const maybeDescription = normalizeSpace(sectionLines[cursor + 1] || '').toUpperCase();
-            const maybeQuantity = normalizeSpace(sectionLines[cursor + 2] || '');
-            const maybeUnits = normalizeSpace(sectionLines[cursor + 3] || '').toUpperCase();
-
-            const nextLooksLikeItem =
-              !!maybeDescription &&
-              looksLikeQuantity(maybeQuantity) &&
-              looksLikeUnit(maybeUnits);
-
-            if (!nextLooksLikeItem && !isNoiseLine(maybeSupplier) && !looksLikeQuantity(maybeSupplier)) {
-              supplier = maybeSupplier;
-              cursor += 1;
+          // Try to extract an item sequence
+          const result = extractItemSequence(sectionLines, index);
+          if (result && result.item) {
+            const item = result.item;
+            const partNumberUpper = normalizeSpace(item.partNumber).toUpperCase();
+            const descriptionUpper = normalizeSpace(item.description).toUpperCase();
+            
+            // Caso 1: partNumber === description (datos completamente desfasados)
+            if (partNumberUpper === descriptionUpper) {
+              if (item.supplier && item.supplier !== '-' && isPartNumberLike(item.supplier)) {
+                // El supplier contiene un Part Number válido
+                item.partNumber = item.supplier;
+                item.supplier = '-';
+              } else if (lastItem && lastItem.supplier && lastItem.supplier !== '-' && isPartNumberLike(lastItem.supplier)) {
+                // El supplier del item anterior es el Part Number de este item
+                item.partNumber = lastItem.supplier;
+                lastItem.supplier = '-';  // Limpiar el supplier del item anterior
+              }
             }
-          }
+            // Caso 2: El supplier anterior es un Part Number y la descripción actual es larga (típica descripción)
+            else if (lastItem && lastItem.supplier && lastItem.supplier !== '-' && 
+                     isPartNumberLike(lastItem.supplier) && 
+                     isPartNumberLike(item.partNumber) === false &&
+                     item.description.length > 20) {
+              // Probablemente el Item actual tiene su Part Number desplazado al campo de supplier del anterior
+              item.partNumber = lastItem.supplier;
+              lastItem.supplier = '-';
+            }
 
-          // Add the item - ALL items with part number, description, and quantity get saved
-          items.push({
-            partNumber,
-            description,
-            quantity,
-            units,
-            unitPrice,
-            currency,
-            supplier
-          });
-
-          // Move to next item
-          index = Math.max(cursor, unitIndex + 1);
-          while (index < sectionLines.length && isNoiseLine(sectionLines[index])) {
+            if (item.partNumber && item.description) {
+              items.push(item);
+              lastItem = item;
+            }
+            index = result.nextIndex;
+          } else {
             index += 1;
           }
         }
@@ -673,12 +657,162 @@
         return items;
       }
 
+      function extractItemSequence(lines, startIndex) {
+        // ESTRUCTURA FIJA del QIS después de convertir TABs a newlines:
+        // [0] Project (p1, p2, p3, etc) - será skippeado
+        // [1] Part Number
+        // [2] Description (puede tener múltiples líneas largas)
+        // [3] Quantity
+        // [4] Unit
+        // [5] Unit Price
+        // [6] Currency
+        // [7] Supplier
+        // [8] (posible línea vacía/separador)
+        // TOTAL: 9 líneas por item (con project) o 8 para siguientes items
+
+        let idx = startIndex;
+        
+        // Línea 0: Project code (p1, p2, p3, etc) O podría ser directamente Part Number
+        let currentLine = normalizeSpace(lines[idx] || '');
+        
+        let isProject = false;
+        if (/^P\d{1,2}$/.test(currentLine.toUpperCase())) {
+          // Es un project code, saltarlo
+          isProject = true;
+          idx++;
+          if (idx >= lines.length) {
+            return null;
+          }
+          currentLine = normalizeSpace(lines[idx] || '');
+        }
+
+        // Línea 1 (o 0 si no hay project): Part Number
+        if (!currentLine || currentLine === '-' || currentLine.length < 2 || isTableHeader(currentLine.toUpperCase())) {
+          return null;
+        }
+
+        const partNumber = currentLine;
+        idx++;
+
+        // Línea 2: Description - leer MIENTRAS sea largo (descriptions pueden ocupar múltiples líneas)
+        if (idx >= lines.length) {
+          return null;
+        }
+
+        let description = normalizeSpace(lines[idx] || '');
+        
+        // Si la descripción parece ser una palabra corta, podría ser una descripción de un solo renglón
+        // Pero si la siguiente línea parece ser cantidad/unit, usar solo la primera línea
+        idx++;
+
+        // Línea 3: Quantity
+        if (idx >= lines.length) {
+          return null;
+        }
+        const quantity = normalizeSpace(lines[idx] || '');
+        if (!looksLikeQuantity(quantity)) {
+          return null;
+        }
+        idx++;
+
+        // Línea 4: Unit
+        if (idx >= lines.length) {
+          return null;
+        }
+        const units = normalizeSpace(lines[idx] || '').toUpperCase();
+        if (!looksLikeUnit(units)) {
+          return null;
+        }
+        idx++;
+
+        // Línea 5: Unit Price (puede ser "-" o vacío)
+        if (idx >= lines.length) {
+          return null;
+        }
+        const unitPrice = normalizeSpace(lines[idx] || '');
+        idx++;
+
+        // Línea 6: Currency (puede ser "-" o vacío o un part number)
+        if (idx >= lines.length) {
+          return null;
+        }
+        const currency = normalizeSpace(lines[idx] || '');
+        idx++;
+
+        // Línea 7: Supplier (puede ser "-" o vacío)
+        if (idx >= lines.length) {
+          return null;
+        }
+        const supplier = normalizeSpace(lines[idx] || '');
+        idx++;
+
+        // Línea 8 (opcional): Saltar línea vacía de separador
+        if (idx < lines.length) {
+          const rawLine = lines[idx];
+          if (rawLine === '' || rawLine.trim() === '') {
+            idx++;
+          }
+        }
+
+        // MAPPING DE CAMPOS A PARTIR DE LO VISTO EN DATOS REALES:
+        // Project	Part Number	Description	Qty	Unit	Unit Price	Currency	Supplier
+        // p2	MGPM25-30Z	MGP Compact...	3	PZ	-	MXS-BS20	SHOCK ABSORBER...
+        // El campo "Currency" (MXS-BS20) is actually part-like, and Supplier es la larga descripción
+
+        // Arreglar mapeo si es necesario
+        let finalSupplier = supplier;
+        let finalCurrency = currency;
+
+        // Si currency parece un part number y supplier es largo, probablemente están intercambiados
+        if (isPartNumberLike(currency) && supplier.length > 30) {
+          // La parte number está en currency (campo 6)
+          // y la descripción larga está en supplier (campo 7)
+          // Reorganizar: currency → partName (extra desc), supplier → final supplier
+          // Pero esto es realmente: currency tiene parte adicional, supplier tiene info adicional
+          // Este es un quirk del formato, guardamos como está
+        }
+
+        const cleanDescription = (description && description !== '-' ? description : '-').toUpperCase();
+        const cleanQuantity = (quantity && quantity !== '-' ? quantity : '1').toUpperCase();
+        const cleanUnits = (units && units !== '-' ? units : 'PZ').toUpperCase();
+        const cleanUnitPrice = (unitPrice && unitPrice !== '-' ? unitPrice : '-').toUpperCase();
+        const cleanCurrency = (currency && currency !== '-' ? currency : '-').toUpperCase();
+        const cleanSupplier = (supplier && supplier !== '-' ? supplier : '-').toUpperCase();
+
+        return {
+          item: {
+            partNumber: partNumber.toUpperCase(),
+            description: cleanDescription,
+            quantity: cleanQuantity,
+            units: cleanUnits,
+            unitPrice: cleanUnitPrice,
+            currency: cleanCurrency,
+            supplier: cleanSupplier
+          },
+          nextIndex: idx
+        };
+      }
+
       function parseOrderDetailsText(text) {
-        const lines = text.split(/\r?\n/);
+        // Convertir TABs en saltos de línea para mejor procesamiento
+        const textWithExpandedTabs = text.replace(/\t+/g, '\n');
+        const lines = textWithExpandedTabs.split(/\r?\n/);
+        
+        console.log('=== PARSING START ===');
+        console.log('Total lines:', lines.length);
+        console.log('First 30 lines:', lines.slice(0, 30));
+        
         const orderNumber = extractOrderNumber(lines);
         const projectTitle = extractProjectTitle(lines);
         const itemSection = extractItemsSection(lines);
+        
+        console.log('Item section found:', itemSection.length, 'lines');
+        console.log('Item section (first 25 lines):', itemSection.slice(0, 25));
+        
         const items = parseItems(itemSection);
+        
+        console.log('Items parsed:', items.length);
+        console.log('Items detail:', JSON.stringify(items, null, 2));
 
         return {
           orderNumber,
