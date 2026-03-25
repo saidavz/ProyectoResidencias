@@ -93,7 +93,20 @@ app.post('/api/auth/validate-qr', async (req, res) => {
   }
 
   try {
-    const normalizedPid = String(pid).trim();
+    const rawPid = String(pid);
+    // Some scanners append delimiters/control chars (e.g. ';', CR/LF, TAB).
+    // Normalize the scanned input so it matches stored PID values.
+    const normalizedPid = rawPid
+      .replace(/[\u0000-\u001F\u007F]/g, '')
+      .trim()
+      .replace(/[;]+$/g, '');
+
+    if (!normalizedPid) {
+      return res.status(400).json({
+        success: false,
+        error: 'PID invalido despues de normalizar el escaneo.'
+      });
+    }
 
     // Priorizar columna "rol"; si no existe, usar "role" por compatibilidad.
     const roleColumnResult = await pool.query(`
@@ -115,7 +128,8 @@ app.post('/api/auth/validate-qr', async (req, res) => {
 
     const roleColumn = roleColumnResult.rows[0].column_name;
 
-    // Buscar usuario por PID y verificar que tenga rol permitido
+    // Buscar usuario por PID y verificar que tenga rol permitido.
+    // Normalizamos tambien el PID guardado en BD por si se registro con sufijos del escaner.
     const query = `
       SELECT
         pid,
@@ -123,7 +137,7 @@ app.post('/api/auth/validate-qr', async (req, res) => {
         COALESCE(user_name, '') AS user_name,
         COALESCE(last_name, '') AS last_name
       FROM user_
-      WHERE LOWER(BTRIM(pid)) = LOWER($1)
+      WHERE LOWER(REGEXP_REPLACE(BTRIM(CAST(pid AS TEXT)), '[;[:space:]]+$', '')) = LOWER($1)
         AND (
           ${roleColumn} ILIKE 'Administrador'
           OR ${roleColumn} ILIKE 'Compras'
@@ -2084,37 +2098,69 @@ app.get('/api/trackingCards', async (req, res) => {
   try {
     const { projectId } = req.query;
 
-    let sql = `
-      WITH finance_data AS (
-        SELECT 
-          COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado,
-          COALESCE(SUM(n.balance), 0) AS balance_actual
+    const normalizedProjectId = String(projectId || '').trim() || null;
+
+    const sql = `
+      WITH filtered_purchases AS (
+        SELECT pu.id_purchase, pu.no_project, pu.network
+        FROM purchase pu
+        WHERE ($1::text IS NULL OR pu.no_project::text = $1)
+      ),
+      spent_data AS (
+        SELECT COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado
         FROM purchase_detail pd
-        JOIN purchase pu ON pd.id_purchase = pu.id_purchase
-        JOIN network n ON pu.network = n.network
-        ${projectId ? 'WHERE pu.no_project = $1' : ''}
+        JOIN filtered_purchases fp ON fp.id_purchase = pd.id_purchase
+      ),
+      network_data AS (
+        SELECT COALESCE(SUM(n.balance), 0) AS balance_actual
+        FROM (
+          SELECT DISTINCT fp.network
+          FROM filtered_purchases fp
+          WHERE fp.network IS NOT NULL
+            AND BTRIM(CAST(fp.network AS TEXT)) <> ''
+        ) nw
+        JOIN network n ON n.network = nw.network
+      ),
+      finance_data AS (
+        SELECT
+          sd.total_gastado,
+          nd.balance_actual,
+          (sd.total_gastado + nd.balance_actual) AS saldo_inicial_estimado
+        FROM spent_data sd
+        CROSS JOIN network_data nd
+      ),
+      status_data AS (
+        SELECT
+          COUNT(*) FILTER (WHERE bp.status = 'PO') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_po,
+          COUNT(*) FILTER (WHERE bp.status = 'PR') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_pr,
+          COUNT(*) FILTER (WHERE bp.status = 'Shopping cart') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_shopping,
+          COUNT(*) FILTER (WHERE bp.status = 'Delivered to BRK') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_entregado,
+          COUNT(*) FILTER (WHERE bp.status = 'Quoted') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_cotizado
+        FROM filtered_purchases fp
+        JOIN purchase_detail pd ON fp.id_purchase = pd.id_purchase
+        JOIN bom_project bp
+          ON bp.no_project = fp.no_project
+         AND bp.no_part = pd.no_part
       )
       SELECT
-        COUNT(*) FILTER (WHERE bp.status = 'PO') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_po,
-        COUNT(*) FILTER (WHERE bp.status = 'PR') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_pr,
-        COUNT(*) FILTER (WHERE bp.status = 'Shopping cart') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_shopping,
-        COUNT(*) FILTER (WHERE bp.status = 'Delivered to BRK') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_entregado,
-        COUNT(*) FILTER (WHERE bp.status = 'Quoted') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_cotizado,
-        (fd.total_gastado * 100.0 / NULLIF(fd.total_gastado + fd.balance_actual,0)) AS porcentaje_gastado,
+        sd.porcentaje_po,
+        sd.porcentaje_pr,
+        sd.porcentaje_shopping,
+        sd.porcentaje_entregado,
+        sd.porcentaje_cotizado,
+        CASE
+          WHEN fd.saldo_inicial_estimado > 0
+            THEN (fd.total_gastado * 100.0 / fd.saldo_inicial_estimado)
+          ELSE 0
+        END AS porcentaje_gastado,
         fd.total_gastado,
-        fd.balance_actual
-      FROM purchase pu
-      JOIN purchase_detail pd ON pu.id_purchase = pd.id_purchase
-      JOIN bom_project bp
-        ON bp.no_project = pu.no_project
-       AND bp.no_part = pd.no_part
+        fd.balance_actual,
+        fd.saldo_inicial_estimado
+      FROM status_data sd
       CROSS JOIN finance_data fd
-      ${projectId ? 'WHERE pu.no_project = $1' : ''}
-      GROUP BY fd.total_gastado, fd.balance_actual
     `;
 
-    const params = projectId ? [projectId] : [];
-    const result = await pool.query(sql, params);
+    const result = await pool.query(sql, [normalizedProjectId]);
     res.json(result.rows[0] || {});
   } catch (error) {
 
