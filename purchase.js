@@ -23,8 +23,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: '150403kim', //verifica bien al cambiarlo
   port: 5432,
 });
 // Endpoint para verificar estructura de BD
@@ -1909,7 +1909,11 @@ app.post('/api/bom', upload.single('file'), async (req, res) => {
       }
 
       newPartNumbers.push(no_part);
-      const brand = normalizeText(pick(rowObj, ["marca", "brand"]));
+      let brand = normalizeText(pick(rowObj, ["marca", "brand"]));
+      // Si no tiene marca, agregarla como OTRA
+      if (!brand || brand.trim() === '') {
+        brand = 'OTRA';
+      }
       const quantity = toInt(pick(rowObj, ["cantidad_venta", "quantity", "qty"]));
       const unit = normalizeText(pick(rowObj, ["unidad", "unit"]));
       const type_p = normalizeText(pick(rowObj, ["tipo", "type"]));

@@ -772,12 +772,19 @@
           // Este es un quirk del formato, guardamos como está
         }
 
+        // Si supplier parece un código de moneda (USD, MXN, EUR, etc.) y currency está vacío o es "-",
+        // probablemente están intercambiados
+        if (looksLikeCurrency(supplier) && (!currency || currency === '-')) {
+          finalCurrency = supplier;
+          finalSupplier = currency;
+        }
+
         const cleanDescription = (description && description !== '-' ? description : '-').toUpperCase();
         const cleanQuantity = (quantity && quantity !== '-' ? quantity : '1').toUpperCase();
         const cleanUnits = (units && units !== '-' ? units : 'PZ').toUpperCase();
         const cleanUnitPrice = (unitPrice && unitPrice !== '-' ? unitPrice : '-').toUpperCase();
-        const cleanCurrency = (currency && currency !== '-' ? currency : '-').toUpperCase();
-        const cleanSupplier = (supplier && supplier !== '-' ? supplier : '-').toUpperCase();
+        const cleanCurrency = (finalCurrency && finalCurrency !== '-' ? finalCurrency : '-').toUpperCase();
+        const cleanSupplier = (finalSupplier && finalSupplier !== '-' ? finalSupplier : '-').toUpperCase();
 
         return {
           item: {
