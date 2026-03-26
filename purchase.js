@@ -356,6 +356,114 @@ app.post('/api/auth/validate-credentials', async (req, res) => {
   }
 });
 
+app.post('/api/users', async (req, res) => {
+  const {
+    pid,
+    user_name,
+    last_name,
+    second_last_name,
+    rol,
+    user_password
+  } = req.body || {};
+
+  const normalizedPid = String(pid || '').trim();
+  const normalizedUserName = String(user_name || '').trim();
+  const normalizedLastName = String(last_name || '').trim();
+  const normalizedSecondLastName = String(second_last_name || '').trim();
+  const normalizedRole = String(rol || '').trim();
+  const normalizedPassword = String(user_password || '').trim();
+
+  if (!normalizedPid || !normalizedUserName || !normalizedLastName || !normalizedSecondLastName || !normalizedRole || !normalizedPassword) {
+    return res.status(400).json({ success: false, error: 'Todos los campos son requeridos.' });
+  }
+
+  if (!['Administrador', 'Tecnico'].includes(normalizedRole)) {
+    return res.status(400).json({ success: false, error: 'Rol invalido. Solo se permite Administrador o Tecnico.' });
+  }
+
+  try {
+    const duplicateCheck = await pool.query(
+      `
+      SELECT pid, user_name
+      FROM user_
+      WHERE LOWER(BTRIM(CAST(pid AS TEXT))) = LOWER($1)
+         OR LOWER(BTRIM(CAST(user_name AS TEXT))) = LOWER($2)
+      LIMIT 1
+      `,
+      [normalizedPid, normalizedUserName]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(409).json({ success: false, error: 'Ya existe un usuario con ese PID o user_name.' });
+    }
+
+    const result = await pool.query(
+      `
+      INSERT INTO user_ (pid, user_name, last_name, second_last_name, rol, user_password)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING pid, user_name, last_name, second_last_name, rol
+      `,
+      [
+        normalizedPid,
+        normalizedUserName,
+        normalizedLastName,
+        normalizedSecondLastName,
+        normalizedRole,
+        normalizedPassword
+      ]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Usuario registrado correctamente.',
+      user: result.rows[0]
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Error al registrar usuario: ' + error.message });
+  }
+});
+
+app.post('/api/users/delete', async (req, res) => {
+  const {
+    user_name,
+    last_name,
+    second_last_name
+  } = req.body || {};
+
+  const normalizedUserName = String(user_name || '').trim();
+  const normalizedLastName = String(last_name || '').trim();
+  const normalizedSecondLastName = String(second_last_name || '').trim();
+
+  if (!normalizedUserName || !normalizedLastName || !normalizedSecondLastName) {
+    return res.status(400).json({ success: false, error: 'user_name, last_name y second_last_name son requeridos.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      DELETE FROM user_
+      WHERE LOWER(BTRIM(CAST(user_name AS TEXT))) = LOWER($1)
+        AND LOWER(BTRIM(CAST(last_name AS TEXT))) = LOWER($2)
+        AND LOWER(BTRIM(CAST(second_last_name AS TEXT))) = LOWER($3)
+      RETURNING pid, user_name, last_name, second_last_name
+      `,
+      [normalizedUserName, normalizedLastName, normalizedSecondLastName]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'No se encontro usuario con los datos proporcionados.' });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Usuario eliminado correctamente.',
+      user: result.rows[0]
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Error al eliminar usuario: ' + error.message });
+  }
+});
+
 app.get('/api/products', async (req, res) => {
   try {
     const result = await pool.query('SELECT no_part, description FROM product ORDER BY no_part');

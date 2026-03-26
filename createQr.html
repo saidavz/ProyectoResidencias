@@ -686,6 +686,35 @@
                 }
             }
 
+            function normalizeCardKey(value) {
+                return normalizeValue(value).toLowerCase();
+            }
+
+            function findExistingQrCard(stockData, qrContainer) {
+                if (!qrContainer || !stockData) return null;
+
+                const targetPart = normalizeCardKey(stockData.no_part);
+                const targetProject = normalizeCardKey(stockData.no_project);
+                const targetQrCode = normalizeCardKey(stockData.qr_code);
+
+                const cards = qrContainer.querySelectorAll('.card');
+                for (const card of cards) {
+                    const cardPart = normalizeCardKey(card.dataset.noPart);
+                    const cardProject = normalizeCardKey(card.dataset.noProject);
+                    const cardQrCode = normalizeCardKey(card.dataset.qrCode);
+
+                    if (cardPart && cardProject && cardPart === targetPart && cardProject === targetProject) {
+                        return card;
+                    }
+
+                    if (targetQrCode && cardQrCode === targetQrCode) {
+                        return card;
+                    }
+                }
+
+                return null;
+            }
+
             // Función para mostrar el código QR visual
             function displayQRCode(stockData) {
                 const qrSection = document.getElementById('qrCodesSection');
@@ -694,13 +723,19 @@
                 // Mostrar la sección de QR
                 qrSection.style.display = 'block';
 
+                const existingCard = findExistingQrCard(stockData, qrContainer);
+                if (existingCard) {
+                    highlightCard(existingCard.id);
+                    return;
+                }
+
                 // Crear un div único para este QR
                 const qrId = `qr-${stockData.qr_code}`;
                 const cardId = `card-${stockData.qr_code}`;
                 const qrDiv = document.createElement('div');
                 qrDiv.className = 'col-md-4 col-lg-3 mb-4';
                 qrDiv.innerHTML = `
-                    <div class="card bg-dark text-white p-3 text-center" id="${cardId}">
+                    <div class="card bg-dark text-white p-3 text-center" id="${cardId}" data-no-part="${stockData.no_part}" data-no-project="${stockData.no_project}" data-qr-code="${stockData.qr_code}">
                         <div id="${qrId}" class="mb-2 d-flex justify-content-center"></div>
                         <h6 class="mb-1">${stockData.qr_code}</h6>
                         <small class="text-muted">Part Number: ${stockData.no_part}</small>
@@ -737,7 +772,7 @@
 
                 // Verificar si el QR ya está mostrado
                 const existingQRId = `qr-${stockData.qr_code}`;
-                const existingCard = document.getElementById(existingQRId)?.closest('.card');
+                const existingCard = findExistingQrCard(stockData, qrContainer);
                 if (existingCard) {
                     // Si ya existe, solo resaltarlo y scrollear hacia él
                     highlightCard(existingCard.id);
@@ -749,7 +784,7 @@
                 const qrDiv = document.createElement('div');
                 qrDiv.className = 'col-md-4 col-lg-3 mb-4';
                 qrDiv.innerHTML = `
-                    <div class="card bg-dark text-white p-3 text-center" id="${cardId}">
+                    <div class="card bg-dark text-white p-3 text-center" id="${cardId}" data-no-part="${stockData.no_part}" data-no-project="${stockData.no_project}" data-qr-code="${stockData.qr_code}">
                         <div id="${existingQRId}" class="mb-2 d-flex justify-content-center"></div>
                         <h6 class="mb-1">${stockData.qr_code}</h6>
                         <small class="text-muted">Part Number: ${stockData.no_part}</small>

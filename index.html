@@ -230,6 +230,9 @@
             <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#projectOffcanvas" aria-controls="projectOffcanvas">
                 <i class="bi bi-folder"></i> Manage Project
             </a>
+            <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#userOffcanvas" aria-controls="userOffcanvas">
+                <i class="bi bi-people"></i> Manage Users
+            </a>
         </div>
     </div>
 
@@ -579,6 +582,10 @@
             const deactivateProjectForm = document.getElementById('deactivateProjectForm');
             const deactivateProjectInput = document.getElementById('deactivateProjectInput');
             const deactivateBtn = document.getElementById('deactivateBtn');
+            const userForm = document.getElementById('userForm');
+            const deleteUserForm = document.getElementById('deleteUserForm');
+            const toggleUserPasswordBtn = document.getElementById('toggleUserPasswordBtn');
+            const toggleDeleteUserSectionBtn = document.getElementById('toggleDeleteUserSectionBtn');
 
             if (projectOffcanvas) {
                 projectOffcanvas.addEventListener('show.bs.offcanvas', function () {
@@ -596,6 +603,27 @@
 
             if (deactivateProjectForm) {
                 deactivateProjectForm.addEventListener('submit', handleDeactivateProject);
+            }
+
+            if (userForm) {
+                userForm.addEventListener('submit', handleUserFormSubmit);
+            }
+
+            if (deleteUserForm) {
+                deleteUserForm.addEventListener('submit', handleDeleteUserFormSubmit);
+            }
+
+            if (toggleUserPasswordBtn) {
+                toggleUserPasswordBtn.addEventListener('click', handleToggleUserPassword);
+            }
+
+            if (toggleDeleteUserSectionBtn) {
+                toggleDeleteUserSectionBtn.addEventListener('click', handleToggleDeleteUserSection);
+            }
+
+            const backToAddUserBtn = document.getElementById('backToAddUserBtn');
+            if (backToAddUserBtn) {
+                backToAddUserBtn.addEventListener('click', handleBackToAddUser);
             }
 
             // Floating Manage Button Menu
@@ -960,6 +988,130 @@
             }
         }
 
+        async function handleUserFormSubmit(e) {
+            e.preventDefault();
+
+            const pid = document.getElementById('userPid').value.trim();
+            const userName = document.getElementById('userName').value.trim();
+            const lastName = document.getElementById('userLastName').value.trim();
+            const secondLastName = document.getElementById('userSecondLastName').value.trim();
+            const rol = document.getElementById('userRol').value.trim();
+            const userPassword = document.getElementById('userPassword').value.trim();
+
+            if (!pid || !userName || !lastName || !secondLastName || !rol || !userPassword) {
+                alert('Please complete all user fields');
+                return;
+            }
+
+            if (!['Administrador', 'Tecnico'].includes(rol)) {
+                alert('Please select a valid role');
+                return;
+            }
+
+            const confirmed = confirm(`Do you want to create user "${userName}" with PID "${pid}"?`);
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pid,
+                        user_name: userName,
+                        last_name: lastName,
+                        second_last_name: secondLastName,
+                        rol,
+                        user_password: userPassword
+                    })
+                });
+
+                const result = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    alert(`Error: ${result.error || 'Error creating user'}`);
+                    return;
+                }
+
+                alert('User created successfully');
+                document.getElementById('userForm').reset();
+            } catch (error) {
+                alert('Error creating user');
+            }
+        }
+
+        function handleToggleUserPassword() {
+            const passwordInput = document.getElementById('userPassword');
+            const toggleIcon = document.getElementById('toggleUserPasswordIcon');
+
+            if (!passwordInput || !toggleIcon) return;
+
+            const shouldShow = passwordInput.type === 'password';
+            passwordInput.type = shouldShow ? 'text' : 'password';
+            toggleIcon.className = shouldShow ? 'bi bi-eye-slash' : 'bi bi-eye';
+        }
+
+        function handleToggleDeleteUserSection() {
+            const addUserContainer = document.getElementById('addUserContainer');
+            const deleteUserContainer = document.getElementById('deleteUserContainer');
+            if (!addUserContainer || !deleteUserContainer) return;
+            addUserContainer.classList.add('d-none');
+            deleteUserContainer.classList.remove('d-none');
+        }
+
+        function handleBackToAddUser() {
+            const addUserContainer = document.getElementById('addUserContainer');
+            const deleteUserContainer = document.getElementById('deleteUserContainer');
+            if (!addUserContainer || !deleteUserContainer) return;
+            deleteUserContainer.classList.add('d-none');
+            addUserContainer.classList.remove('d-none');
+            document.getElementById('deleteUserForm').reset();
+        }
+
+        async function handleDeleteUserFormSubmit(e) {
+            e.preventDefault();
+
+            const userName = document.getElementById('deleteUserName').value.trim();
+            const lastName = document.getElementById('deleteUserLastName').value.trim();
+            const secondLastName = document.getElementById('deleteUserSecondLastName').value.trim();
+
+            if (!userName || !lastName || !secondLastName) {
+                alert('Please complete all fields to delete the user');
+                return;
+            }
+
+            const confirmed = confirm(`Do you want to delete user "${userName} ${lastName} ${secondLastName}"?`);
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/users/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_name: userName,
+                        last_name: lastName,
+                        second_last_name: secondLastName
+                    })
+                });
+
+                const result = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    alert(`Error: ${result.error || 'Error deleting user'}`);
+                    return;
+                }
+
+                alert('User deleted successfully');
+                document.getElementById('deleteUserForm').reset();
+                handleBackToAddUser();
+            } catch (error) {
+                alert('Error deleting user');
+            }
+        }
+
     </script>
 
     <!-- Offcanvas para gestionar Networks -->
@@ -1037,6 +1189,90 @@
                     <button type="submit" class="btn btn-danger" id="deactivateBtn" disabled>
                         <i class="bi bi-stop-circle"></i> Deactivate Project
                     </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offcanvas para registrar usuarios -->
+    <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="userOffcanvas" aria-labelledby="userOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="userOffcanvasLabel"><i class="bi bi-people"></i> Manage Users</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <!-- Formulario para agregar usuario -->
+            <div class="mb-4" id="addUserContainer">
+                <h6 class="text-light mb-3">Register User</h6>
+                <form id="userForm">
+                    <div class="mb-3">
+                        <label for="userPid" class="form-label">PID</label>
+                        <input type="text" class="form-control" id="userPid" placeholder="Enter PID" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userName" class="form-label">User Name</label>
+                        <input type="text" class="form-control" id="userName" placeholder="Enter user name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userLastName" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="userLastName" placeholder="Enter last name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userSecondLastName" class="form-label">Second Last Name</label>
+                        <input type="text" class="form-control" id="userSecondLastName" placeholder="Enter second last name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userRol" class="form-label">Role</label>
+                        <select class="form-select" id="userRol" required>
+                            <option value="">Select a role</option>
+                            <option value="Administrador">Administrador</option>
+                            <option value="Tecnico">Tecnico</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userPassword" class="form-label">User Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="userPassword" placeholder="Enter password" required>
+                            <button type="button" class="btn btn-outline-secondary" id="toggleUserPasswordBtn" aria-label="Show or hide password">
+                                <i class="bi bi-eye" id="toggleUserPasswordIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-person-plus"></i> Add User
+                        </button>
+                        <button type="button" class="btn btn-danger" id="toggleDeleteUserSectionBtn">
+                            <i class="bi bi-trash"></i> Delete User
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Formulario para eliminar usuario -->
+            <div class="mb-4 d-none" id="deleteUserContainer">
+                <h6 class="text-light mb-3">Delete User</h6>
+                <form id="deleteUserForm">
+                    <div class="mb-3">
+                        <label for="deleteUserName" class="form-label">User Name</label>
+                        <input type="text" class="form-control" id="deleteUserName" placeholder="Enter user name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="deleteUserLastName" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="deleteUserLastName" placeholder="Enter last name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="deleteUserSecondLastName" class="form-label">Second Last Name</label>
+                        <input type="text" class="form-control" id="deleteUserSecondLastName" placeholder="Enter second last name" required>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Confirm Delete User
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="backToAddUserBtn">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
