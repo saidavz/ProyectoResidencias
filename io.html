@@ -75,6 +75,7 @@
               <li class="requires-full-access"><a class="dropdown-item" href="stock.html">View Inventory</a></li>
             </ul>
           </li>
+          <li class="nav-item requires-full-access"><a class="nav-link" href="reports.html">Reports</a></li>
         </ul>
         <div class="d-flex align-items-center ms-auto">
           <i class="bi bi-box fs-4 me-2 text-white"></i>
@@ -629,7 +630,12 @@
             );
             
             // Call the inbound-with-rack endpoint to complete the inbound
-            const rackPayload = { qr_code, rack: selectedRack, cantidad };
+            const rackPayload = {
+              qr_code,
+              rack: selectedRack,
+              cantidad,
+              pid: currentUser ? currentUser.pid : null
+            };
             const finalResponse = await tryPost(`${API_BASE}/api/inbound-with-rack`, rackPayload);
 
             // If server signals an over-entry, show alert with details (still allow entry)

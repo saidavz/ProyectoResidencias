@@ -23,10 +23,71 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim', //verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
+
+function sanitizePid(rawPid) {
+  if (rawPid == null) return '';
+  return String(rawPid)
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .trim()
+    .replace(/[;]+$/g, '');
+}
+
+function getPidCandidates(normalizedPid) {
+  const candidates = new Set();
+  if (normalizedPid) candidates.add(normalizedPid);
+
+  // Algunos escaneres agregan un sufijo alfabetico (ej. "C").
+  const withoutTrailingLetters = normalizedPid.replace(/[A-Za-z]+$/g, '');
+  if (withoutTrailingLetters) candidates.add(withoutTrailingLetters);
+
+  return Array.from(candidates);
+}
+
+async function resolveExistingUserPid(rawPid) {
+  const normalizedPid = sanitizePid(rawPid);
+  if (!normalizedPid) return null;
+
+  const candidates = getPidCandidates(normalizedPid);
+  for (const candidate of candidates) {
+    const result = await pool.query(
+      `
+      SELECT pid
+      FROM user_
+      WHERE LOWER(REGEXP_REPLACE(BTRIM(CAST(pid AS TEXT)), '[;[:space:]]+$', '')) = LOWER($1)
+      LIMIT 1
+      `,
+      [candidate]
+    );
+
+    if (result.rows.length > 0) {
+      // Return DB value exactly as stored so FK checks match 1:1.
+      return result.rows[0].pid;
+    }
+  }
+
+  return null;
+}
+
+async function requireMovementUserPid(req, res, endpointName) {
+  const cleanPid = sanitizePid(req?.body?.pid);
+  if (!cleanPid) {
+    res.status(401).json({ ok: false, message: 'Sesion invalida: vuelve a iniciar sesion.' });
+    return null;
+  }
+
+  const userPid = await resolveExistingUserPid(cleanPid);
+  if (!userPid) {
+    console.warn(`PID not found in user_ for ${endpointName}:`, cleanPid);
+    res.status(401).json({ ok: false, message: `Usuario invalido para registrar movimiento (PID: ${cleanPid}).` });
+    return null;
+  }
+
+  return userPid;
+}
 // Endpoint para verificar estructura de BD
 app.get('/api/db-check', async (req, res) => {
   try {
@@ -2400,6 +2461,15 @@ app.post("/api/inbound", async (req, res) => {
   try {
     const { qr_code, cantidad } = req.body;
     const cantidadToAdd = parseInt(cantidad || 1, 10);
+    const userPid = await requireMovementUserPid(req, res, '/api/inbound');
+    if (!userPid) return;
+
+    if (!Number.isFinite(cantidadToAdd) || cantidadToAdd < 1) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Cantidad invalida para entrada.'
+      });
+    }
 
     if (!qr_code || qr_code.trim() === "") {
       return res.status(400).json({
@@ -2485,10 +2555,10 @@ app.post("/api/inbound", async (req, res) => {
 
       const movementQuery = `
         INSERT INTO movements (date_movement, type_movement, id_stock, pid)
-        VALUES (NOW(), 'INBOUND', $1, NULL)
+        VALUES (NOW(), 'INBOUND', $1, $2)
         RETURNING id_movement, date_movement, type_movement, id_stock, pid
       `;
-      const movementResult = await client.query(movementQuery, [stockRow.id_stock]);
+      const movementResult = await client.query(movementQuery, [stockRow.id_stock, userPid]);
 
       // Process ACTIVE projects
       if (projectIsActive) {
@@ -2590,6 +2660,7 @@ app.post("/api/inbound", async (req, res) => {
       });
     } catch (errInner) {
       await client.query('ROLLBACK');
+      console.error('Error in /api/inbound transaction:', errInner);
       return res.status(500).json({ ok: false, message: 'Error registrando INBOUND', error: String(errInner) });
     } finally {
       client.release();
@@ -2611,6 +2682,15 @@ app.post("/api/inbound-with-rack", async (req, res) => {
   try {
     const { qr_code, rack, cantidad } = req.body;
     const cantidadToAdd = parseInt(cantidad || 1, 10);
+    const userPid = await requireMovementUserPid(req, res, '/api/inbound-with-rack');
+    if (!userPid) return;
+
+    if (!Number.isFinite(cantidadToAdd) || cantidadToAdd < 1) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Cantidad invalida para entrada con rack.'
+      });
+    }
 
     if (!qr_code || qr_code.trim() === "" || !rack || rack.trim() === "") {
       return res.status(400).json({
@@ -2671,10 +2751,10 @@ app.post("/api/inbound-with-rack", async (req, res) => {
       // 4) Insert INBOUND movement
       const movementQuery = `
         INSERT INTO movements (date_movement, type_movement, id_stock, pid)
-        VALUES (NOW(), 'INBOUND', $1, NULL)
+        VALUES (NOW(), 'INBOUND', $1, $2)
         RETURNING id_movement, date_movement, type_movement, id_stock, pid
       `;
-      const movementResult = await client.query(movementQuery, [stockRow.id_stock]);
+      const movementResult = await client.query(movementQuery, [stockRow.id_stock, userPid]);
 
       // 5) Update bom_project status usando el proyecto original extraído del QR
       const bomProductQuery = `
@@ -2766,8 +2846,8 @@ app.post("/api/inbound-with-rack", async (req, res) => {
         ['AUT-STOCK', stockRow.id_stock]
       );
 
-      // Calculate total available AFTER increment: before + 1 (the entry just made)
-      const totalAvailAfter = totalAvailBefore + 1;
+      // Calculate total available AFTER increment using requested quantity.
+      const totalAvailAfter = totalAvailBefore + cantidadToAdd;
 
       await client.query('COMMIT');
 
@@ -2785,6 +2865,7 @@ app.post("/api/inbound-with-rack", async (req, res) => {
       });
     } catch (errInner) {
       await client.query('ROLLBACK');
+      console.error('Error in /api/inbound-with-rack transaction:', errInner);
       return res.status(500).json({ ok: false, message: 'Error en inbound-with-rack', error: String(errInner) });
     } finally {
       client.release();
@@ -2840,7 +2921,8 @@ app.post('/api/movements', async (req, res) => {
     if (!t || (t !== 'INBOUND' && t !== 'OUTBOUND')) return res.status(400).json({ ok: false, message: 'type debe ser INBOUND u OUTBOUND' });
     if (qty < 1) return res.status(400).json({ ok: false, message: 'cantidad debe ser mayor a 0' });
     
-    const userPid = pid ? String(pid).trim() : null;
+    const userPid = await requireMovementUserPid(req, res, '/api/movements');
+    if (!userPid) return;
 
     const qr = qr_code.trim().toUpperCase();
     const stockQ = `SELECT id_stock, rack, available, no_part, no_project, qr_code FROM stock WHERE UPPER(qr_code) = $1 LIMIT 1`;
@@ -2979,7 +3061,8 @@ app.post('/api/outbound', async (req, res) => {
     const { qr_code, pid } = req.body;
     if (!qr_code) return res.status(400).json({ ok: false, message: 'qr_code requerido' });
     const qr = qr_code.trim().toUpperCase();
-    const userPid = pid ? String(pid).trim() : null;
+    const userPid = await requireMovementUserPid(req, res, '/api/outbound');
+    if (!userPid) return;
 
     const stockQ = `SELECT id_stock, rack, available, no_part, no_project, qr_code FROM stock WHERE UPPER(qr_code) = $1 LIMIT 1`;
     const stockR = await pool.query(stockQ, [qr]);

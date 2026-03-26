@@ -68,6 +68,7 @@
                             <li><a class="dropdown-item" href="stock.html">View Inventory</a></li>
                         </ul>
                     </li>
+                    <li class="nav-item"><a class="nav-link" href="reports.html">Reports</a></li>
                 </ul>
                 <div class="d-flex align-items-center ms-auto">
                     <i class="bi bi-qr-code fs-4 me-2 text-white"></i>
@@ -86,9 +87,18 @@
                             <div class="row">
                                 <!-- Select de proyecto con productos en PO -->
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label" for="projectSelect">Select a project</label>
-                                    <select class="form-select bg-secondary text-light" id="projectSelect"
-                                        name="project" required>
+                                    <label class="form-label" for="projectSearch">Search a project</label>
+                                    <input
+                                        type="text"
+                                        class="form-control bg-secondary text-light"
+                                        id="projectSearch"
+                                        list="projectSearchList"
+                                        placeholder="Type project number or name"
+                                        autocomplete="off"
+                                        required
+                                    >
+                                    <datalist id="projectSearchList"></datalist>
+                                    <select class="form-select bg-secondary text-light d-none" id="projectSelect" name="project" aria-hidden="true" tabindex="-1">
                                         <option value="">Select a project</option>
                                     </select>
                                 </div>
@@ -218,6 +228,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             const baseURL = 'http://localhost:3000';
             const projectSelect = document.getElementById('projectSelect');
+            const projectSearch = document.getElementById('projectSearch');
+            const projectSearchList = document.getElementById('projectSearchList');
             const tableWrapper = document.getElementById('projectTableWrapper');
             const tbody = document.getElementById('projectProductsBody');
             const emptyState = document.getElementById('projectEmptyState');
@@ -225,6 +237,7 @@
             const selectRackModal = new bootstrap.Modal(document.getElementById('selectRackModal'));
             let currentQRAction = null; // Para guardar la acción pendiente del QR
             let pendingRackSelection = null; // Para guardar la acción pendiente de selección de rack
+            let projectOptions = [];
 
             let allRows = [];
 
@@ -232,18 +245,80 @@
             fetch(`${baseURL}/api/projects-po`)
                 .then(res => res.json())
                 .then(data => {
-                    const options = Array.isArray(data) ? data : [];
-                    options.forEach(proj => {
+                    projectOptions = Array.isArray(data) ? data : [];
+                    projectOptions.forEach(proj => {
                         const option = document.createElement('option');
                         option.value = proj.no_project;
                         option.textContent = proj.name_project;
                         option.dataset.status = proj.status; // Guardar status en atributo data-status
                         projectSelect.appendChild(option);
                     });
+
+                    refreshProjectSearchSuggestions('');
                 })
                 .catch(error => {
                     console.error('Error loading projects:', error);
                 });
+
+            function refreshProjectSearchSuggestions(searchText) {
+                const search = String(searchText || '').trim().toLowerCase();
+                projectSearchList.innerHTML = '';
+
+                projectOptions
+                    .filter(proj => {
+                        if (!search) return true;
+                        const code = String(proj.no_project || '').toLowerCase();
+                        const name = String(proj.name_project || '').toLowerCase();
+                        return code.includes(search) || name.includes(search);
+                    })
+                    .slice(0, 50)
+                    .forEach(proj => {
+                        const option = document.createElement('option');
+                        option.value = `${proj.no_project} - ${proj.name_project || ''}`.trim();
+                        projectSearchList.appendChild(option);
+                    });
+            }
+
+            function resolveProjectFromSearch(text) {
+                const raw = String(text || '').trim();
+                if (!raw) return null;
+
+                const exact = projectOptions.find(proj => `${proj.no_project} - ${proj.name_project || ''}`.trim().toLowerCase() === raw.toLowerCase());
+                if (exact) return exact;
+
+                const byCode = projectOptions.find(proj => String(proj.no_project || '').toLowerCase() === raw.toLowerCase());
+                if (byCode) return byCode;
+
+                const byPrefix = projectOptions.find(proj => raw.toLowerCase().startsWith(String(proj.no_project || '').toLowerCase() + ' -'));
+                if (byPrefix) return byPrefix;
+
+                return null;
+            }
+
+            function applySelectedProjectFromSearch() {
+                const selected = resolveProjectFromSearch(projectSearch.value);
+                if (!selected) {
+                    projectSelect.value = '';
+                    projectSelect.dispatchEvent(new Event('change'));
+                    return;
+                }
+
+                projectSelect.value = selected.no_project;
+                projectSearch.value = `${selected.no_project} - ${selected.name_project || ''}`.trim();
+                projectSelect.dispatchEvent(new Event('change'));
+            }
+
+            projectSearch.addEventListener('input', () => {
+                refreshProjectSearchSuggestions(projectSearch.value);
+            });
+
+            projectSearch.addEventListener('change', applySelectedProjectFromSearch);
+            projectSearch.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    applySelectedProjectFromSearch();
+                }
+            });
 
             // Render helper
             function safe(v) {

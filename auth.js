@@ -393,6 +393,11 @@
     const body = document.body;
     body.classList.add('page-transition');
 
+    const rootStyles = window.getComputedStyle(document.documentElement);
+    const rawDuration = Number.parseInt(rootStyles.getPropertyValue('--page-transition-duration-ms'), 10);
+    const transitionDurationMs = Number.isFinite(rawDuration) && rawDuration >= 0 ? rawDuration : 170;
+    const reduceMotionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+
     document.addEventListener('click', function (event) {
       const link = event.target && event.target.closest ? event.target.closest('a[href]') : null;
       if (!shouldHandlePageTransitionClick(event, link)) {
@@ -402,11 +407,17 @@
       event.preventDefault();
 
       const destination = link.href;
+
+      if (reduceMotionQuery && reduceMotionQuery.matches) {
+        window.location.assign(destination);
+        return;
+      }
+
       body.classList.add('page-transition-exit');
 
       window.setTimeout(function () {
         window.location.assign(destination);
-      }, 160);
+      }, transitionDurationMs);
     });
   }
 

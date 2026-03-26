@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Purchase System - Reports</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="auth.js"></script>
+  <script>
+    PurchaseAuth.requireAuth({
+      allowedRoles: ['Administrador', 'Compras'],
+      deniedMessage: 'Only Administrator and Purchases have access to Reports.'
+    });
+  </script>
+  <style>
+    .reports-toolbar {
+      background: linear-gradient(145deg, rgba(0, 0, 0, 0.92), rgba(18, 18, 18, 0.95));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.2rem;
+    }
+
+    .reports-select-label {
+      color: #ffffff;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .reports-select {
+      background-color: #232326;
+      color: #f5f5f5;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 10px;
+      min-height: 46px;
+    }
+
+    .reports-select:focus {
+      border-color: #c8102e;
+      box-shadow: 0 0 0 0.2rem rgba(200, 16, 46, 0.25);
+    }
+
+    .reports-print-wrap {
+      display: flex;
+      justify-content: flex-end;
+      align-items: end;
+      height: 100%;
+    }
+
+    .reports-print-btn {
+      min-width: 170px;
+      min-height: 46px;
+      font-weight: 600;
+      border-radius: 10px;
+      border: none;
+      color: #ffffff;
+      background: linear-gradient(135deg, #c8102e, #8d0f22);
+    }
+
+    .reports-print-btn:hover {
+      filter: brightness(1.08);
+      color: #ffffff;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-gradient">
+    <div class="container-fluid px-4">
+      <a href="index.html" class="p-0 me-4">
+        <img src="/logo.png" alt="Logo" height="40">
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu"
+        aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarMenu">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">BOM</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="bom.html">Upload BOM</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="bomView.html">View BOM</a></li>
+            </ul>
+          </li>
+          <li class="nav-item"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
+          <li class="nav-item"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
+          <li class="nav-item"><a class="nav-link" href="requisition.html">Requisition</a></li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Inventory</a>
+            <ul class="dropdown-menu text-center">
+              <li><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="io.html">Register Inbound And Outbound</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="stock.html">View Inventory</a></li>
+            </ul>
+          </li>
+          <li class="nav-item"><a class="nav-link active" href="reports.html">Reports</a></li>
+        </ul>
+        <div class="d-flex align-items-center ms-auto">
+          <i class="bi bi-bar-chart-fill fs-4 me-2 text-white"></i>
+          <span class="h4 mb-0 text-white">Reports</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container my-5">
+    <div class="reports-toolbar">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-8">
+          <label for="reportTypeMenu" class="reports-select-label">Select Report Type</label>
+          <select id="reportTypeMenu" class="form-select reports-select">
+            <option value="spending">Reporte de gastos</option>
+            <option value="savings">Reporte de ahorro</option>
+            <option value="dead-inventory">Reporte de inventario muerto</option>
+            <option value="pending-purchases">Reporte de compras pendientes</option>
+            <option value="po-closed">Reporte de POs cerradas</option>
+            <option value="po-pending-delivery">Reporte de POs pendientes de entrega</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <div class="reports-print-wrap">
+            <button type="button" class="btn reports-print-btn">
+              <i class="bi bi-printer me-2"></i>Print
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="text-center py-3 text-white bg-gradient mt-5">
+    <span class="footer-scroll-text">Purchase-Inventory Management System - BRK. Resideo.</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

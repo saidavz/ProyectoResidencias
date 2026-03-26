@@ -15,7 +15,11 @@
   --shadow-medium: 0 12px 40px rgba(0, 0, 0, 0.15);
   --shadow-strong: 0 20px 60px rgba(0, 0, 0, 0.25);
   --transition: all 0.3s ease;
+  --page-transition-duration-ms: 170;
   --section-spacing-y: 2rem;
+  --nav-font-size: 15px;
+  --nav-mobile-font-size: 14px;
+  --nav-dropdown-font-size: 15px;
 }
 
 /* Evita el salto horizontal cuando aparece/desaparece scrollbar entre secciones */
@@ -42,12 +46,18 @@ body {
 
 /* Transicion suave entre secciones/paginas */
 body.page-transition {
-  transition: opacity 170ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition: opacity calc(var(--page-transition-duration-ms) * 1ms) cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 body.page-transition-exit {
   opacity: 0;
   pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.page-transition {
+    transition: none;
+  }
 }
 
 /* Mantiene una altura consistente del area principal en todas las secciones */
@@ -106,7 +116,7 @@ body > .container.mt-4 {
   padding: 0.5rem 1rem;
   border-radius: 8px;
   transition: var(--transition);
-  font-size: 15px !important;
+  font-size: var(--nav-font-size) !important;
   line-height: 1.2 !important;
   font-family: 'Poppins', sans-serif !important;
 }
@@ -114,7 +124,7 @@ body > .container.mt-4 {
 @media (max-width: 576px) {
   .navbar-nav .nav-link {
     padding: 0.4rem 0.8rem;
-    font-size: 14px !important;
+    font-size: var(--nav-mobile-font-size) !important;
   }
   
   .navbar-nav {
@@ -181,6 +191,8 @@ body > .container.mt-4 {
   white-space: normal;
   word-break: break-word;
   padding: 0.75rem 1rem;
+  font-size: var(--nav-dropdown-font-size) !important;
+  font-family: 'Poppins', sans-serif !important;
 }
 
 @media (max-width: 576px) {
@@ -194,8 +206,8 @@ body > .container.mt-4 {
 .home-buttons-container {
   display: grid;
   grid-template-columns: repeat(2, minmax(280px, 1fr));
-  gap: 2rem;
-  padding: 2rem 1rem;
+  gap: 1.2rem;
+  padding: 1.2rem 0.75rem;
   max-width: 980px;
   margin: 0 auto;
 }
@@ -216,6 +228,7 @@ body > .container.mt-4 {
 
   .home-buttons-container .home-btn-last {
     grid-column: auto;
+    justify-self: stretch;
     width: 100%;
   }
 }
@@ -241,8 +254,8 @@ body > .container.mt-4 {
 .home-btn {
   background: linear-gradient(145deg, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.95));
   border: 3px solid rgb(78, 8, 8);
-  border-radius: 20px;
-  padding: 2.5rem 1.5rem;
+  border-radius: 8px;
+  padding: 1.1rem 0.95rem;
   color: var(--light-gray);
   text-decoration: none;
   text-align: center;
@@ -254,23 +267,23 @@ body > .container.mt-4 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 250px;
+  min-height: 155px;
 }
 
 /* Mobile buttons */
 @media (max-width: 576px) {
   .home-btn {
-    padding: 1.8rem 1rem;
-    min-height: 200px;
-    border-radius: 16px;
+    padding: 0.95rem 0.8rem;
+    min-height: 130px;
+    border-radius: 8px;
   }
 }
 
 /* Tablet buttons */
 @media (min-width: 577px) and (max-width: 768px) {
   .home-btn {
-    padding: 2rem 1.2rem;
-    min-height: 220px;
+    padding: 1rem 0.9rem;
+    min-height: 140px;
   }
 }
 
@@ -298,8 +311,8 @@ body > .container.mt-4 {
 
 /* Iconos de botones */
 .btn-icon {
-  font-size: 3.5rem;
-  margin-bottom: 1rem;
+  font-size: 2.6rem;
+  margin-bottom: 0.65rem;
   display: block;
   background: linear-gradient(135deg, var(--primary-red), var(--dark-red));
   -webkit-background-clip: text;
@@ -329,9 +342,9 @@ body > .container.mt-4 {
 }
 
 .btn-title {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
   color: var(--pure-white);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -353,9 +366,9 @@ body > .container.mt-4 {
 }
 
 .btn-description {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: var(--medium-gray);
-  line-height: 1.5;
+  line-height: 1.35;
 }
 
 @media (max-width: 576px) {
@@ -1549,16 +1562,22 @@ input:focus {
 
 .home-btn-dropdown button.home-btn {
   color: white;
-  border-radius: 12px;
+  border-radius: 8px;
   transition: 0.2s;
   width: 100%;
   height: auto;
-  min-height: 250px;
+  min-height: 155px;
 }
 
 @media (max-width: 576px) {
   .home-btn-dropdown button.home-btn {
-    min-height: 200px;
+    min-height: 130px;
+  }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+  .home-btn-dropdown button.home-btn {
+    min-height: 140px;
   }
 }
 
