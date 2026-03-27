@@ -722,13 +722,8 @@
                 return;
             }
 
-            const partialMatches = allNetworks.filter(n => String(n.network).trim().toLowerCase().includes(typedName));
-
-            if (partialMatches.length === 1) {
-                fillFormFromNetwork(partialMatches[0]);
-            } else {
-                setFormToCreateMode(true);
-            }
+            // No autoselect by partial text; keep create mode until user selects/enters an exact network.
+            setFormToCreateMode(true);
         }
 
         // Resetear formulario
