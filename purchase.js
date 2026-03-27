@@ -23,7 +23,7 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
   password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
@@ -2426,6 +2426,104 @@ app.get('/api/bomView/debug', async (req, res) => {
 app.listen(PORT, () => {
 
 
+});
+// ---------------------------
+// Vendors table + endpoints
+// ---------------------------
+// Ensure vendors table exists
+;(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS vendor (
+        id_vendor TEXT PRIMARY KEY,
+        name_vendor TEXT,
+        email TEXT,
+        telephone TEXT
+      )
+    `);
+  } catch (err) {
+    console.warn('Could not ensure vendor table exists:', err.message);
+  }
+})();
+
+// Get all vendors
+app.get('/api/vendors', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id_vendor, name_vendor, email, telephone FROM vendor ORDER BY name_vendor');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener vendors', detail: String(err) });
+  }
+});
+
+// Get vendor by id
+app.get('/api/vendors/:id', async (req, res) => {
+  try {
+    const id = String(req.params.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    const result = await pool.query('SELECT id_vendor, name_vendor, email, telephone FROM vendor WHERE id_vendor = $1 LIMIT 1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Vendor not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener vendor', detail: String(err) });
+  }
+});
+
+// Search vendors
+app.get('/api/vendors/search', async (req, res) => {
+  try {
+    const field = String(req.query.field || 'all');
+    const q = String(req.query.q || '').trim();
+
+    if (!q) {
+      const all = await pool.query('SELECT id_vendor, name_vendor, email, telephone FROM vendor ORDER BY name_vendor');
+      return res.json(all.rows);
+    }
+
+    const like = `%${q}%`;
+    let result;
+    if (field === 'all') {
+      result = await pool.query(
+        `SELECT id_vendor, name_vendor, email, telephone FROM vendor WHERE id_vendor ILIKE $1 OR name_vendor ILIKE $1 OR email ILIKE $1 OR telephone ILIKE $1 ORDER BY name_vendor`,
+        [like]
+      );
+    } else if (['id_vendor','name_vendor','email','telephone'].includes(field)) {
+      const sql = `SELECT id_vendor, name_vendor, email, telephone FROM vendor WHERE ${field} ILIKE $1 ORDER BY name_vendor`;
+      result = await pool.query(sql, [like]);
+    } else {
+      return res.status(400).json({ error: 'Invalid field' });
+    }
+
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al buscar vendors', detail: String(err) });
+  }
+});
+
+// Upsert vendor
+app.post('/api/vendors', async (req, res) => {
+  try {
+    const { id_vendor, name_vendor, email, telephone } = req.body || {};
+    const id = String(id_vendor || '').trim();
+    const name = String(name_vendor || '').trim();
+
+    if (!id || !name) return res.status(400).json({ error: 'id_vendor and name_vendor are required' });
+
+    const sql = `
+      INSERT INTO vendor (id_vendor, name_vendor, email, telephone)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (id_vendor) DO UPDATE SET
+        name_vendor = EXCLUDED.name_vendor,
+        email = EXCLUDED.email,
+        telephone = EXCLUDED.telephone
+      RETURNING id_vendor, name_vendor, email, telephone
+    `;
+
+    const result = await pool.query(sql, [id, name, email || null, telephone || null]);
+    res.json({ success: true, vendor: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Error saving vendor', detail: String(err) });
+  }
 });
 // ======================================================
 // STOCK - obtener cantidad disponible (INBOUND - OUTBOUND)

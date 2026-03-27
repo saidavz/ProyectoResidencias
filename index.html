@@ -233,6 +233,9 @@
             <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#userOffcanvas" aria-controls="userOffcanvas">
                 <i class="bi bi-people"></i> Manage Users
             </a>
+                <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#vendorOffcanvas" aria-controls="vendorOffcanvas">
+                    <i class="bi bi-truck"></i> Manage Vendors
+                </a>
         </div>
     </div>
 
@@ -1003,7 +1006,7 @@
                 return;
             }
 
-            const confirmed = confirm(`Do you want to create user "${userName}" with PID "${pid}"?`);
+            const confirmed = confirm(`Do you want to create user "${userName}"?`);
             if (!confirmed) {
                 return;
             }
@@ -1202,7 +1205,7 @@
                 <form id="userForm">
                     <div class="mb-3">
                         <label for="userPid" class="form-label">PID</label>
-                        <input type="text" class="form-control" id="userPid" placeholder="Enter PID" required>
+                        <input type="text" class="form-control" id="userPid" placeholder="Scan your access card" required>
                     </div>
                     <div class="mb-3">
                         <label for="userName" class="form-label">User Name</label>
@@ -1273,6 +1276,203 @@
         </div>
     </div>
 
+    <!-- Offcanvas para gestionar Vendors -->
+    <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="vendorOffcanvas" aria-labelledby="vendorOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="vendorOffcanvasLabel"><i class="bi bi-truck"></i> Manage Vendors</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="mb-4" id="vendorContainer">
+                <h6 class="text-light mb-3">Registrar Vendor</h6>
+                <form id="vendorForm">
+                    <div class="mb-3">
+                        <label for="id_vendor" class="form-label text-light">Vendor Number</label>
+                        <input type="text" class="form-control bg-light text-dark" id="id_vendor" placeholder="Enter vendor number" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="name_vendor" class="form-label text-light">Vendor Name</label>
+                        <input type="text" class="form-control bg-light text-dark" id="name_vendor" placeholder="Enter vendor name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email_vendor" class="form-label text-light">Email</label>
+                        <input type="email" class="form-control bg-light text-dark" id="email_vendor" placeholder="Enter email">
+                    </div>
+                    <div class="mb-3">
+                        <label for="telephone_vendor" class="form-label text-light">Telephone</label>
+                        <input type="text" class="form-control bg-light text-dark" id="telephone_vendor" placeholder="Enter telephone">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success">Save Vendor</button>
+                        <button type="button" id="clearVendorBtn" class="btn btn-secondary">Clear</button>
+                    </div>
+                </form>
+            </div>
+
+            <hr class="text-light">
+
+            <div class="mb-3">
+                <h6 class="text-light mb-2">Search Vendors</h6>
+                <div class="row g-2 align-items-center mb-2">
+                    <div class="col-5">
+                        <select id="searchFieldVendor" class="form-select bg-light text-dark">
+                            <option value="all">All</option>
+                            <option value="id_vendor">Number</option>
+                            <option value="name_vendor">Name</option>
+                            <option value="email_vendor">Email</option>
+                            <option value="telephone_vendor">Telephone</option>
+                        </select>
+                    </div>
+                    <div class="col-5">
+                        <input id="searchQueryVendor" class="form-control bg-light text-dark" placeholder="Search text">
+                    </div>
+                    <div class="col-2 d-grid">
+                        <button id="btnSearchVendor" type="button" class="btn btn-primary btn-sm p-1" aria-label="Buscar" title="Buscar" style="width:50px;height:50px;display:flex;align-items:center;justify-content:center">
+                            <i class="bi bi-search" style="line-height:1"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="searchResultsVendor">
+                    <table class="table table-sm table-dark">
+                        <thead>
+                            <tr>
+                                <th>Number</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Telephone</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBodyVendor"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple vendor storage + search using localStorage
+        (function () {
+            const STORAGE_KEY = 'app_vendors_v1';
+
+            function loadVendors() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    return raw ? JSON.parse(raw) : [];
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function saveVendors(list) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+            }
+
+            function findVendorById(id) {
+                const list = loadVendors();
+                return list.find(v => String(v.id_vendor) === String(id));
+            }
+
+            function upsertVendor(vendor) {
+                const list = loadVendors();
+                const idx = list.findIndex(v => String(v.id_vendor) === String(vendor.id_vendor));
+                if (idx >= 0) {
+                    list[idx] = vendor;
+                } else {
+                    list.push(vendor);
+                }
+                saveVendors(list);
+            }
+
+            function renderResults(results) {
+                const body = document.getElementById('resultsBodyVendor');
+                if (!body) return;
+                body.innerHTML = '';
+                results.forEach(r => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${escapeHtml(r.id_vendor)}</td><td>${escapeHtml(r.name_vendor)}</td><td>${escapeHtml(r.email||'')}</td><td>${escapeHtml(r.telephone||'')}</td>`;
+                    body.appendChild(tr);
+                });
+            }
+
+            function escapeHtml(s) {
+                if (!s && s !== 0) return '';
+                return String(s).replace(/[&<>"']/g, function (c) {
+                    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c];
+                });
+            }
+
+            function searchVendors(field, query) {
+                const list = loadVendors();
+                if (!query) return list;
+                const q = String(query).toLowerCase();
+                if (field === 'all') {
+                    return list.filter(v => Object.values(v).some(val => String(val||'').toLowerCase().includes(q)));
+                }
+                return list.filter(v => String(v[field]||'').toLowerCase().includes(q));
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                const vendorOffcanvas = document.getElementById('vendorOffcanvas');
+                const vendorForm = document.getElementById('vendorForm');
+                const clearBtn = document.getElementById('clearVendorBtn');
+                const btnSearch = document.getElementById('btnSearchVendor');
+
+                if (vendorOffcanvas) {
+                    vendorOffcanvas.addEventListener('show.bs.offcanvas', function () {
+                        // load and show all
+                        renderResults(loadVendors());
+                    });
+                }
+
+                if (vendorForm) {
+                    vendorForm.addEventListener('submit', function (e) {
+                        e.preventDefault();
+                        const vendor = {
+                            id_vendor: document.getElementById('id_vendor').value.trim(),
+                            name_vendor: document.getElementById('name_vendor').value.trim(),
+                            email: document.getElementById('email_vendor').value.trim(),
+                            telephone: document.getElementById('telephone_vendor').value.trim()
+                        };
+                        if (!vendor.id_vendor || !vendor.name_vendor) {
+                            alert('ID y Nombre son requeridos');
+                            return;
+                        }
+                        upsertVendor(vendor);
+                        alert('Vendor guardado');
+                        renderResults(loadVendors());
+                        vendorForm.reset();
+                    });
+                }
+
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function () {
+                        if (vendorForm) vendorForm.reset();
+                    });
+                }
+
+                if (btnSearch) {
+                    btnSearch.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        const field = document.getElementById('searchFieldVendor').value;
+                        const q = document.getElementById('searchQueryVendor').value.trim();
+                        const results = searchVendors(field, q);
+                        renderResults(results);
+                    });
+                }
+
+                const searchInput = document.getElementById('searchQueryVendor');
+                if (searchInput) {
+                    searchInput.addEventListener('keypress', function (e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            document.getElementById('btnSearchVendor').click();
+                        }
+                    });
+                }
+            });
+        })();
+    </script>
 </body>
 
 </html>
