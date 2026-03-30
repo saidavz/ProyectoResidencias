@@ -69,7 +69,6 @@
           <label for="reportTypeMenu" class="reports-select-label">Select Report Type</label>
           <select id="reportTypeMenu" class="form-select reports-select">
             <option value="spending">Reporte de gastos</option>
-            <option value="savings">Reporte de ahorro</option>
             <option value="dead-inventory">Reporte de inventario muerto</option>
             <option value="pending-purchases">Reporte de compras pendientes</option>
             <option value="po-closed">Reporte de POs cerradas</option>
@@ -185,6 +184,7 @@
             <tr>
               <th>Proyecto</th>
               <th>No. Proyecto</th>
+              <th id="poColumnHeader" style="display: none;">No. PO</th>
               <th class="th-filterable">
                 <span>No. QIS</span>
                 <button type="button" class="th-filter-trigger" data-filter-target="popoverQis" title="Filtrar No. QIS">
@@ -234,7 +234,116 @@
           </thead>
           <tbody id="pendingPurchasesTableBody">
             <tr>
-              <td colspan="7" class="text-center">Selecciona el reporte de compras pendientes para visualizar datos.</td>
+              <td colspan="8" class="text-center">Selecciona el reporte de compras pendientes para visualizar datos.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="deadInventoryPanel" class="report-panel card border-0 shadow-sm" hidden>
+      <div class="row g-3 align-items-end">
+        <div class="col-md-6">
+          <label for="deadInventorySearch" class="reports-search-label">Buscar por número de parte</label>
+          <input
+            type="text"
+            id="deadInventorySearch"
+            class="form-control reports-search-input"
+            placeholder="Buscar número de parte..."
+            autocomplete="off"
+          >
+        </div>
+        <div class="col-md-4">
+          <label for="deadInventoryThemeSelect" class="reports-search-label">Diseño del reporte</label>
+          <select id="deadInventoryThemeSelect" class="form-select reports-search-input">
+            <option value="silver" selected>Corporate Pulse Dashboard</option>
+            <option value="ocean">Insight Spectrum Dashboard</option>
+            <option value="carbon">Neon BI Command Center</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="deadInventoryMeta" class="reports-meta">Total de items sin movimiento en 3 meses: 0</div>
+
+      <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-3">
+        <div class="col">
+          <article class="card report-kpi-card h-100 border-0 shadow-sm">
+            <div class="card-body">
+              <div class="report-kpi-label">Total de Números de Parte</div>
+              <p id="deadInventoryKpiTotal" class="report-kpi-value">0</p>
+            </div>
+          </article>
+        </div>
+        <div class="col">
+          <article class="card report-kpi-card h-100 border-0 shadow-sm">
+            <div class="card-body">
+              <div class="report-kpi-label">Items sin Movimiento</div>
+              <p id="deadInventoryKpiDead" class="report-kpi-value emphasis">0</p>
+            </div>
+          </article>
+        </div>
+        <div class="col">
+          <article class="card report-kpi-card h-100 border-0 shadow-sm">
+            <div class="card-body">
+              <div class="report-kpi-label">% Items Muertos</div>
+              <p id="deadInventoryKpiPercent" class="report-kpi-value">0.0%</p>
+            </div>
+          </article>
+        </div>
+        <div class="col">
+          <article class="card report-kpi-card h-100 border-0 shadow-sm">
+            <div class="card-body">
+              <div class="report-kpi-label">Cantidad Total Muerta</div>
+              <p id="deadInventoryKpiQuantity" class="report-kpi-value">0</p>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="report-percent-strip card border-0 shadow-sm mb-3">
+        <div class="report-percent-title">Proporción de inventario muerto</div>
+        <div id="deadInventoryPercentProgress" class="progress report-progress" role="progressbar" aria-label="Porcentaje inventario muerto" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="deadInventoryPercentBar" class="progress-bar report-progress-bar"></div>
+        </div>
+        <p id="deadInventoryPercentCaption" class="report-percent-caption">0% del inventario sin movimiento en 3 meses.</p>
+      </div>
+
+      <div class="row row-cols-1 row-cols-lg-2 g-3 mb-3">
+        <div class="col">
+          <article class="card report-chart-card h-100 border-0 shadow-sm">
+            <div class="card-body">
+              <h3 class="report-chart-title h6">Distribución de inventario muerto por antigüedad</h3>
+              <div class="report-chart-wrap">
+                <canvas id="deadInventoryAgeChart"></canvas>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="col">
+          <article class="card report-chart-card h-100 border-0 shadow-sm">
+            <div class="card-body">
+              <h3 class="report-chart-title h6">Top 10 items con más stock muerto</h3>
+              <div class="report-chart-wrap">
+                <canvas id="deadInventoryTopChart"></canvas>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-striped table-bordered table-hover align-middle bg-white table-reports mb-0">
+          <thead class="pending-table-head">
+            <tr>
+              <th>No. Parte</th>
+              <th>Descripcion</th>
+              <th>Cantidad en Stock</th>
+              <th>Último Movimiento</th>
+            </tr>
+          </thead>
+          <tbody id="deadInventoryTableBody">
+            <tr>
+              <td colspan="4" class="text-center">Selecciona el reporte de inventario muerto para visualizar datos.</td>
             </tr>
           </tbody>
         </table>

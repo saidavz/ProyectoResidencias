@@ -23,8 +23,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: '150403kim', //verifica bien al cambiarlo
   port: 5432,
 });
 
@@ -961,7 +961,7 @@ app.get('/api/products/types-by-project/:no_project', async (req, res) => {
 
 app.get('/api/vendors', async (req, res) => {
   try {
-    const result = await pool.query('SELECT id_vendor, name_vendor FROM vendor ORDER BY name_vendor');
+    const result = await pool.query('SELECT id_vendor, name_vendor, email, telephone FROM vendor ORDER BY name_vendor');
     res.json(result.rows);
   } catch (error) {
 
@@ -2446,6 +2446,48 @@ app.get('/api/bomView/debug', async (req, res) => {
 
 
     res.status(500).json({ error: String(err) });
+  }
+});
+
+// Endpoint para obtener inventario muerto (sin movimiento en 3 meses)
+app.get('/api/dead-inventory', async (req, res) => {
+  try {
+    const deadQuery = `
+      SELECT 
+        p.no_part,
+        p.description,
+        SUM(s.available) AS available,
+        MAX(m.date_movement) AS last_movement_date
+      FROM stock s
+      JOIN product p ON s.no_part = p.no_part
+      LEFT JOIN movements m ON s.id_stock = m.id_stock
+      GROUP BY p.no_part, p.description
+      HAVING MAX(m.date_movement) IS NULL OR MAX(m.date_movement) < NOW() - INTERVAL '3 months'
+      ORDER BY MAX(m.date_movement) ASC
+    `;
+    
+    const totalQuery = `
+      SELECT 
+        SUM(s.available) AS total_quantity,
+        COUNT(DISTINCT p.no_part) AS total_items
+      FROM stock s
+      JOIN product p ON s.no_part = p.no_part
+    `;
+    
+    const deadResult = await pool.query(deadQuery);
+    const totalResult = await pool.query(totalQuery);
+    
+    const totalItems = totalResult.rows[0]?.total_items || 0;
+    const totalQuantity = totalResult.rows[0]?.total_quantity || 0;
+    
+    res.json({
+      deadInventory: deadResult.rows,
+      totalItems: totalItems,
+      totalQuantity: totalQuantity
+    });
+  } catch (error) {
+    console.error('Error al obtener inventario muerto:', error);
+    res.status(500).json({ error: 'Error al cargar inventario muerto' });
   }
 });
 

@@ -1323,11 +1323,11 @@
                     </div>
                     <div class="mb-3">
                         <label for="email_vendor" class="form-label text-light">Email</label>
-                        <input type="email" class="form-control bg-light text-dark" id="email_vendor" placeholder="Enter email">
+                        <input type="email" class="form-control bg-light text-dark" id="email_vendor" placeholder="Enter email" required>
                     </div>
                     <div class="mb-3">
                         <label for="telephone_vendor" class="form-label text-light">Telephone</label>
-                        <input type="text" class="form-control bg-light text-dark" id="telephone_vendor" placeholder="Enter telephone">
+                        <input type="text" class="form-control bg-light text-dark" id="telephone_vendor" placeholder="Enter telephone (10 digits)" maxlength="10" inputmode="numeric">
                     </div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-success">Save Vendor</button>
@@ -1361,17 +1361,21 @@
                 </div>
 
                 <div id="searchResultsVendor">
-                    <table class="table table-sm table-dark">
-                        <thead>
-                            <tr>
-                                <th>Number</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Telephone</th>
-                            </tr>
-                        </thead>
-                        <tbody id="resultsBodyVendor"></tbody>
-                    </table>
+                    <div class="enhanced-table">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Number</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Telephone</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsBodyVendor"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1382,33 +1386,48 @@
         (function () {
             const STORAGE_KEY = 'app_vendors_v1';
 
-            function loadVendors() {
+            async function loadVendors() {
                 try {
-                    const raw = localStorage.getItem(STORAGE_KEY);
-                    return raw ? JSON.parse(raw) : [];
+                    const response = await fetch('http://localhost:3000/api/vendors');
+                    if (!response.ok) throw new Error('Error loading vendors');
+                    const data = await response.json();
+                    return Array.isArray(data) ? data : [];
                 } catch (e) {
+                    console.error('Error loading vendors:', e);
                     return [];
                 }
             }
 
-            function saveVendors(list) {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+            async function saveVendors(vendor) {
+                try {
+                    const response = await fetch('http://localhost:3000/api/vendors', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(vendor)
+                    });
+                    if (!response.ok) throw new Error('Error saving vendor');
+                    return await response.json();
+                } catch (e) {
+                    console.error('Error saving vendor:', e);
+                    alert('Error guardando vendor: ' + e.message);
+                    throw e;
+                }
             }
 
-            function findVendorById(id) {
-                const list = loadVendors();
+            async function findVendorById(id) {
+                const list = await loadVendors();
                 return list.find(v => String(v.id_vendor) === String(id));
             }
 
-            function upsertVendor(vendor) {
-                const list = loadVendors();
-                const idx = list.findIndex(v => String(v.id_vendor) === String(vendor.id_vendor));
-                if (idx >= 0) {
-                    list[idx] = vendor;
-                } else {
-                    list.push(vendor);
+            async function upsertVendor(vendor) {
+                try {
+                    await saveVendors(vendor);
+                } catch (e) {
+                    console.error('Error in upsertVendor:', e);
+                    throw e;
                 }
-                saveVendors(list);
             }
 
             function renderResults(results) {
@@ -1429,8 +1448,8 @@
                 });
             }
 
-            function searchVendors(field, query) {
-                const list = loadVendors();
+            async function searchVendors(field, query) {
+                const list = await loadVendors();
                 if (!query) return list;
                 const q = String(query).toLowerCase();
                 if (field === 'all') {
@@ -1446,14 +1465,15 @@
                 const btnSearch = document.getElementById('btnSearchVendor');
 
                 if (vendorOffcanvas) {
-                    vendorOffcanvas.addEventListener('show.bs.offcanvas', function () {
+                    vendorOffcanvas.addEventListener('show.bs.offcanvas', async function () {
                         // load and show all
-                        renderResults(loadVendors());
+                        const vendors = await loadVendors();
+                        renderResults(vendors);
                     });
                 }
 
                 if (vendorForm) {
-                    vendorForm.addEventListener('submit', function (e) {
+                    vendorForm.addEventListener('submit', async function (e) {
                         e.preventDefault();
                         const vendor = {
                             id_vendor: document.getElementById('id_vendor').value.trim(),
@@ -1461,14 +1481,29 @@
                             email: document.getElementById('email_vendor').value.trim(),
                             telephone: document.getElementById('telephone_vendor').value.trim()
                         };
+                        
                         if (!vendor.id_vendor || !vendor.name_vendor) {
                             alert('ID y Nombre son requeridos');
                             return;
                         }
-                        upsertVendor(vendor);
-                        alert('Vendor guardado');
-                        renderResults(loadVendors());
-                        vendorForm.reset();
+                        
+                        try {
+                            await upsertVendor(vendor);
+                            alert('Vendor guardado correctamente');
+                            const vendors = await loadVendors();
+                            renderResults(vendors);
+                            vendorForm.reset();
+                        } catch (e) {
+                            console.error('Error saving vendor:', e);
+                        }
+                    });
+                }
+
+                // Restricción de teléfono: solo números, máximo 10 dígitos
+                const telephoneInput = document.getElementById('telephone_vendor');
+                if (telephoneInput) {
+                    telephoneInput.addEventListener('input', function (e) {
+                        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
                     });
                 }
 
@@ -1479,11 +1514,11 @@
                 }
 
                 if (btnSearch) {
-                    btnSearch.addEventListener('click', function (e) {
+                    btnSearch.addEventListener('click', async function (e) {
                         e.preventDefault();
                         const field = document.getElementById('searchFieldVendor').value;
                         const q = document.getElementById('searchQueryVendor').value.trim();
-                        const results = searchVendors(field, q);
+                        const results = await searchVendors(field, q);
                         renderResults(results);
                     });
                 }

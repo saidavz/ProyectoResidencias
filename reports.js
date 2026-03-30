@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const printButton = document.querySelector('.reports-print-btn');
 
   const pendingPanel = document.getElementById('pendingPurchasesPanel');
+  const deadInventoryPanel = document.getElementById('deadInventoryPanel');
+  const deadInventoryMeta = document.getElementById('deadInventoryMeta');
+  const deadInventoryTableBody = document.getElementById('deadInventoryTableBody');
   const genericPanel = document.getElementById('genericReportPanel');
   const genericMessage = document.getElementById('genericReportMessage');
 
@@ -47,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
       pendingLabel: 'compras pendientes (Quoted)',
       kpiPendingLabel: 'Pendientes Quoted',
       kpiPercentLabel: '% Pendiente (Quoted)',
+      kpiProjectsLabel: 'Proyectos con compras pendientes',
       topProjectsTitle: 'Top proyectos con compras pendientes',
       projectsDatasetLabel: 'Compras pendientes',
       loadingMessage: 'Cargando compras pendientes...',
@@ -63,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
       pendingLabel: 'compras pendientes de entrega (Pending Delivery)',
       kpiPendingLabel: 'Pendientes Delivery',
       kpiPercentLabel: '% Pendiente (Delivery)',
+      kpiProjectsLabel: 'Proyectos con pendientes de entrega',
       topProjectsTitle: 'Top proyectos con pendientes de entrega',
       projectsDatasetLabel: 'Pendientes de entrega',
       loadingMessage: 'Cargando compras pendientes de entrega...',
@@ -74,6 +79,23 @@ document.addEventListener('DOMContentLoaded', () => {
       excelTopSectionTitle: 'Top proyectos con pendientes de entrega (filtro actual)',
       excelFilePrefix: 'reporte_pos_pendientes_entrega',
       statusFilter: (status) => isPendingDeliveryStatus(status)
+    },
+    'po-closed': {
+      pendingLabel: 'POs cerradas (Delivered)',
+      kpiPendingLabel: 'POs Cerradas',
+      kpiPercentLabel: '% Cerradas',
+      kpiProjectsLabel: 'Proyectos con PO cerradas',
+      topProjectsTitle: 'Top proyectos con POs cerradas',
+      projectsDatasetLabel: 'POs cerradas',
+      loadingMessage: 'Cargando POs cerradas...',
+      emptyMessage: 'No se encontraron POs cerradas para el proyecto buscado.',
+      errorMeta: 'No fue posible cargar el reporte de POs cerradas.',
+      errorTable: 'Error al cargar datos de POs cerradas.',
+      excelTitle: 'Reporte de POs Cerradas',
+      excelPendingKpiLabel: 'POs cerradas (Delivered)',
+      excelTopSectionTitle: 'Top proyectos con POs cerradas (filtro actual)',
+      excelFilePrefix: 'reporte_pos_cerradas',
+      statusFilter: (status) => isDeliveredStatus(status)
     }
   });
 
@@ -408,12 +430,54 @@ document.addEventListener('DOMContentLoaded', () => {
     return normalizeText(status) === 'pending delivery';
   }
 
+  function isDeliveredStatus(status) {
+    const normalized = normalizeText(status);
+    return normalized === 'delivered' ||
+           normalized === 'delivered to brk' ||
+           normalized === 'reviewed and imported' ||
+           normalized === 'delivered to hw us' ||
+           normalized === 'in the process of delivery to hw us';
+  }
+
   function getActiveReportConfig() {
     return REPORT_MODES[activeReportType] || REPORT_MODES['pending-purchases'];
   }
 
+  function getPendingItemLabel() {
+    return activeReportType === 'po-closed' ? 'Cerradas' : 'Pendientes';
+  }
+
+  function filterClosedPOs(rows) {
+    // Agrupar por número de PO
+    const poMap = new Map();
+    
+    rows.forEach((row) => {
+      const poNumber = row.po || '';
+      if (!poNumber) return; // Ignorar items sin PO
+      
+      if (!poMap.has(poNumber)) {
+        poMap.set(poNumber, []);
+      }
+      poMap.get(poNumber).push(row);
+    });
+
+    // Retornar solo un item representativo por cada PO donde TODOS los items están delivered
+    const closedPOs = [];
+    poMap.forEach((items, poNumber) => {
+      const allDelivered = items.every((item) => isDeliveredStatus(item.status));
+      
+      if (allDelivered) {
+        // Usar el primer item como representante del PO
+        closedPOs.push(items[0]);
+      }
+    });
+
+    return closedPOs;
+  }
+
   function applyReportModeUI() {
     const config = getActiveReportConfig();
+    const shouldShowPoColumn = activeReportType === 'po-closed' || activeReportType === 'po-pending-delivery';
 
     if (reportKpiLabels[1]) {
       reportKpiLabels[1].textContent = config.kpiPendingLabel;
@@ -421,8 +485,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (reportKpiLabels[2]) {
       reportKpiLabels[2].textContent = config.kpiPercentLabel;
     }
+    if (reportKpiLabels[3]) {
+      reportKpiLabels[3].textContent = config.kpiProjectsLabel;
+    }
     if (reportChartTitles[1]) {
       reportChartTitles[1].textContent = config.topProjectsTitle;
+    }
+    
+    // Mostrar/ocultar columna de PO
+    const poColumnHeader = document.getElementById('poColumnHeader');
+    if (poColumnHeader) {
+      poColumnHeader.style.display = shouldShowPoColumn ? '' : 'none';
     }
   }
 
@@ -584,30 +657,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!Array.isArray(rows) || rows.length === 0) {
       currentFilteredRows = [];
+      const showPoColumn = activeReportType === 'po-closed' || activeReportType === 'po-pending-delivery';
+      const colspan = showPoColumn ? 8 : 7;
       pendingTableBody.innerHTML = `
         <tr>
-          <td colspan="7" class="text-center">${config.emptyMessage}</td>
+          <td colspan="${colspan}" class="text-center">${config.emptyMessage}</td>
         </tr>
       `;
       return;
     }
 
     currentFilteredRows = rows;
+    const showPoColumn = activeReportType === 'po-closed' || activeReportType === 'po-pending-delivery';
 
     pendingTableBody.innerHTML = rows
       .map((row) => {
         const projectValue = escapeHtml(formatProjectCell(row));
         const noProjectValue = escapeHtml(row.no_project || '-');
+        const poValue = escapeHtml(row.po || '-');
         const qisValue = escapeHtml(row.no_qis || '-');
         const partValue = escapeHtml(row.no_part || '-');
         const descriptionValue = escapeHtml(row.description || '-');
         const vendorValue = escapeHtml(row.vendor_name || '-');
         const quantityValue = escapeHtml(row.quantity ?? '-');
 
+        const poCell = showPoColumn ? `<td>${poValue}</td>` : '';
+
         return `
           <tr>
             <td>${projectValue}</td>
             <td>${noProjectValue}</td>
+            ${poCell}
             <td>${qisValue}</td>
             <td>${partValue}</td>
             <td>${descriptionValue}</td>
@@ -673,6 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pendingPercent = totalPurchases > 0 ? (totalPending / totalPurchases) * 100 : 0;
     const visiblePercent = totalPending > 0 ? (visiblePending / totalPending) * 100 : 0;
     const selectedProjectLabel = projectSearchInput?.value?.trim() || 'Todos los proyectos';
+    const pendingLabel = getPendingItemLabel();
 
     const statusDistributionRows = getStatusDistributionRows();
     const topProjectsRows = getTopProjectsRows(currentFilteredRows);
@@ -686,8 +767,8 @@ document.addEventListener('DOMContentLoaded', () => {
       ['Indicador', 'Valor'],
       ['Total compras (proyectos activos)', totalPurchases],
       [config.excelPendingKpiLabel, totalPending],
-      ['Pendiente % (proyectos activos)', `${pendingPercent.toFixed(1)}%`],
-      ['Pendientes visibles (filtro actual)', visiblePending],
+      [`${pendingLabel} % (proyectos activos)`, `${pendingPercent.toFixed(1)}%`],
+      [`${pendingLabel} visibles (filtro actual)`, visiblePending],
       ['Cobertura del filtro', `${visiblePercent.toFixed(1)}%`],
       [],
       ['Distribucion de estatus (general)'],
@@ -695,7 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ...statusDistributionRows,
       [],
       [config.excelTopSectionTitle],
-      ['Proyecto', 'Pendientes'],
+      ['Proyecto', pendingLabel],
       ...(topProjectsRows.length ? topProjectsRows : [['Sin datos para el filtro actual', 0]])
     ];
 
@@ -759,11 +840,12 @@ document.addEventListener('DOMContentLoaded', () => {
     summarySheet.getCell('A5').value = 'Resumen Ejecutivo';
     summarySheet.getCell('A5').font = { bold: true, size: 13, color: { argb: argb(theme.excel.sectionTitle) } };
 
+    const pendingLabel = getPendingItemLabel();
     const kpiRows = [
       ['Total compras (proyectos activos)', totalPurchases],
       [config.excelPendingKpiLabel, totalPending],
-      ['Pendiente % (proyectos activos)', `${pendingPercent.toFixed(1)}%`],
-      ['Pendientes visibles (filtro actual)', visiblePending],
+      [`${pendingLabel} % (proyectos activos)`, `${pendingPercent.toFixed(1)}%`],
+      [`${pendingLabel} visibles (filtro actual)`, visiblePending],
       ['Cobertura del filtro', `${visiblePercent.toFixed(1)}%`]
     ];
 
@@ -813,7 +895,7 @@ document.addEventListener('DOMContentLoaded', () => {
     summarySheet.getCell(`A${topStart}`).value = config.excelTopSectionTitle;
     summarySheet.getCell(`A${topStart}`).font = { bold: true, size: 12, color: { argb: argb(theme.excel.sectionTitle) } };
     summarySheet.getCell(`A${topStart + 1}`).value = 'Proyecto';
-    summarySheet.getCell(`B${topStart + 1}`).value = 'Pendientes';
+    summarySheet.getCell(`B${topStart + 1}`).value = pendingLabel;
 
     ['A', 'B'].forEach((col) => {
       applyHeaderCellStyle(summarySheet.getCell(`${col}${topStart + 1}`), theme);
@@ -859,15 +941,25 @@ document.addEventListener('DOMContentLoaded', () => {
       properties: { defaultRowHeight: 18 }
     });
 
-    detailSheet.columns = [
+    const detailColumns = [
       { header: 'Proyecto', key: 'project_name', width: 32 },
-      { header: 'No. Proyecto', key: 'no_project', width: 16 },
+      { header: 'No. Proyecto', key: 'no_project', width: 16 }
+    ];
+    
+    const showPoColumnInExcel = activeReportType === 'po-closed' || activeReportType === 'po-pending-delivery';
+    if (showPoColumnInExcel) {
+      detailColumns.push({ header: 'No. PO', key: 'po', width: 14 });
+    }
+    
+    detailColumns.push(
       { header: 'No. QIS', key: 'no_qis', width: 14 },
       { header: 'No. Parte', key: 'no_part', width: 18 },
       { header: 'Descripcion', key: 'description', width: 42 },
       { header: 'Proveedor', key: 'vendor_name', width: 26 },
       { header: 'Cantidad', key: 'quantity', width: 12 }
-    ];
+    );
+    
+    detailSheet.columns = detailColumns;
 
     detailSheet.getRow(1).font = { bold: true, color: { argb: argb(theme.excel.textLight) } };
     detailSheet.getRow(1).fill = {
@@ -876,10 +968,15 @@ document.addEventListener('DOMContentLoaded', () => {
       fgColor: { argb: argb(theme.excel.tableHeaderBg) }
     };
     detailSheet.getRow(1).height = 22;
-    detailSheet.getRow(1).eachCell((cell) => applyHeaderCellStyle(cell, theme));
+    
+    // Aplicar estilos al encabezado solo a las primeras 8 columnas
+    const numDetailColumns = detailColumns.length;
+    for (let col = 1; col <= numDetailColumns; col += 1) {
+      applyHeaderCellStyle(detailSheet.getRow(1).getCell(col), theme);
+    }
 
     currentFilteredRows.forEach((row) => {
-      detailSheet.addRow({
+      const rowData = {
         project_name: String(row.project_name || '').trim() || '-',
         no_project: String(row.no_project || '').trim() || '-',
         no_qis: String(row.no_qis || '').trim() || '-',
@@ -887,18 +984,26 @@ document.addEventListener('DOMContentLoaded', () => {
         description: String(row.description || '').trim() || '-',
         vendor_name: String(row.vendor_name || '').trim() || '-',
         quantity: Number.isFinite(Number(row.quantity)) ? Number(row.quantity) : String(row.quantity ?? '-')
-      });
+      };
+      
+      if (showPoColumnInExcel) {
+        rowData.po = String(row.po || '').trim() || '-';
+      }
+      
+      detailSheet.addRow(rowData);
     });
 
     detailSheet.views = [{ state: 'frozen', ySplit: 1 }];
+    
+    const quantityColumnIndex = detailColumns.length; // La cantidad siempre es la última columna
     detailSheet.autoFilter = {
       from: { row: 1, column: 1 },
-      to: { row: 1, column: 7 }
+      to: { row: 1, column: quantityColumnIndex }
     };
 
     detailSheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
-      row.getCell(7).alignment = { horizontal: 'right' };
+      row.getCell(quantityColumnIndex).alignment = { horizontal: 'right' };
       if (rowNumber % 2 === 0) {
         row.eachCell((cell) => {
           cell.fill = {
@@ -912,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const lastDetailRow = detailSheet.rowCount;
     if (lastDetailRow >= 1) {
-      applyExcelTableBorders(detailSheet, 1, lastDetailRow, 1, 7, theme);
+      applyExcelTableBorders(detailSheet, 1, lastDetailRow, 1, quantityColumnIndex, theme);
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -921,6 +1026,224 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const fileName = `${config.excelFilePrefix}_${getExcelTimestamp()}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportDeadInventoryToExcel() {
+    if (typeof ExcelJS === 'undefined') {
+      alert('No se pudo cargar el motor de ExcelJS. Recarga la página e intenta de nuevo.');
+      return;
+    }
+
+    if (!Array.isArray(allDeadInventory) || allDeadInventory.length === 0) {
+      alert('No hay datos para exportar a Excel.');
+      return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const theme = getActiveTheme();
+    workbook.creator = 'Purchase System';
+    workbook.created = new Date();
+
+    // Resumen sheet
+    const summarySheet = workbook.addWorksheet('Resumen', {
+      properties: { defaultRowHeight: 18 }
+    });
+
+    summarySheet.columns = [
+      { width: 56 },
+      { width: 22 },
+      { width: 18 },
+      { width: 18 }
+    ];
+
+    summarySheet.mergeCells('A1:D1');
+    const titleCell = summarySheet.getCell('A1');
+    titleCell.value = 'Reporte de Inventario Muerto';
+    titleCell.font = { name: 'Calibri', bold: true, size: 18, color: { argb: argb(theme.excel.textLight) } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    titleCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: argb(theme.excel.headerBg) }
+    };
+
+    const generatedAt = new Date().toLocaleString();
+    summarySheet.getCell('A2').value = `Generado: ${generatedAt}`;
+    summarySheet.getCell('A2').font = { name: 'Calibri', size: 11 };
+
+    const deadCount = allDeadInventory.length;
+    const deadQuantity = allDeadInventory.reduce((sum, row) => sum + (parseInt(row.available) || 0), 0);
+    const deadPercent = totalItemsInStock > 0 ? ((deadCount / totalItemsInStock) * 100).toFixed(1) : 0;
+
+    summarySheet.getCell('A4').value = 'Resumen Ejecutivo';
+    summarySheet.getCell('A4').font = { bold: true, size: 13, color: { argb: argb(theme.excel.sectionTitle) } };
+
+    const kpiRows = [
+      ['Total items en stock (números de parte únicos)', totalItemsInStock],
+      ['Cantidad total en stock', totalQuantityInStock],
+      ['Items sin movimiento en 3 meses', deadCount],
+      ['Cantidad muerta en stock', deadQuantity],
+      ['% Items muertos', `${deadPercent}%`]
+    ];
+
+    kpiRows.forEach((item, index) => {
+      const rowNumber = 5 + index;
+      summarySheet.getCell(`A${rowNumber}`).value = item[0];
+      summarySheet.getCell(`B${rowNumber}`).value = item[1];
+      summarySheet.getCell(`A${rowNumber}`).font = { bold: true };
+      summarySheet.getCell(`A${rowNumber}`).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: argb(theme.excel.kpiLabelBg) }
+      };
+      summarySheet.getCell(`B${rowNumber}`).alignment = { horizontal: 'right' };
+      summarySheet.getCell(`A${rowNumber}`).border = buildExcelCellBorder(theme, 'thin');
+      summarySheet.getCell(`B${rowNumber}`).border = buildExcelCellBorder(theme, 'thin');
+    });
+    applyExcelTableBorders(summarySheet, 5, 4 + kpiRows.length, 1, 2, theme);
+
+    // Age distribution section
+    const ageStart = 11;
+    summarySheet.getCell(`A${ageStart}`).value = 'Distribución por antigüedad';
+    summarySheet.getCell(`A${ageStart}`).font = { bold: true, size: 12, color: { argb: argb(theme.excel.sectionTitle) } };
+
+    const ageData = analyzeDeadInventoryAge();
+    const ageRows = [
+      ['Rango de antigüedad', 'Cantidad de items']
+    ];
+    ageData.labels.forEach((label, idx) => {
+      ageRows.push([label, ageData.data[idx]]);
+    });
+
+    ageRows.forEach((item, index) => {
+      const rowNumber = ageStart + 1 + index;
+      summarySheet.getCell(`A${rowNumber}`).value = item[0];
+      summarySheet.getCell(`B${rowNumber}`).value = item[1];
+      if (index === 0) {
+        summarySheet.getCell(`A${rowNumber}`).font = { bold: true, color: { argb: argb(theme.excel.textLight) } };
+        summarySheet.getCell(`B${rowNumber}`).font = { bold: true, color: { argb: argb(theme.excel.textLight) } };
+        summarySheet.getCell(`A${rowNumber}`).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: argb(theme.excel.tableHeaderBg) }
+        };
+        summarySheet.getCell(`B${rowNumber}`).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: argb(theme.excel.tableHeaderBg) }
+        };
+      }
+      summarySheet.getCell(`B${rowNumber}`).alignment = { horizontal: 'right' };
+    });
+
+    summarySheet.views = [{ state: 'frozen', ySplit: 5 }];
+
+    // Agregar gráficas como imágenes
+    const ageCanvas = document.getElementById('deadInventoryAgeChart');
+    if (ageCanvas && ageCanvas.toDataURL) {
+      try {
+        const ageImageId = workbook.addImage({
+          base64: ageCanvas.toDataURL('image/png'),
+          extension: 'png'
+        });
+        summarySheet.addImage(ageImageId, {
+          tl: { col: 3.15, row: 5.1 },
+          ext: { width: 340, height: 340 }
+        });
+      } catch (err) {
+        console.warn('No se pudo agregar gráfica de antigüedad:', err);
+      }
+    }
+
+    const topCanvas = document.getElementById('deadInventoryTopChart');
+    if (topCanvas && topCanvas.toDataURL) {
+      try {
+        const topImageId = workbook.addImage({
+          base64: topCanvas.toDataURL('image/png'),
+          extension: 'png'
+        });
+        summarySheet.addImage(topImageId, {
+          tl: { col: 3.15, row: 19.6 },
+          ext: { width: 460, height: 260 }
+        });
+      } catch (err) {
+        console.warn('No se pudo agregar gráfica de top items:', err);
+      }
+    }
+
+    // Data sheet
+    const sheet = workbook.addWorksheet('Inventario Muerto', {
+      properties: { defaultRowHeight: 18 }
+    });
+
+    sheet.columns = [
+      { header: 'No. Parte', key: 'no_part', width: 18 },
+      { header: 'Descripcion', key: 'description', width: 42 },
+      { header: 'Cantidad en Stock', key: 'available', width: 18 },
+      { header: 'Último Movimiento', key: 'last_movement_date', width: 20 }
+    ];
+
+    sheet.getRow(1).font = { bold: true, color: { argb: argb(theme.excel.textLight) } };
+    sheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: argb(theme.excel.tableHeaderBg) }
+    };
+    sheet.getRow(1).height = 22;
+
+    for (let col = 1; col <= 4; col += 1) {
+      applyHeaderCellStyle(sheet.getRow(1).getCell(col), theme);
+    }
+
+    allDeadInventory.forEach((row) => {
+      sheet.addRow({
+        no_part: row.no_part || '-',
+        description: row.description || '-',
+        available: row.available || 0,
+        last_movement_date: row.last_movement_date 
+          ? new Date(row.last_movement_date).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' })
+          : '-'
+      });
+    });
+
+    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    sheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: 4 }
+    };
+
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      if (rowNumber % 2 === 0) {
+        row.eachCell((cell) => {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: argb(theme.excel.zebraRow) }
+          };
+        });
+      }
+    });
+
+    const lastRow = sheet.rowCount;
+    if (lastRow >= 1) {
+      applyExcelTableBorders(sheet, 1, lastRow, 1, 4, theme);
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    const fileName = `reporte_inventario_muerto_${getExcelTimestamp()}.xlsx`;
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -1156,11 +1479,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadPendingPurchasesReport() {
     const config = getActiveReportConfig();
+    const showPoColumn = activeReportType === 'po-closed' || activeReportType === 'po-pending-delivery';
+    const colspan = showPoColumn ? 8 : 7;
 
     pendingMeta.textContent = config.loadingMessage;
     pendingTableBody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center">Cargando datos...</td>
+        <td colspan="${colspan}" class="text-center">Cargando datos...</td>
       </tr>
     `;
 
@@ -1180,18 +1505,26 @@ document.addEventListener('DOMContentLoaded', () => {
       const activeProjectKeys = buildActiveProjectKeySet(allProjects);
       const activePurchases = rows.filter((row) => isPurchaseFromActiveProject(row, activeProjectKeys));
       allPurchases = activePurchases;
-      pendingPurchases = activePurchases.filter((row) => config.statusFilter(row.status));
+      
+      if (activeReportType === 'po-closed') {
+        pendingPurchases = filterClosedPOs(activePurchases);
+      } else {
+        pendingPurchases = activePurchases.filter((row) => config.statusFilter(row.status));
+      }
+      
       clearColumnFilters();
 
       applyProjectFilter();
       updateStatusChart();
     } catch (error) {
+      const showPoColumn = activeReportType === 'po-closed' || activeReportType === 'po-pending-delivery';
+      const colspan = showPoColumn ? 8 : 7;
       allPurchases = [];
       pendingPurchases = [];
       pendingMeta.textContent = config.errorMeta;
       pendingTableBody.innerHTML = `
         <tr>
-          <td colspan="7" class="text-center text-danger">${config.errorTable}</td>
+          <td colspan="${colspan}" class="text-center text-danger">${config.errorTable}</td>
         </tr>
       `;
 
@@ -1201,10 +1534,236 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  let allDeadInventory = [];
+  let totalItemsInStock = 0;
+  let totalQuantityInStock = 0;
+  let deadInventoryAgeChart = null;
+  let deadInventoryTopChart = null;
+
+  async function loadDeadInventoryReport() {
+    deadInventoryMeta.textContent = 'Cargando inventario muerto...';
+    deadInventoryTableBody.innerHTML = `
+      <tr>
+        <td colspan="4" class="text-center">Cargando datos...</td>
+      </tr>
+    `;
+
+    try {
+      const response = await fetch(`${BASE}/dead-inventory`);
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error('Error al cargar inventario muerto');
+      }
+
+      allDeadInventory = Array.isArray(responseData.deadInventory) ? responseData.deadInventory : [];
+      totalItemsInStock = responseData.totalItems || 0;
+      totalQuantityInStock = responseData.totalQuantity || 0;
+
+      if (allDeadInventory.length === 0) {
+        deadInventoryMeta.textContent = 'No se encontraron items con inventario muerto.';
+        document.getElementById('deadInventoryKpiTotal').textContent = totalItemsInStock.toLocaleString('es-ES') || '0';
+        document.getElementById('deadInventoryKpiDead').textContent = '0';
+        document.getElementById('deadInventoryKpiPercent').textContent = '0.0%';
+        document.getElementById('deadInventoryKpiQuantity').textContent = '0';
+        document.getElementById('deadInventoryPercentBar').style.width = '0%';
+        document.getElementById('deadInventoryPercentProgress').setAttribute('aria-valuenow', '0');
+        document.getElementById('deadInventoryPercentCaption').textContent = '0% del inventario sin movimiento en 3 meses.';
+        deadInventoryTableBody.innerHTML = `
+          <tr>
+            <td colspan="4" class="text-center">No hay inventario muerto en estos momentos.</td>
+          </tr>
+        `;
+        destroyDeadInventoryCharts();
+        return;
+      }
+
+      updateDeadInventoryDisplay();
+      setupDeadInventorySearch();
+      renderDeadInventoryCharts();
+    } catch (error) {
+      console.error('Error:', error);
+      deadInventoryMeta.textContent = 'No fue posible cargar el reporte de inventario muerto.';
+      deadInventoryTableBody.innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center text-danger">Error al cargar datos</td>
+        </tr>
+      `;
+    }
+  }
+
+  function updateDeadInventoryDisplay(filteredRows = null) {
+    const rowsToDisplay = filteredRows || allDeadInventory;
+    const deadCount = allDeadInventory.length;
+    const deadPercent = totalItemsInStock > 0 ? ((deadCount / totalItemsInStock) * 100).toFixed(1) : 0;
+    const deadQuantity = allDeadInventory.reduce((sum, row) => sum + (parseInt(row.available) || 0), 0);
+
+    deadInventoryMeta.textContent = `Total de items sin movimiento en 3 meses: ${deadCount}`;
+    document.getElementById('deadInventoryKpiTotal').textContent = totalItemsInStock.toLocaleString('es-ES');
+    document.getElementById('deadInventoryKpiDead').textContent = deadCount.toLocaleString('es-ES');
+    document.getElementById('deadInventoryKpiPercent').textContent = `${deadPercent}%`;
+    document.getElementById('deadInventoryKpiQuantity').textContent = deadQuantity.toLocaleString('es-ES');
+
+    const percentBar = document.getElementById('deadInventoryPercentBar');
+    percentBar.style.width = `${deadPercent}%`;
+    document.getElementById('deadInventoryPercentProgress').setAttribute('aria-valuenow', deadPercent);
+    document.getElementById('deadInventoryPercentCaption').textContent = `${deadPercent}% del inventario (${deadCount} de ${totalItemsInStock} items) sin movimiento en 3 meses.`;
+
+    deadInventoryTableBody.innerHTML = rowsToDisplay
+      .map((row) => {
+        const partValue = escapeHtml(row.no_part || '-');
+        const descriptionValue = escapeHtml(row.description || '-');
+        const quantityValue = escapeHtml(row.available ?? '-');
+        const lastMovementValue = row.last_movement_date 
+          ? new Date(row.last_movement_date).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' })
+          : '-';
+
+        return `
+          <tr>
+            <td>${partValue}</td>
+            <td>${descriptionValue}</td>
+            <td class="text-end">${quantityValue}</td>
+            <td>${lastMovementValue}</td>
+          </tr>
+        `;
+      })
+      .join('');
+  }
+
+  function setupDeadInventorySearch() {
+    const searchInput = document.getElementById('deadInventorySearch');
+    if (!searchInput) return;
+
+    searchInput.removeEventListener('input', handleDeadInventorySearch);
+    searchInput.addEventListener('input', handleDeadInventorySearch);
+  }
+
+  function handleDeadInventorySearch(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    let filtered = allDeadInventory;
+
+    if (searchTerm) {
+      filtered = allDeadInventory.filter((row) =>
+        (row.no_part || '').toLowerCase().includes(searchTerm) ||
+        (row.description || '').toLowerCase().includes(searchTerm)
+      );
+    }
+
+    updateDeadInventoryDisplay(filtered);
+  }
+
+  function renderDeadInventoryCharts() {
+    destroyDeadInventoryCharts();
+
+    // Age distribution chart
+    const ageData = analyzeDeadInventoryAge();
+    const ageCanvasEl = document.getElementById('deadInventoryAgeChart');
+    if (ageCanvasEl) {
+      const ageCtx = ageCanvasEl.getContext('2d');
+      deadInventoryAgeChart = new Chart(ageCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ageData.labels,
+          datasets: [{
+            label: 'Items por antigüedad',
+            data: ageData.data,
+            backgroundColor: ['#4285F4', '#34A853', '#FBBC04', '#EA4335'],
+            borderColor: '#fff',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 12 }, usePointStyle: true, padding: 15 } }
+          }
+        }
+      });
+    }
+
+    // Top 10 items chart
+    const topData = getTopDeadInventoryItems();
+    const topCanvasEl = document.getElementById('deadInventoryTopChart');
+    if (topCanvasEl) {
+      const topCtx = topCanvasEl.getContext('2d');
+      deadInventoryTopChart = new Chart(topCtx, {
+        type: 'bar',
+        data: {
+          labels: topData.labels,
+          datasets: [{
+            label: 'Cantidad en stock',
+            data: topData.data,
+            backgroundColor: '#4285F4',
+            borderColor: '#1e40af',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true } }
+        }
+      });
+    }
+  }
+
+  function analyzeDeadInventoryAge() {
+    const now = new Date();
+    const ranges = {
+      '3-6 meses': { min: 90, max: 180, count: 0 },
+      '6-12 meses': { min: 180, max: 365, count: 0 },
+      '1-2 años': { min: 365, max: 730, count: 0 },
+      '2+ años': { min: 730, max: Infinity, count: 0 }
+    };
+
+    allDeadInventory.forEach((row) => {
+      if (!row.last_movement_date) return;
+      const lastMove = new Date(row.last_movement_date);
+      const days = Math.floor((now - lastMove) / (1000 * 60 * 60 * 24));
+
+      for (const [range, bounds] of Object.entries(ranges)) {
+        if (days >= bounds.min && days < bounds.max) {
+          bounds.count++;
+          break;
+        }
+      }
+    });
+
+    return {
+      labels: Object.keys(ranges),
+      data: Object.values(ranges).map(r => r.count)
+    };
+  }
+
+  function getTopDeadInventoryItems() {
+    const sorted = [...allDeadInventory]
+      .sort((a, b) => (b.available || 0) - (a.available || 0))
+      .slice(0, 10);
+
+    return {
+      labels: sorted.map(row => row.no_part || 'N/A'),
+      data: sorted.map(row => row.available || 0)
+    };
+  }
+
+  function destroyDeadInventoryCharts() {
+    if (deadInventoryAgeChart) {
+      deadInventoryAgeChart.destroy();
+      deadInventoryAgeChart = null;
+    }
+    if (deadInventoryTopChart) {
+      deadInventoryTopChart.destroy();
+      deadInventoryTopChart = null;
+    }
+  }
+
   function updateReportView() {
     const selectedReport = reportTypeMenu.value;
 
-    if (selectedReport === 'pending-purchases' || selectedReport === 'po-pending-delivery') {
+    if (selectedReport === 'pending-purchases' || selectedReport === 'po-pending-delivery' || selectedReport === 'po-closed') {
       activeReportType = selectedReport;
       applyReportModeUI();
       pendingPanel.hidden = false;
@@ -1213,7 +1772,16 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    if (selectedReport === 'dead-inventory') {
+      pendingPanel.hidden = true;
+      deadInventoryPanel.hidden = false;
+      genericPanel.hidden = true;
+      loadDeadInventoryReport();
+      return;
+    }
+
     pendingPanel.hidden = true;
+    deadInventoryPanel.hidden = true;
     genericPanel.hidden = false;
     genericMessage.textContent = 'Este tipo de reporte se encuentra en desarrollo.';
   }
@@ -1281,9 +1849,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const deadInventoryThemeSelect = document.getElementById('deadInventoryThemeSelect');
+  if (deadInventoryThemeSelect) {
+    deadInventoryThemeSelect.addEventListener('change', () => {
+      applyReportTheme(deadInventoryThemeSelect.value);
+    });
+  }
+
   printButton.addEventListener('click', async () => {
-    if (reportTypeMenu.value === 'pending-purchases' || reportTypeMenu.value === 'po-pending-delivery') {
+    if (reportTypeMenu.value === 'pending-purchases' || reportTypeMenu.value === 'po-pending-delivery' || reportTypeMenu.value === 'po-closed') {
       await exportPendingPurchasesToExcel();
+      return;
+    }
+
+    if (reportTypeMenu.value === 'dead-inventory') {
+      await exportDeadInventoryToExcel();
       return;
     }
 
