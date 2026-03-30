@@ -691,7 +691,14 @@
         const networkSelect = document.querySelector('select[name="network"]');
         if (!networkSelect) return;
         networkSelect.innerHTML = '<option value="">Select network...</option>';
-        data.forEach(n => networkSelect.innerHTML += `<option value="${n.network}">${n.network}</option>`);
+        data.forEach(n => {
+          const option = document.createElement('option');
+          const currency = String(n.currency || 'USD').toUpperCase();
+          option.value = n.network;
+          option.textContent = `${n.network} (${currency})`;
+          option.dataset.currency = currency;
+          networkSelect.appendChild(option);
+        });
       }).catch(err => {});
 
       // Evento para mostrar el balance al seleccionar una network 
@@ -699,6 +706,14 @@
       if (networkSelectElem) {
         networkSelectElem.addEventListener('change', function () {
           const network = this.value;
+          const currencySelect = document.querySelector('select[name="currency"]');
+          const selectedOption = this.options[this.selectedIndex];
+          if (currencySelect && selectedOption && selectedOption.dataset.currency) {
+            currencySelect.value = selectedOption.dataset.currency;
+          } else if (currencySelect && !network) {
+            currencySelect.value = '';
+          }
+
           if (network) {
             fetch(`${baseURL}/network/balance/${encodeURIComponent(network)}`)
               .then(r => r.json())

@@ -31,6 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const pendingStatusChartEl = document.getElementById('pendingStatusChart');
   const pendingProjectsChartEl = document.getElementById('pendingProjectsChart');
+  const reportKpiLabels = document.querySelectorAll('.report-kpi-label');
+  const reportChartTitles = document.querySelectorAll('.report-chart-title');
 
   let allPurchases = [];
   let allProjects = [];
@@ -38,123 +40,267 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentFilteredRows = [];
   let statusChart = null;
   let projectsChart = null;
+  let activeReportType = 'pending-purchases';
+
+  const REPORT_MODES = Object.freeze({
+    'pending-purchases': {
+      pendingLabel: 'compras pendientes (Quoted)',
+      kpiPendingLabel: 'Pendientes Quoted',
+      kpiPercentLabel: '% Pendiente (Quoted)',
+      topProjectsTitle: 'Top proyectos con compras pendientes',
+      projectsDatasetLabel: 'Compras pendientes',
+      loadingMessage: 'Cargando compras pendientes...',
+      emptyMessage: 'No se encontraron compras pendientes para el proyecto buscado.',
+      errorMeta: 'No fue posible cargar el reporte de compras pendientes.',
+      errorTable: 'Error al cargar datos de compras pendientes.',
+      excelTitle: 'Reporte de Compras Pendientes',
+      excelPendingKpiLabel: 'Compras pendientes (Quoted)',
+      excelTopSectionTitle: 'Top proyectos con compras pendientes (filtro actual)',
+      excelFilePrefix: 'reporte_compras_pendientes',
+      statusFilter: (status) => isQuotedStatus(status)
+    },
+    'po-pending-delivery': {
+      pendingLabel: 'compras pendientes de entrega (Pending Delivery)',
+      kpiPendingLabel: 'Pendientes Delivery',
+      kpiPercentLabel: '% Pendiente (Delivery)',
+      topProjectsTitle: 'Top proyectos con pendientes de entrega',
+      projectsDatasetLabel: 'Pendientes de entrega',
+      loadingMessage: 'Cargando compras pendientes de entrega...',
+      emptyMessage: 'No se encontraron compras pendientes de entrega para el proyecto buscado.',
+      errorMeta: 'No fue posible cargar el reporte de pendientes de entrega.',
+      errorTable: 'Error al cargar datos de pendientes de entrega.',
+      excelTitle: 'Reporte de POs Pendientes de Entrega',
+      excelPendingKpiLabel: 'Compras pendientes de entrega (Pending Delivery)',
+      excelTopSectionTitle: 'Top proyectos con pendientes de entrega (filtro actual)',
+      excelFilePrefix: 'reporte_pos_pendientes_entrega',
+      statusFilter: (status) => isPendingDeliveryStatus(status)
+    }
+  });
 
   const REPORT_THEMES = Object.freeze({
     silver: {
       cssVars: {
-        '--report-header-from': '#797564',
-        '--report-header-to': '#4f5663',
-        '--report-header-text': '#f2f4f7',
-        '--report-card-from': '#c47b0d',
-        '--report-card-to': '#7f498a',
-        '--report-card-accent': '#a8c1ea',
-        '--report-chart-card': 'rgba(13, 13, 16, 0.9)',
-        '--report-progress-from': '#7a848f',
-        '--report-progress-to': '#4f5866',
-        '--report-filter-btn-from': '#707886',
-        '--report-filter-btn-to': '#59616e',
-        '--report-filter-btn-hover-from': '#7e8796',
-        '--report-filter-btn-hover-to': '#656e7d'
+        '--report-header-from': '#1F3A5F',
+        '--report-header-to': '#2E5B8A',
+        '--report-header-text': '#FFFFFF',
+        '--report-card-from': '#1F3A5F',
+        '--report-card-to': '#2E5B8A',
+        '--report-card-accent': '#F5A623',
+        '--report-chart-card': '#FFFFFF',
+        '--report-progress-from': '#2E5B8A',
+        '--report-progress-to': '#F5A623',
+        '--report-filter-btn-from': '#F5A623',
+        '--report-filter-btn-to': '#D9901A',
+        '--report-filter-btn-hover-from': '#F8C146',
+        '--report-filter-btn-hover-to': '#F5A623',
+        '--report-toolbar-from': '#1F3A5F',
+        '--report-toolbar-to': '#2E5B8A',
+        '--report-toolbar-border': 'rgba(31, 58, 95, 0.35)',
+        '--report-label-color': '#FFFFFF',
+        '--report-field-bg': '#FFFFFF',
+        '--report-field-text': '#2F3E4D',
+        '--report-field-border': '#C9D4E2',
+        '--report-field-focus': '#2E5B8A',
+        '--report-field-focus-ring': 'rgba(46, 91, 138, 0.2)',
+        '--report-print-text': '#FFFFFF',
+        '--report-panel-from': '#F4F6F8',
+        '--report-panel-to': '#EDF2F7',
+        '--report-panel-border': '#D8E0EA',
+        '--report-panel-shadow': 'rgba(31, 58, 95, 0.12)',
+        '--report-meta-text': '#5F6E7D',
+        '--report-kpi-label-text': '#E5EDF7',
+        '--report-kpi-value-text': '#FFFFFF',
+        '--report-kpi-emphasis-glow': 'rgba(248, 193, 70, 0.35)',
+        '--report-percent-strip-bg': '#FFFFFF',
+        '--report-percent-strip-border': '#D8E0EA',
+        '--report-percent-title': '#2F3E4D',
+        '--report-progress-bg': '#E7EDF5',
+        '--report-percent-caption': '#6B7C8D',
+        '--report-chart-title': '#2F3E4D',
+        '--report-chart-border': '#D8E0EA',
+        '--report-table-border': '#CFD8E3',
+        '--report-table-text': '#2F3E4D',
+        '--report-row-hover': 'rgba(46, 91, 138, 0.1)',
+        '--report-popover-bg': '#FFFFFF',
+        '--report-popover-border': '#CBD6E3',
+        '--report-popover-input-bg': '#F7FAFD',
+        '--report-popover-input-border': '#C8D4E2',
+        '--report-popover-input-text': '#2F3E4D',
+        '--report-popover-input-placeholder': '#7A8A99',
+        '--report-placeholder-text': '#526273'
       },
       excel: {
-        headerBg: '3F4550',
-        tableHeaderBg: '5A6270',
-        sectionTitle: '2F343C',
-        textLight: 'FFFFFF',
-        zebraRow: 'F6F8FB',
-        kpiLabelBg: 'E6E9EE',
-        border: 'D2D8E2'
+        headerBg: 'DCE8F6',
+        tableHeaderBg: 'C9D9ED',
+        sectionTitle: '2F4D6E',
+        textLight: '1F2D3D',
+        zebraRow: 'F6FAFF',
+        kpiLabelBg: 'EAF1FB',
+        border: 'B8CBE1',
+        gridBorder: '7E92A8'
       },
       chart: {
-        quoted: '#6E7683',
-        pr: '#4E596A',
-        shopping: '#8A94A3',
-        po: '#2F3744',
-        delivered: '#A8B0BD',
-        other: '#C5CBD5',
-        projectsBar: '#596272',
-        legendText: '#f2f2f2',
-        ticks: '#e9e9e9',
-        gridMajor: 'rgba(255,255,255,0.08)',
-        gridMinor: 'rgba(255,255,255,0.05)'
+        quoted: '#2E5B8A',
+        pr: '#1F3A5F',
+        shopping: '#F5A623',
+        po: '#F8C146',
+        delivered: '#7A8A99',
+        other: '#A8B4C0',
+        projectsBar: '#2E5B8A',
+        legendText: '#2F3E4D',
+        ticks: '#2F3E4D',
+        gridMajor: 'rgba(46, 91, 138, 0.2)',
+        gridMinor: 'rgba(46, 91, 138, 0.1)'
       }
     },
     ocean: {
       cssVars: {
-        '--report-header-from': '#0f4c66',
-        '--report-header-to': '#07384d',
-        '--report-header-text': '#e7f7ff',
-        '--report-card-from': '#0f6f98',
-        '--report-card-to': '#0b5272',
-        '--report-card-accent': '#6ad8ff',
-        '--report-chart-card': 'rgba(6, 34, 48, 0.9)',
-        '--report-progress-from': '#2fb0d9',
-        '--report-progress-to': '#0e7ea6',
-        '--report-filter-btn-from': '#1f89ad',
-        '--report-filter-btn-to': '#146d8c',
-        '--report-filter-btn-hover-from': '#25a1cb',
-        '--report-filter-btn-hover-to': '#1a84a9'
+        '--report-header-from': '#7C6ACF',
+        '--report-header-to': '#4A90E2',
+        '--report-header-text': '#FFFFFF',
+        '--report-card-from': '#7C6ACF',
+        '--report-card-to': '#4A90E2',
+        '--report-card-accent': '#6FCF97',
+        '--report-chart-card': '#FFFFFF',
+        '--report-progress-from': '#7CB342',
+        '--report-progress-to': '#6FCF97',
+        '--report-filter-btn-from': '#7C6ACF',
+        '--report-filter-btn-to': '#6A59BC',
+        '--report-filter-btn-hover-from': '#A58BD6',
+        '--report-filter-btn-hover-to': '#7C6ACF',
+        '--report-toolbar-from': '#7C6ACF',
+        '--report-toolbar-to': '#4A90E2',
+        '--report-toolbar-border': 'rgba(124, 106, 207, 0.3)',
+        '--report-label-color': '#FFFFFF',
+        '--report-field-bg': '#FFFFFF',
+        '--report-field-text': '#2E3A45',
+        '--report-field-border': '#E0E6ED',
+        '--report-field-focus': '#7C6ACF',
+        '--report-field-focus-ring': 'rgba(124, 106, 207, 0.2)',
+        '--report-print-text': '#FFFFFF',
+        '--report-panel-from': '#F5F7FA',
+        '--report-panel-to': '#EEF2F7',
+        '--report-panel-border': '#E0E6ED',
+        '--report-panel-shadow': 'rgba(74, 144, 226, 0.12)',
+        '--report-meta-text': '#7B8794',
+        '--report-kpi-label-text': '#F0EEFB',
+        '--report-kpi-value-text': '#FFFFFF',
+        '--report-kpi-emphasis-glow': 'rgba(124, 106, 207, 0.35)',
+        '--report-percent-strip-bg': '#FFFFFF',
+        '--report-percent-strip-border': '#E0E6ED',
+        '--report-percent-title': '#2E3A45',
+        '--report-progress-bg': '#EEF2F7',
+        '--report-percent-caption': '#7B8794',
+        '--report-chart-title': '#2E3A45',
+        '--report-chart-border': '#E0E6ED',
+        '--report-table-border': '#E0E6ED',
+        '--report-table-text': '#2E3A45',
+        '--report-row-hover': 'rgba(124, 106, 207, 0.08)',
+        '--report-popover-bg': '#FFFFFF',
+        '--report-popover-border': '#D9E1EA',
+        '--report-popover-input-bg': '#F7F9FC',
+        '--report-popover-input-border': '#D5DFEA',
+        '--report-popover-input-text': '#2E3A45',
+        '--report-popover-input-placeholder': '#7B8794',
+        '--report-placeholder-text': '#617181'
       },
       excel: {
-        headerBg: '0C4A63',
-        tableHeaderBg: '0F5D7C',
-        sectionTitle: '0A3B52',
-        textLight: 'FFFFFF',
-        zebraRow: 'EDF8FD',
-        kpiLabelBg: 'DDF0FA',
-        border: 'B7D9E8'
+        headerBg: 'EAE4FA',
+        tableHeaderBg: 'DCD3F6',
+        sectionTitle: '4E3F82',
+        textLight: '2E3A45',
+        zebraRow: 'F7F4FF',
+        kpiLabelBg: 'EEE9FB',
+        border: 'D8DDF0',
+        gridBorder: '8791A6'
       },
       chart: {
-        quoted: '#2B8FC2',
-        pr: '#1F6E9A',
-        shopping: '#5CB8E4',
-        po: '#0E4D73',
-        delivered: '#8ED4F1',
-        other: '#B9E5F8',
-        projectsBar: '#16739D',
-        legendText: '#e8f7ff',
-        ticks: '#e6f5ff',
-        gridMajor: 'rgba(184,227,248,0.25)',
-        gridMinor: 'rgba(184,227,248,0.14)'
+        quoted: '#7C6ACF',
+        pr: '#A58BD6',
+        shopping: '#4A90E2',
+        po: '#7FB3F6',
+        delivered: '#6FCF97',
+        other: '#7CB342',
+        projectsBar: '#7C6ACF',
+        legendText: '#2E3A45',
+        ticks: '#2E3A45',
+        gridMajor: 'rgba(224, 230, 237, 0.95)',
+        gridMinor: 'rgba(238, 242, 247, 0.95)'
       }
     },
     carbon: {
       cssVars: {
-        '--report-header-from': '#4a4a4a',
-        '--report-header-to': '#303030',
-        '--report-header-text': '#f2f2f2',
-        '--report-card-from': '#585e69',
-        '--report-card-to': '#3c424d',
-        '--report-card-accent': '#d5deee',
-        '--report-chart-card': 'rgba(26, 26, 26, 0.9)',
-        '--report-progress-from': '#9a9a9a',
-        '--report-progress-to': '#6f6f6f',
-        '--report-filter-btn-from': '#7f7f7f',
-        '--report-filter-btn-to': '#646464',
-        '--report-filter-btn-hover-from': '#8f8f8f',
-        '--report-filter-btn-hover-to': '#747474'
+        '--report-header-from': '#111827',
+        '--report-header-to': '#1E293B',
+        '--report-header-text': '#E5E7EB',
+        '--report-card-from': '#6D28D9',
+        '--report-card-to': '#3B82F6',
+        '--report-card-accent': '#22D3EE',
+        '--report-chart-card': '#111827',
+        '--report-progress-from': '#3B82F6',
+        '--report-progress-to': '#8B5CF6',
+        '--report-filter-btn-from': '#3B82F6',
+        '--report-filter-btn-to': '#6D28D9',
+        '--report-filter-btn-hover-from': '#22D3EE',
+        '--report-filter-btn-hover-to': '#8B5CF6',
+        '--report-toolbar-from': '#0F172A',
+        '--report-toolbar-to': '#111827',
+        '--report-toolbar-border': 'rgba(51, 65, 85, 0.8)',
+        '--report-label-color': '#E5E7EB',
+        '--report-field-bg': '#1E293B',
+        '--report-field-text': '#E5E7EB',
+        '--report-field-border': '#334155',
+        '--report-field-focus': '#3B82F6',
+        '--report-field-focus-ring': 'rgba(59, 130, 246, 0.35)',
+        '--report-print-text': '#E5E7EB',
+        '--report-panel-from': '#0F172A',
+        '--report-panel-to': '#111827',
+        '--report-panel-border': '#334155',
+        '--report-panel-shadow': 'rgba(59, 130, 246, 0.22)',
+        '--report-meta-text': '#9CA3AF',
+        '--report-kpi-label-text': '#C6D2E3',
+        '--report-kpi-value-text': '#E5E7EB',
+        '--report-kpi-emphasis-glow': 'rgba(139, 92, 246, 0.4)',
+        '--report-percent-strip-bg': '#1E293B',
+        '--report-percent-strip-border': '#334155',
+        '--report-percent-title': '#E5E7EB',
+        '--report-progress-bg': '#0F172A',
+        '--report-percent-caption': '#9CA3AF',
+        '--report-chart-title': '#E5E7EB',
+        '--report-chart-border': '#334155',
+        '--report-table-border': '#334155',
+        '--report-table-text': '#E5E7EB',
+        '--report-row-hover': 'rgba(59, 130, 246, 0.18)',
+        '--report-popover-bg': '#1E293B',
+        '--report-popover-border': '#334155',
+        '--report-popover-input-bg': '#111827',
+        '--report-popover-input-border': '#334155',
+        '--report-popover-input-text': '#E5E7EB',
+        '--report-popover-input-placeholder': '#9CA3AF',
+        '--report-placeholder-text': '#9CA3AF'
       },
       excel: {
-        headerBg: '404040',
-        tableHeaderBg: '5A5A5A',
-        sectionTitle: '333333',
-        textLight: 'FFFFFF',
-        zebraRow: 'F2F2F2',
-        kpiLabelBg: 'E5E5E5',
-        border: 'CDCDCD'
+        headerBg: 'E5EDFF',
+        tableHeaderBg: 'D3E2FF',
+        sectionTitle: '334A78',
+        textLight: '1F2D46',
+        zebraRow: 'F5F8FF',
+        kpiLabelBg: 'E8EEFA',
+        border: 'BDCCE6',
+        gridBorder: '71839E'
       },
       chart: {
-        quoted: '#7A7A7A',
-        pr: '#5D5D5D',
-        shopping: '#939393',
-        po: '#424242',
-        delivered: '#B0B0B0',
-        other: '#C9C9C9',
-        projectsBar: '#686868',
-        legendText: '#f0f0f0',
-        ticks: '#ebebeb',
-        gridMajor: 'rgba(255,255,255,0.12)',
-        gridMinor: 'rgba(255,255,255,0.07)'
+        quoted: '#60A5FA',
+        pr: '#A78BFA',
+        shopping: '#6EE7B7',
+        po: '#FACC15',
+        delivered: '#22D3EE',
+        other: '#8B5CF6',
+        projectsBar: '#3B82F6',
+        legendText: '#E5E7EB',
+        ticks: '#9CA3AF',
+        gridMajor: 'rgba(59, 130, 246, 0.28)',
+        gridMinor: 'rgba(139, 92, 246, 0.22)'
       }
     }
   });
@@ -168,6 +314,55 @@ document.addEventListener('DOMContentLoaded', () => {
     return REPORT_THEMES[activeReportThemeKey] || REPORT_THEMES.silver;
   }
 
+  function getExcelGridBorderArgb(theme) {
+    return argb(theme?.excel?.gridBorder || theme?.excel?.border || 'A0A0A0');
+  }
+
+  function buildExcelCellBorder(theme, style = 'thin') {
+    const borderArgb = getExcelGridBorderArgb(theme);
+    return {
+      top: { style, color: { argb: borderArgb } },
+      bottom: { style, color: { argb: borderArgb } },
+      left: { style, color: { argb: borderArgb } },
+      right: { style, color: { argb: borderArgb } }
+    };
+  }
+
+  function applyExcelRangeBorders(sheet, fromRow, toRow, fromColumn, toColumn, theme, style = 'thin') {
+    for (let row = fromRow; row <= toRow; row += 1) {
+      for (let col = fromColumn; col <= toColumn; col += 1) {
+        sheet.getRow(row).getCell(col).border = buildExcelCellBorder(theme, style);
+      }
+    }
+  }
+
+  function setExcelBorderSide(cell, side, style, borderArgb) {
+    const currentBorder = cell.border || {};
+    cell.border = {
+      ...currentBorder,
+      [side]: { style, color: { argb: borderArgb } }
+    };
+  }
+
+  function applyExcelTableBorders(sheet, fromRow, toRow, fromColumn, toColumn, theme) {
+    if (toRow < fromRow || toColumn < fromColumn) {
+      return;
+    }
+
+    applyExcelRangeBorders(sheet, fromRow, toRow, fromColumn, toColumn, theme, 'thin');
+
+    const borderArgb = getExcelGridBorderArgb(theme);
+    for (let col = fromColumn; col <= toColumn; col += 1) {
+      setExcelBorderSide(sheet.getRow(fromRow).getCell(col), 'top', 'medium', borderArgb);
+      setExcelBorderSide(sheet.getRow(toRow).getCell(col), 'bottom', 'medium', borderArgb);
+    }
+
+    for (let row = fromRow; row <= toRow; row += 1) {
+      setExcelBorderSide(sheet.getRow(row).getCell(fromColumn), 'left', 'medium', borderArgb);
+      setExcelBorderSide(sheet.getRow(row).getCell(toColumn), 'right', 'medium', borderArgb);
+    }
+  }
+
   function applyHeaderCellStyle(cell, theme) {
     cell.font = { bold: true, color: { argb: argb(theme.excel.textLight) } };
     cell.fill = {
@@ -176,12 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fgColor: { argb: argb(theme.excel.tableHeaderBg) }
     };
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    cell.border = {
-      top: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-      bottom: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-      left: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-      right: { style: 'thin', color: { argb: argb(theme.excel.border) } }
-    };
+    cell.border = buildExcelCellBorder(theme, 'thin');
   }
 
   function applyReportTheme(themeKey) {
@@ -212,6 +402,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function isQuotedStatus(status) {
     return normalizeText(status) === 'quoted';
+  }
+
+  function isPendingDeliveryStatus(status) {
+    return normalizeText(status) === 'pending delivery';
+  }
+
+  function getActiveReportConfig() {
+    return REPORT_MODES[activeReportType] || REPORT_MODES['pending-purchases'];
+  }
+
+  function applyReportModeUI() {
+    const config = getActiveReportConfig();
+
+    if (reportKpiLabels[1]) {
+      reportKpiLabels[1].textContent = config.kpiPendingLabel;
+    }
+    if (reportKpiLabels[2]) {
+      reportKpiLabels[2].textContent = config.kpiPercentLabel;
+    }
+    if (reportChartTitles[1]) {
+      reportChartTitles[1].textContent = config.topProjectsTitle;
+    }
   }
 
   function isActiveProjectStatus(status) {
@@ -357,20 +569,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateMeta(total, filteredCount, searchTerm) {
+    const config = getActiveReportConfig();
+
     if (!searchTerm) {
-      pendingMeta.textContent = `Total compras pendientes (Quoted): ${total}`;
+      pendingMeta.textContent = `Total ${config.pendingLabel}: ${total}`;
       return;
     }
 
-    pendingMeta.textContent = `Mostrando ${filteredCount} de ${total} compras pendientes (Quoted)`;
+    pendingMeta.textContent = `Mostrando ${filteredCount} de ${total} ${config.pendingLabel}`;
   }
 
   function renderPendingRows(rows) {
+    const config = getActiveReportConfig();
+
     if (!Array.isArray(rows) || rows.length === 0) {
       currentFilteredRows = [];
       pendingTableBody.innerHTML = `
         <tr>
-          <td colspan="7" class="text-center">No se encontraron compras pendientes para el proyecto buscado.</td>
+          <td colspan="7" class="text-center">${config.emptyMessage}</td>
         </tr>
       `;
       return;
@@ -450,6 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function buildSummarySheetData() {
+    const config = getActiveReportConfig();
     const totalPurchases = allPurchases.length;
     const totalPending = pendingPurchases.length;
     const visiblePending = currentFilteredRows.length;
@@ -461,14 +678,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const topProjectsRows = getTopProjectsRows(currentFilteredRows);
 
     const rows = [
-      ['Reporte de Compras Pendientes'],
+      [config.excelTitle],
       [`Generado: ${new Date().toLocaleString()}`],
       [`Filtro de proyecto: ${selectedProjectLabel}`],
       [],
       ['Resumen Ejecutivo'],
       ['Indicador', 'Valor'],
       ['Total compras (proyectos activos)', totalPurchases],
-      ['Compras pendientes (Quoted)', totalPending],
+      [config.excelPendingKpiLabel, totalPending],
       ['Pendiente % (proyectos activos)', `${pendingPercent.toFixed(1)}%`],
       ['Pendientes visibles (filtro actual)', visiblePending],
       ['Cobertura del filtro', `${visiblePercent.toFixed(1)}%`],
@@ -477,7 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ['Estatus', 'Cantidad', 'Porcentaje'],
       ...statusDistributionRows,
       [],
-      ['Top proyectos con compras pendientes (filtro actual)'],
+      [config.excelTopSectionTitle],
       ['Proyecto', 'Pendientes'],
       ...(topProjectsRows.length ? topProjectsRows : [['Sin datos para el filtro actual', 0]])
     ];
@@ -486,6 +703,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function exportPendingPurchasesToExcel() {
+    const config = getActiveReportConfig();
+
     if (typeof ExcelJS === 'undefined') {
       alert('No se pudo cargar el motor de ExcelJS. Recarga la pagina e intenta de nuevo.');
       return;
@@ -514,8 +733,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     summarySheet.mergeCells('A1:D1');
     const titleCell = summarySheet.getCell('A1');
-    titleCell.value = 'Reporte de Compras Pendientes';
-    titleCell.font = { name: 'Calibri', bold: true, size: 18, color: { argb: 'FFFFFFFF' } };
+    titleCell.value = config.excelTitle;
+    titleCell.font = { name: 'Calibri', bold: true, size: 18, color: { argb: argb(theme.excel.textLight) } };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
     titleCell.fill = {
       type: 'pattern',
@@ -542,7 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const kpiRows = [
       ['Total compras (proyectos activos)', totalPurchases],
-      ['Compras pendientes (Quoted)', totalPending],
+      [config.excelPendingKpiLabel, totalPending],
       ['Pendiente % (proyectos activos)', `${pendingPercent.toFixed(1)}%`],
       ['Pendientes visibles (filtro actual)', visiblePending],
       ['Cobertura del filtro', `${visiblePercent.toFixed(1)}%`]
@@ -559,19 +778,10 @@ document.addEventListener('DOMContentLoaded', () => {
         fgColor: { argb: argb(theme.excel.kpiLabelBg) }
       };
       summarySheet.getCell(`B${rowNumber}`).alignment = { horizontal: 'right' };
-      summarySheet.getCell(`A${rowNumber}`).border = {
-        top: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-        bottom: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-        left: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-        right: { style: 'thin', color: { argb: argb(theme.excel.border) } }
-      };
-      summarySheet.getCell(`B${rowNumber}`).border = {
-        top: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-        bottom: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-        left: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-        right: { style: 'thin', color: { argb: argb(theme.excel.border) } }
-      };
+      summarySheet.getCell(`A${rowNumber}`).border = buildExcelCellBorder(theme, 'thin');
+      summarySheet.getCell(`B${rowNumber}`).border = buildExcelCellBorder(theme, 'thin');
     });
+    applyExcelTableBorders(summarySheet, 6, 5 + kpiRows.length, 1, 2, theme);
 
     const statusStart = 13;
     summarySheet.getCell(`A${statusStart}`).value = 'Distribucion de estatus (general)';
@@ -592,19 +802,15 @@ document.addEventListener('DOMContentLoaded', () => {
       summarySheet.getCell(`C${rowNumber}`).value = item[2];
       summarySheet.getCell(`B${rowNumber}`).alignment = { horizontal: 'right' };
       summarySheet.getCell(`C${rowNumber}`).alignment = { horizontal: 'right' };
-      ['A', 'B', 'C'].forEach((col) => {
-        summarySheet.getCell(`${col}${rowNumber}`).border = {
-          top: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-          bottom: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-          left: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-          right: { style: 'thin', color: { argb: argb(theme.excel.border) } }
-        };
-      });
     });
+
+    if (statusRows.length > 0) {
+      applyExcelTableBorders(summarySheet, statusStart + 1, statusStart + 1 + statusRows.length, 1, 3, theme);
+    }
 
     const topProjectsRows = getTopProjectsRows(currentFilteredRows);
     const topStart = statusStart + 10;
-    summarySheet.getCell(`A${topStart}`).value = 'Top proyectos con compras pendientes (filtro actual)';
+    summarySheet.getCell(`A${topStart}`).value = config.excelTopSectionTitle;
     summarySheet.getCell(`A${topStart}`).font = { bold: true, size: 12, color: { argb: argb(theme.excel.sectionTitle) } };
     summarySheet.getCell(`A${topStart + 1}`).value = 'Proyecto';
     summarySheet.getCell(`B${topStart + 1}`).value = 'Pendientes';
@@ -618,15 +824,10 @@ document.addEventListener('DOMContentLoaded', () => {
       summarySheet.getCell(`A${rowNumber}`).value = item[0];
       summarySheet.getCell(`B${rowNumber}`).value = item[1];
       summarySheet.getCell(`B${rowNumber}`).alignment = { horizontal: 'right' };
-      ['A', 'B'].forEach((col) => {
-        summarySheet.getCell(`${col}${rowNumber}`).border = {
-          top: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-          bottom: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-          left: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-          right: { style: 'thin', color: { argb: argb(theme.excel.border) } }
-        };
-      });
     });
+
+    const topRowsCount = (topProjectsRows.length ? topProjectsRows : [['Sin datos para el filtro actual', 0]]).length;
+    applyExcelTableBorders(summarySheet, topStart + 1, topStart + 1 + topRowsCount, 1, 2, theme);
 
     summarySheet.views = [{ state: 'frozen', ySplit: 5 }];
 
@@ -668,7 +869,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { header: 'Cantidad', key: 'quantity', width: 12 }
     ];
 
-    detailSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    detailSheet.getRow(1).font = { bold: true, color: { argb: argb(theme.excel.textLight) } };
     detailSheet.getRow(1).fill = {
       type: 'pattern',
       pattern: 'solid',
@@ -707,22 +908,19 @@ document.addEventListener('DOMContentLoaded', () => {
           };
         });
       }
-      row.eachCell((cell) => {
-        cell.border = {
-          top: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-          bottom: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-          left: { style: 'thin', color: { argb: argb(theme.excel.border) } },
-          right: { style: 'thin', color: { argb: argb(theme.excel.border) } }
-        };
-      });
     });
+
+    const lastDetailRow = detailSheet.rowCount;
+    if (lastDetailRow >= 1) {
+      applyExcelTableBorders(detailSheet, 1, lastDetailRow, 1, 7, theme);
+    }
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     });
 
-    const fileName = `reporte_compras_pendientes_${getExcelTimestamp()}.xlsx`;
+    const fileName = `${config.excelFilePrefix}_${getExcelTimestamp()}.xlsx`;
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -795,6 +993,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateKpiCards(filteredRows) {
+    const config = getActiveReportConfig();
     const totalPurchases = allPurchases.length;
     const totalPending = pendingPurchases.length;
     const visiblePending = filteredRows.length;
@@ -813,7 +1012,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (pendingPercentProgress) {
       pendingPercentProgress.setAttribute('aria-valuenow', boundedVisiblePct.toFixed(1));
     }
-    pendingPercentCaption.textContent = `${toPercent(visiblePct)} de las compras pendientes visibles con el filtro.`;
+    pendingPercentCaption.textContent = `${toPercent(visiblePct)} de las ${config.pendingLabel} visibles con el filtro.`;
   }
 
   function updateStatusChart() {
@@ -876,6 +1075,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const config = getActiveReportConfig();
     const theme = getActiveTheme();
 
     const projectTotals = new Map();
@@ -903,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', () => {
       data: {
         labels,
         datasets: [{
-          label: 'Compras pendientes',
+          label: config.projectsDatasetLabel,
           data: values,
           backgroundColor: theme.chart.projectsBar,
           borderRadius: 6,
@@ -955,7 +1155,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadPendingPurchasesReport() {
-    pendingMeta.textContent = 'Cargando compras pendientes...';
+    const config = getActiveReportConfig();
+
+    pendingMeta.textContent = config.loadingMessage;
     pendingTableBody.innerHTML = `
       <tr>
         <td colspan="7" class="text-center">Cargando datos...</td>
@@ -978,7 +1180,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const activeProjectKeys = buildActiveProjectKeySet(allProjects);
       const activePurchases = rows.filter((row) => isPurchaseFromActiveProject(row, activeProjectKeys));
       allPurchases = activePurchases;
-      pendingPurchases = activePurchases.filter((row) => isQuotedStatus(row.status));
+      pendingPurchases = activePurchases.filter((row) => config.statusFilter(row.status));
       clearColumnFilters();
 
       applyProjectFilter();
@@ -986,10 +1188,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       allPurchases = [];
       pendingPurchases = [];
-      pendingMeta.textContent = 'No fue posible cargar el reporte de compras pendientes.';
+      pendingMeta.textContent = config.errorMeta;
       pendingTableBody.innerHTML = `
         <tr>
-          <td colspan="7" class="text-center text-danger">Error al cargar datos de compras pendientes.</td>
+          <td colspan="7" class="text-center text-danger">${config.errorTable}</td>
         </tr>
       `;
 
@@ -1002,7 +1204,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateReportView() {
     const selectedReport = reportTypeMenu.value;
 
-    if (selectedReport === 'pending-purchases') {
+    if (selectedReport === 'pending-purchases' || selectedReport === 'po-pending-delivery') {
+      activeReportType = selectedReport;
+      applyReportModeUI();
       pendingPanel.hidden = false;
       genericPanel.hidden = true;
       loadPendingPurchasesReport();
@@ -1078,7 +1282,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   printButton.addEventListener('click', async () => {
-    if (reportTypeMenu.value === 'pending-purchases') {
+    if (reportTypeMenu.value === 'pending-purchases' || reportTypeMenu.value === 'po-pending-delivery') {
       await exportPendingPurchasesToExcel();
       return;
     }

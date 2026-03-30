@@ -665,19 +665,28 @@
                 const response = await fetch(`${BASE_URL}/networks`);
                 const networks = await response.json();
                 allNetworks = Array.isArray(networks) ? networks : [];
-                updateNetworkSuggestions();
+                updateNetworkSuggestions('');
             } catch (error) {
 
 
             }
         }
 
-        function updateNetworkSuggestions() {
+        function updateNetworkSuggestions(searchTerm = '') {
             const datalist = document.getElementById('networkNameSuggestions');
             if (!datalist) return;
             datalist.innerHTML = '';
 
-            allNetworks.forEach(network => {
+            const typed = String(searchTerm || '').trim().toLowerCase();
+            if (!typed) {
+                return;
+            }
+
+            const matches = allNetworks
+                .filter(network => String(network.network || '').trim().toLowerCase().includes(typed))
+                .slice(0, 20);
+
+            matches.forEach(network => {
                 const option = document.createElement('option');
                 option.value = network.network;
                 datalist.appendChild(option);
@@ -689,7 +698,8 @@
             isEditingNetwork = true;
             document.getElementById('originalNetworkName').value = foundNetwork.network;
             document.getElementById('networkName').value = foundNetwork.network;
-            document.getElementById('networkBalance').value = Number(foundNetwork.balance || 0);
+            document.getElementById('networkBalance').value = Number(foundNetwork.initial_balance ?? foundNetwork.balance ?? 0);
+            document.getElementById('networkCurrency').value = foundNetwork.currency || 'USD';
             document.getElementById('saveNetworkBtn').innerHTML = '<i class="bi bi-save"></i> Update';
             setDeleteButtonVisibility(true);
         }
@@ -705,6 +715,7 @@
             document.getElementById('originalNetworkName').value = '';
             document.getElementById('saveNetworkBtn').innerHTML = '<i class="bi bi-save"></i> Save';
             setDeleteButtonVisibility(false);
+            document.getElementById('networkCurrency').value = 'USD';
             if (clearBalance) {
                 document.getElementById('networkBalance').value = '';
             }
@@ -712,6 +723,7 @@
 
         function handleNetworkNameInput() {
             const typedName = this.value.trim().toLowerCase();
+            updateNetworkSuggestions(typedName);
 
             if (!typedName) {
                 setFormToCreateMode(true);
@@ -741,6 +753,7 @@
 
             const networkName = document.getElementById('networkName').value.trim();
             const balance = parseFloat(document.getElementById('networkBalance').value);
+            const currency = document.getElementById('networkCurrency').value;
             const originalName = document.getElementById('originalNetworkName').value;
 
             if (!networkName) {
@@ -753,9 +766,14 @@
                 return;
             }
 
+            if (!['MXN', 'USD'].includes(currency)) {
+                alert('Please select a valid currency');
+                return;
+            }
+
             const confirmationMessage = (isEditingNetwork && originalName)
-                ? `Do you want to update network "${originalName}" to "${networkName}" with a balance of $${balance.toFixed(2)}?`
-                : `Do you want to create network "${networkName}" with a balance of $${balance.toFixed(2)}?`;
+                ? `Do you want to update network "${originalName}" to "${networkName}" with a balance of $${balance.toFixed(2)} (${currency})?`
+                : `Do you want to create network "${networkName}" with a balance of $${balance.toFixed(2)} (${currency})?`;
 
             if (!confirm(confirmationMessage)) {
                 return;
@@ -771,7 +789,8 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             newNetwork: networkName,
-                            balance: balance 
+                            balance: balance,
+                            currency: currency
                         })
                     });
                 } else {
@@ -781,7 +800,8 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             network: networkName,
-                            balance: balance 
+                            balance: balance,
+                            currency: currency
                         })
                     });
                 }
@@ -1132,6 +1152,13 @@
                     <div class="mb-3">
                         <label for="networkBalance" class="form-label">Balance ($)</label>
                         <input type="number" class="form-control" id="networkBalance" placeholder="Enter balance" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="networkCurrency" class="form-label">Currency</label>
+                        <select class="form-select" id="networkCurrency" required>
+                            <option value="USD" selected>USD</option>
+                            <option value="MXN">MXN</option>
+                        </select>
                     </div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary" id="saveNetworkBtn">

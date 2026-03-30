@@ -23,7 +23,7 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
   password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
@@ -1101,7 +1101,7 @@ app.put('/api/projects/:no_project/status', async (req, res) => {
 
 app.get('/api/networks', async (req, res) => {
   try {
-    const result = await pool.query('SELECT network, balance FROM network ORDER BY network');
+    const result = await pool.query('SELECT network, balance, initial_balance, currency FROM network ORDER BY network');
     res.json(result.rows);
   } catch (error) {
 
@@ -1323,7 +1323,7 @@ app.post('/api/purchases', async (req, res) => {
 app.get('/api/network/balance/:network', async (req, res) => {
   try {
     const { network } = req.params;
-    const result = await pool.query('SELECT network, balance FROM network WHERE network = $1', [network]);
+    const result = await pool.query('SELECT network, balance, initial_balance, currency FROM network WHERE network = $1', [network]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Network not found' });
@@ -1340,13 +1340,18 @@ app.get('/api/network/balance/:network', async (req, res) => {
 // Endpoint para crear una nueva network
 app.post('/api/networks', async (req, res) => {
   try {
-    const { network, balance } = req.body;
+    const { network, balance, currency } = req.body;
     
     if (!network) {
       return res.status(400).json({ error: 'Network name is required' });
     }
 
     const balanceValue = parseFloat(balance) || 0;
+    const currencyValue = String(currency || 'USD').trim().toUpperCase();
+
+    if (!['USD', 'MXN'].includes(currencyValue)) {
+      return res.status(400).json({ error: 'Currency must be USD or MXN' });
+    }
 
     // Verificar si la network ya existe
     const checkResult = await pool.query('SELECT network FROM network WHERE network = $1', [network]);
@@ -1356,8 +1361,8 @@ app.post('/api/networks', async (req, res) => {
 
     // Insertar nueva network
     const result = await pool.query(
-      'INSERT INTO network (network, balance) VALUES ($1, $2) RETURNING network, balance',
-      [network, balanceValue]
+      'INSERT INTO network (network, initial_balance, balance, currency) VALUES ($1, $2, $3, $4) RETURNING network, initial_balance, balance, currency',
+      [network, balanceValue, balanceValue, currencyValue]
     );
 
     res.status(201).json(result.rows[0]);
@@ -1372,7 +1377,7 @@ app.post('/api/networks', async (req, res) => {
 app.put('/api/networks/:network', async (req, res) => {
   try {
     const { network } = req.params;
-    const { newNetwork, balance } = req.body;
+    const { newNetwork, balance, currency } = req.body;
 
     // Verificar que la network existe
     const checkResult = await pool.query('SELECT network FROM network WHERE network = $1', [network]);
@@ -1382,9 +1387,14 @@ app.put('/api/networks/:network', async (req, res) => {
 
     const networkValue = newNetwork || network;
     const balanceValue = parseFloat(balance);
+    const currencyValue = String(currency || 'USD').trim().toUpperCase();
 
     if (isNaN(balanceValue)) {
       return res.status(400).json({ error: 'Invalid balance value' });
+    }
+
+    if (!['USD', 'MXN'].includes(currencyValue)) {
+      return res.status(400).json({ error: 'Currency must be USD or MXN' });
     }
 
     // Si se cambió el nombre de la network, verificar que no exista otra con ese nombre
@@ -1397,8 +1407,8 @@ app.put('/api/networks/:network', async (req, res) => {
 
     // Actualizar network
     const result = await pool.query(
-      'UPDATE network SET network = $1, balance = $2 WHERE network = $3 RETURNING network, balance',
-      [networkValue, balanceValue, network]
+      'UPDATE network SET network = $1, balance = $2, currency = $3 WHERE network = $4 RETURNING network, initial_balance, balance, currency',
+      [networkValue, balanceValue, currencyValue, network]
     );
 
     res.json(result.rows[0]);
@@ -1420,12 +1430,28 @@ app.delete('/api/networks/:network', async (req, res) => {
       return res.status(404).json({ error: 'Network not found' });
     }
 
+    // Evitar eliminar una network ya usada en compras
+    const usageResult = await pool.query(
+      'SELECT COUNT(*)::int AS total FROM purchase WHERE network = $1',
+      [network]
+    );
+    const totalPurchasesUsingNetwork = usageResult.rows[0]?.total || 0;
+    if (totalPurchasesUsingNetwork > 0) {
+      return res.status(409).json({
+        error: `Cannot delete network "${network}" because it is used in ${totalPurchasesUsingNetwork} purchase(s).`
+      });
+    }
+
     // Eliminar network
     await pool.query('DELETE FROM network WHERE network = $1', [network]);
 
     res.json({ message: 'Network deleted successfully' });
   } catch (error) {
-
+    if (error?.code === '23503') {
+      return res.status(409).json({
+        error: `Cannot delete network "${req.params.network}" because it is referenced by other records.`
+      });
+    }
 
     res.status(500).json({ error: 'Error deleting network' });
   }
