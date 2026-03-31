@@ -46,6 +46,23 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeReportType = 'pending-purchases';
 
   const REPORT_MODES = Object.freeze({
+    spending: {
+      pendingLabel: 'registros de gasto',
+      kpiPendingLabel: 'Gasto total',
+      kpiPercentLabel: 'Ticket promedio',
+      kpiProjectsLabel: 'Networks con gasto',
+      topProjectsTitle: 'Top proyectos por gasto',
+      projectsDatasetLabel: 'Monto gastado',
+      loadingMessage: 'Cargando reporte de gastos...',
+      emptyMessage: 'No se encontraron registros de gasto para el filtro aplicado.',
+      errorMeta: 'No fue posible cargar el reporte de gastos.',
+      errorTable: 'Error al cargar datos del reporte de gastos.',
+      excelTitle: 'Reporte de Gastos',
+      excelPendingKpiLabel: 'Gasto total',
+      excelTopSectionTitle: 'Top proyectos por gasto (filtro actual)',
+      excelFilePrefix: 'reporte_gastos',
+      statusFilter: () => true
+    },
     'pending-purchases': {
       pendingLabel: 'compras pendientes (Quoted)',
       kpiPendingLabel: 'Pendientes Quoted',
@@ -447,6 +464,20 @@ document.addEventListener('DOMContentLoaded', () => {
     return activeReportType === 'po-closed' ? 'Cerradas' : 'Pendientes';
   }
 
+  function isSpendingMode() {
+    return activeReportType === 'spending';
+  }
+
+  function parseAmount(value) {
+    const amount = Number(value);
+    return Number.isFinite(amount) ? amount : 0;
+  }
+
+  function formatCurrency(value) {
+    const amount = parseAmount(value);
+    return `$${amount.toFixed(2)}`;
+  }
+
   function filterClosedPOs(rows) {
     // Agrupar por número de PO
     const poMap = new Map();
@@ -478,6 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function applyReportModeUI() {
     const config = getActiveReportConfig();
     const shouldShowPoColumn = activeReportType === 'po-closed' || activeReportType === 'po-pending-delivery';
+    const isSpending = isSpendingMode();
 
     if (reportKpiLabels[1]) {
       reportKpiLabels[1].textContent = config.kpiPendingLabel;
@@ -490,6 +522,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (reportChartTitles[1]) {
       reportChartTitles[1].textContent = config.topProjectsTitle;
+    }
+
+    const searchLabel = document.querySelector('label[for="pendingProjectSearch"]');
+    if (searchLabel) {
+      searchLabel.textContent = isSpending ? 'Buscar proyecto o network' : 'Buscar proyecto';
+    }
+
+    const quantityHeader = filterQuantityInput?.closest('th')?.querySelector('span');
+    if (quantityHeader) {
+      quantityHeader.textContent = isSpending ? 'Monto' : 'Cantidad';
+    }
+    if (filterQuantityInput) {
+      filterQuantityInput.placeholder = isSpending ? 'Buscar monto' : 'Buscar cantidad';
     }
     
     // Mostrar/ocultar columna de PO
@@ -672,14 +717,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     pendingTableBody.innerHTML = rows
       .map((row) => {
-        const projectValue = escapeHtml(formatProjectCell(row));
+        const networkValueRaw = String(row.network || '').trim();
+        const projectBase = formatProjectCell(row);
+        const projectDisplay = isSpendingMode() && networkValueRaw
+          ? `${projectBase} (${networkValueRaw})`
+          : projectBase;
+        const projectValue = escapeHtml(projectDisplay);
         const noProjectValue = escapeHtml(row.no_project || '-');
         const poValue = escapeHtml(row.po || '-');
         const qisValue = escapeHtml(row.no_qis || '-');
         const partValue = escapeHtml(row.no_part || '-');
         const descriptionValue = escapeHtml(row.description || '-');
         const vendorValue = escapeHtml(row.vendor_name || '-');
-        const quantityValue = escapeHtml(row.quantity ?? '-');
+        const quantityValue = isSpendingMode()
+          ? escapeHtml(formatCurrency(row.total_amount))
+          : escapeHtml(row.quantity ?? '-');
 
         const poCell = showPoColumn ? `<td>${poValue}</td>` : '';
 
@@ -731,12 +783,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getTopProjectsRows(rows, limit = 10) {
     const projectTotals = new Map();
+    const spendingMode = isSpendingMode();
 
     rows.forEach((row) => {
       const noProject = String(row.no_project || '').trim();
       const projectName = String(row.project_name || '').trim();
       const label = noProject ? `${noProject}${projectName ? ` - ${projectName}` : ''}` : 'Sin proyecto';
-      projectTotals.set(label, (projectTotals.get(label) || 0) + 1);
+      const increment = spendingMode ? parseAmount(row.total_amount) : 1;
+      projectTotals.set(label, (projectTotals.get(label) || 0) + increment);
     });
 
     return Array.from(projectTotals.entries())
@@ -750,13 +804,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalPurchases = allPurchases.length;
     const totalPending = pendingPurchases.length;
     const visiblePending = currentFilteredRows.length;
+    const totalSpent = pendingPurchases.reduce((sum, row) => sum + parseAmount(row.total_amount), 0);
+    const visibleSpent = currentFilteredRows.reduce((sum, row) => sum + parseAmount(row.total_amount), 0);
     const pendingPercent = totalPurchases > 0 ? (totalPending / totalPurchases) * 100 : 0;
     const visiblePercent = totalPending > 0 ? (visiblePending / totalPending) * 100 : 0;
     const selectedProjectLabel = projectSearchInput?.value?.trim() || 'Todos los proyectos';
     const pendingLabel = getPendingItemLabel();
+    const spendingMode = isSpendingMode();
 
     const statusDistributionRows = getStatusDistributionRows();
     const topProjectsRows = getTopProjectsRows(currentFilteredRows);
+
+    const kpiRows = spendingMode
+      ? [
+          ['Total registros de gasto (proyectos activos)', totalPurchases],
+          ['Gasto total', formatCurrency(totalSpent)],
+          ['Ticket promedio', formatCurrency(totalPending > 0 ? (totalSpent / totalPending) : 0)],
+          ['Gasto visible (filtro actual)', formatCurrency(visibleSpent)],
+          ['Cobertura del filtro', `${(totalSpent > 0 ? (visibleSpent / totalSpent) * 100 : 0).toFixed(1)}%`]
+        ]
+      : [
+          ['Total compras (proyectos activos)', totalPurchases],
+          [config.excelPendingKpiLabel, totalPending],
+          [`${pendingLabel} % (proyectos activos)`, `${pendingPercent.toFixed(1)}%`],
+          [`${pendingLabel} visibles (filtro actual)`, visiblePending],
+          ['Cobertura del filtro', `${visiblePercent.toFixed(1)}%`]
+        ];
 
     const rows = [
       [config.excelTitle],
@@ -765,18 +838,14 @@ document.addEventListener('DOMContentLoaded', () => {
       [],
       ['Resumen Ejecutivo'],
       ['Indicador', 'Valor'],
-      ['Total compras (proyectos activos)', totalPurchases],
-      [config.excelPendingKpiLabel, totalPending],
-      [`${pendingLabel} % (proyectos activos)`, `${pendingPercent.toFixed(1)}%`],
-      [`${pendingLabel} visibles (filtro actual)`, visiblePending],
-      ['Cobertura del filtro', `${visiblePercent.toFixed(1)}%`],
+      ...kpiRows,
       [],
       ['Distribucion de estatus (general)'],
       ['Estatus', 'Cantidad', 'Porcentaje'],
       ...statusDistributionRows,
       [],
       [config.excelTopSectionTitle],
-      ['Proyecto', pendingLabel],
+      ['Proyecto', spendingMode ? 'Monto' : pendingLabel],
       ...(topProjectsRows.length ? topProjectsRows : [['Sin datos para el filtro actual', 0]])
     ];
 
@@ -834,6 +903,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalPurchases = allPurchases.length;
     const totalPending = pendingPurchases.length;
     const visiblePending = currentFilteredRows.length;
+    const totalSpent = pendingPurchases.reduce((sum, row) => sum + parseAmount(row.total_amount), 0);
+    const visibleSpent = currentFilteredRows.reduce((sum, row) => sum + parseAmount(row.total_amount), 0);
     const pendingPercent = totalPurchases > 0 ? (totalPending / totalPurchases) * 100 : 0;
     const visiblePercent = totalPending > 0 ? (visiblePending / totalPending) * 100 : 0;
 
@@ -841,13 +912,22 @@ document.addEventListener('DOMContentLoaded', () => {
     summarySheet.getCell('A5').font = { bold: true, size: 13, color: { argb: argb(theme.excel.sectionTitle) } };
 
     const pendingLabel = getPendingItemLabel();
-    const kpiRows = [
-      ['Total compras (proyectos activos)', totalPurchases],
-      [config.excelPendingKpiLabel, totalPending],
-      [`${pendingLabel} % (proyectos activos)`, `${pendingPercent.toFixed(1)}%`],
-      [`${pendingLabel} visibles (filtro actual)`, visiblePending],
-      ['Cobertura del filtro', `${visiblePercent.toFixed(1)}%`]
-    ];
+    const spendingMode = isSpendingMode();
+    const kpiRows = spendingMode
+      ? [
+          ['Total registros de gasto (proyectos activos)', totalPurchases],
+          ['Gasto total', formatCurrency(totalSpent)],
+          ['Ticket promedio', formatCurrency(totalPending > 0 ? (totalSpent / totalPending) : 0)],
+          ['Gasto visible (filtro actual)', formatCurrency(visibleSpent)],
+          ['Cobertura del filtro', `${(totalSpent > 0 ? (visibleSpent / totalSpent) * 100 : 0).toFixed(1)}%`]
+        ]
+      : [
+          ['Total compras (proyectos activos)', totalPurchases],
+          [config.excelPendingKpiLabel, totalPending],
+          [`${pendingLabel} % (proyectos activos)`, `${pendingPercent.toFixed(1)}%`],
+          [`${pendingLabel} visibles (filtro actual)`, visiblePending],
+          ['Cobertura del filtro', `${visiblePercent.toFixed(1)}%`]
+        ];
 
     kpiRows.forEach((item, index) => {
       const rowNumber = 6 + index;
@@ -895,7 +975,7 @@ document.addEventListener('DOMContentLoaded', () => {
     summarySheet.getCell(`A${topStart}`).value = config.excelTopSectionTitle;
     summarySheet.getCell(`A${topStart}`).font = { bold: true, size: 12, color: { argb: argb(theme.excel.sectionTitle) } };
     summarySheet.getCell(`A${topStart + 1}`).value = 'Proyecto';
-    summarySheet.getCell(`B${topStart + 1}`).value = pendingLabel;
+    summarySheet.getCell(`B${topStart + 1}`).value = spendingMode ? 'Monto' : pendingLabel;
 
     ['A', 'B'].forEach((col) => {
       applyHeaderCellStyle(summarySheet.getCell(`${col}${topStart + 1}`), theme);
@@ -956,7 +1036,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { header: 'No. Parte', key: 'no_part', width: 18 },
       { header: 'Descripcion', key: 'description', width: 42 },
       { header: 'Proveedor', key: 'vendor_name', width: 26 },
-      { header: 'Cantidad', key: 'quantity', width: 12 }
+      { header: spendingMode ? 'Monto' : 'Cantidad', key: 'quantity', width: 12 }
     );
     
     detailSheet.columns = detailColumns;
@@ -983,7 +1063,9 @@ document.addEventListener('DOMContentLoaded', () => {
         no_part: String(row.no_part || '').trim() || '-',
         description: String(row.description || '').trim() || '-',
         vendor_name: String(row.vendor_name || '').trim() || '-',
-        quantity: Number.isFinite(Number(row.quantity)) ? Number(row.quantity) : String(row.quantity ?? '-')
+        quantity: spendingMode
+          ? parseAmount(row.total_amount).toFixed(2)
+          : (Number.isFinite(Number(row.quantity)) ? Number(row.quantity) : String(row.quantity ?? '-'))
       };
       
       if (showPoColumnInExcel) {
@@ -1269,7 +1351,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const part = normalizeText(row.no_part || '');
     const description = normalizeText(row.description || '');
     const vendor = normalizeText(row.vendor_name || '');
-    const quantity = normalizeText(row.quantity ?? '');
+    const quantity = isSpendingMode()
+      ? normalizeText(parseAmount(row.total_amount).toFixed(2))
+      : normalizeText(row.quantity ?? '');
 
     if (filters.qis && !qis.includes(filters.qis)) return false;
     if (filters.part && !part.includes(filters.part)) return false;
@@ -1317,6 +1401,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateKpiCards(filteredRows) {
     const config = getActiveReportConfig();
+
+    if (isSpendingMode()) {
+      const totalRows = allPurchases.length;
+      const totalSpent = pendingPurchases.reduce((sum, row) => sum + parseAmount(row.total_amount), 0);
+      const visibleSpent = filteredRows.reduce((sum, row) => sum + parseAmount(row.total_amount), 0);
+      const averageTicket = pendingPurchases.length > 0 ? (totalSpent / pendingPurchases.length) : 0;
+      const networksWithSpend = new Set(
+        filteredRows
+          .map((row) => String(row.network || '').trim())
+          .filter((value) => value)
+      ).size;
+
+      const visiblePct = totalSpent > 0 ? (visibleSpent / totalSpent) * 100 : 0;
+      const boundedVisiblePct = Math.max(0, Math.min(visiblePct, 100));
+
+      kpiTotalPurchases.textContent = String(totalRows);
+      kpiPendingQuoted.textContent = formatCurrency(totalSpent);
+      kpiPendingPercent.textContent = formatCurrency(averageTicket);
+      kpiProjectsWithPending.textContent = String(networksWithSpend);
+
+      pendingPercentBar.style.width = `${boundedVisiblePct.toFixed(1)}%`;
+      if (pendingPercentProgress) {
+        pendingPercentProgress.setAttribute('aria-valuenow', boundedVisiblePct.toFixed(1));
+      }
+      pendingPercentCaption.textContent = `${toPercent(visiblePct)} del gasto visible con el filtro.`;
+      return;
+    }
+
     const totalPurchases = allPurchases.length;
     const totalPending = pendingPurchases.length;
     const visiblePending = filteredRows.length;
@@ -1400,6 +1512,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const config = getActiveReportConfig();
     const theme = getActiveTheme();
+    const spendingMode = isSpendingMode();
 
     const projectTotals = new Map();
 
@@ -1407,7 +1520,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const noProject = String(row.no_project || '').trim();
       const projectName = String(row.project_name || '').trim();
       const label = noProject ? `${noProject}${projectName ? ` - ${projectName}` : ''}` : 'Sin proyecto';
-      projectTotals.set(label, (projectTotals.get(label) || 0) + 1);
+      const increment = spendingMode ? parseAmount(row.total_amount) : 1;
+      projectTotals.set(label, (projectTotals.get(label) || 0) + increment);
     });
 
     const ordered = Array.from(projectTotals.entries())
@@ -1439,7 +1553,11 @@ document.addEventListener('DOMContentLoaded', () => {
         scales: {
           x: {
             beginAtZero: true,
-            ticks: { color: theme.chart.ticks, precision: 0 },
+            ticks: {
+              color: theme.chart.ticks,
+              precision: spendingMode ? 2 : 0,
+              callback: (value) => spendingMode ? `$${Number(value).toFixed(0)}` : value
+            },
             grid: { color: theme.chart.gridMajor }
           },
           y: {
@@ -1458,14 +1576,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchTerm = normalizeText(projectSearchInput.value.trim());
     const selectedNoProject = normalizeText(projectSearchInput.dataset.noProject || '');
     const columnFilters = getColumnFilters();
+    const spendingMode = isSpendingMode();
 
     const filteredRows = pendingPurchases.filter((row) => {
       const noProject = normalizeText(row.no_project);
       const projectName = normalizeText(row.project_name);
+      const network = normalizeText(row.network);
 
       const matchesProject = selectedNoProject
         ? noProject === selectedNoProject
-        : (!searchTerm || noProject.includes(searchTerm) || projectName.includes(searchTerm));
+        : (!searchTerm || noProject.includes(searchTerm) || projectName.includes(searchTerm) || (spendingMode && network.includes(searchTerm)));
       const matchesColumns = rowMatchesColumnFilters(row, columnFilters);
 
       return matchesProject && matchesColumns;
@@ -1763,10 +1883,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateReportView() {
     const selectedReport = reportTypeMenu.value;
 
-    if (selectedReport === 'pending-purchases' || selectedReport === 'po-pending-delivery' || selectedReport === 'po-closed') {
+    if (selectedReport === 'spending' || selectedReport === 'pending-purchases' || selectedReport === 'po-pending-delivery' || selectedReport === 'po-closed') {
       activeReportType = selectedReport;
       applyReportModeUI();
       pendingPanel.hidden = false;
+      deadInventoryPanel.hidden = true;
       genericPanel.hidden = true;
       loadPendingPurchasesReport();
       return;
@@ -1857,7 +1978,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   printButton.addEventListener('click', async () => {
-    if (reportTypeMenu.value === 'pending-purchases' || reportTypeMenu.value === 'po-pending-delivery' || reportTypeMenu.value === 'po-closed') {
+    if (reportTypeMenu.value === 'spending' || reportTypeMenu.value === 'pending-purchases' || reportTypeMenu.value === 'po-pending-delivery' || reportTypeMenu.value === 'po-closed') {
       await exportPendingPurchasesToExcel();
       return;
     }

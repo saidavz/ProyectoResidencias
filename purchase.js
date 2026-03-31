@@ -23,8 +23,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim', //verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
 
@@ -1128,6 +1128,7 @@ app.get('/api/purchases', async (req, res) => {
         pd.time_delivered_product,
         COALESCE(pd.price_unit, 0) AS price_unit,
         COALESCE(pd.total_amount, 0) AS total_amount,
+        pd.network,
         pd.id_purchase,
         pd.po,
         pd.shopping
@@ -1141,6 +1142,7 @@ app.get('/api/purchases', async (req, res) => {
           pd.price_unit,
           (pd.quantity * pd.price_unit) AS total_amount,
           pu.id_vendor,
+          pu.network,
           pu.id_purchase,
           pu.po AS po,
           pu.shopping AS shopping
@@ -2311,7 +2313,9 @@ app.get('/api/trackingCards', async (req, res) => {
         JOIN filtered_purchases fp ON fp.id_purchase = pd.id_purchase
       ),
       network_data AS (
-        SELECT COALESCE(SUM(n.balance), 0) AS balance_actual
+        SELECT
+          COALESCE(SUM(n.balance), 0) AS balance_actual,
+          COALESCE(SUM(n.initial_balance), 0) AS saldo_inicial_estimado
         FROM (
           SELECT DISTINCT fp.network
           FROM filtered_purchases fp
@@ -2324,7 +2328,7 @@ app.get('/api/trackingCards', async (req, res) => {
         SELECT
           sd.total_gastado,
           nd.balance_actual,
-          (sd.total_gastado + nd.balance_actual) AS saldo_inicial_estimado
+          nd.saldo_inicial_estimado
         FROM spent_data sd
         CROSS JOIN network_data nd
       ),

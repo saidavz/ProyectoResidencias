@@ -88,20 +88,20 @@
     <section id="pendingPurchasesPanel" class="report-panel card border-0 shadow-sm" hidden>
       <div class="row g-3 align-items-end">
         <div class="col-md-6">
-          <label for="pendingProjectSearch" class="reports-search-label">Buscar proyecto</label>
+          <label for="pendingProjectSearch" class="reports-search-label">Search Project</label>
           <div class="reports-project-search-wrap">
             <input
               type="text"
               id="pendingProjectSearch"
               class="form-control reports-search-input"
-              placeholder="Buscar por numero o nombre de proyecto..."
+              placeholder="Search by project number or name..."
               autocomplete="off"
             >
             <div id="pendingProjectSuggestions" class="reports-project-suggestions" style="display:none;"></div>
           </div>
         </div>
         <div class="col-md-4">
-          <label for="reportThemeSelect" class="reports-search-label">Diseño del reporte</label>
+          <label for="reportThemeSelect" class="reports-search-label">Design Style</label>
           <select id="reportThemeSelect" class="form-select reports-search-input">
             <option value="silver" selected>Corporate Pulse Dashboard</option>
             <option value="ocean">Insight Spectrum Dashboard</option>
@@ -110,13 +110,13 @@
         </div>
       </div>
 
-      <div id="pendingPurchasesMeta" class="reports-meta">Cargando compras pendientes...</div>
+      <div id="pendingPurchasesMeta" class="reports-meta">loading pending purchases...</div>
 
       <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-3">
         <div class="col">
           <article class="card report-kpi-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <div class="report-kpi-label">Total de compras (activos)</div>
+              <div class="report-kpi-label">Total purchases</div>
               <p id="kpiTotalPurchases" class="report-kpi-value">0</p>
             </div>
           </article>
@@ -124,7 +124,7 @@
         <div class="col">
           <article class="card report-kpi-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <div class="report-kpi-label">Pendientes Quoted</div>
+              <div class="report-kpi-label">Pending Quoted</div>
               <p id="kpiPendingQuoted" class="report-kpi-value emphasis">0</p>
             </div>
           </article>
@@ -132,7 +132,7 @@
         <div class="col">
           <article class="card report-kpi-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <div class="report-kpi-label">% Pendiente (Quoted)</div>
+              <div class="report-kpi-label">% Pending (Quoted)</div>
               <p id="kpiPendingPercent" class="report-kpi-value">0.0%</p>
             </div>
           </article>
@@ -140,7 +140,7 @@
         <div class="col">
           <article class="card report-kpi-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <div class="report-kpi-label">Proyectos con pendiente</div>
+              <div class="report-kpi-label">Projects with Pending</div>
               <p id="kpiProjectsWithPending" class="report-kpi-value">0</p>
             </div>
           </article>
@@ -148,18 +148,18 @@
       </div>
 
       <div class="report-percent-strip card border-0 shadow-sm mb-3">
-        <div class="report-percent-title">Avance del filtro actual de proyectos</div>
-        <div id="pendingPercentProgress" class="progress report-progress" role="progressbar" aria-label="Porcentaje visible" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="report-percent-title">Progress of current project filter</div>
+        <div id="pendingPercentProgress" class="progress report-progress" role="progressbar" aria-label="Visible percentage" aria-valuemin="0" aria-valuemax="100" ariavaluenow="0">
           <div id="pendingPercentBar" class="progress-bar report-progress-bar"></div>
         </div>
-        <p id="pendingPercentCaption" class="report-percent-caption">0% de las compras pendientes visibles con el filtro.</p>
+        <p id="pendingPercentCaption" class="report-percent-caption">0% of pending purchases visible with the filter.</p>
       </div>
 
       <div class="row row-cols-1 row-cols-lg-2 g-3 mb-3">
         <div class="col">
           <article class="card report-chart-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <h3 class="report-chart-title h6">Distribucion de estatus</h3>
+              <h3 class="report-chart-title h6">Distribution of Status</h3>
               <div class="report-chart-wrap">
                 <canvas id="pendingStatusChart"></canvas>
               </div>
@@ -169,7 +169,7 @@
         <div class="col">
           <article class="card report-chart-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <h3 class="report-chart-title h6">Top proyectos con compras pendientes</h3>
+              <h3 class="report-chart-title h6">Top Projects with Pending Purchases</h3>
               <div class="report-chart-wrap">
                 <canvas id="pendingProjectsChart"></canvas>
               </div>
@@ -182,9 +182,9 @@
         <table class="table table-striped table-bordered table-hover align-middle bg-white table-reports mb-0">
           <thead class="pending-table-head">
             <tr>
-              <th>Proyecto</th>
-              <th>No. Proyecto</th>
-              <th id="poColumnHeader" style="display: none;">No. PO</th>
+              <th>Project</th>
+              <th>Project No.</th>
+              <th id="poColumnHeader" style="display: none;">PO No.</th>
               <th class="th-filterable">
                 <span>No. QIS</span>
                 <button type="button" class="th-filter-trigger" data-filter-target="popoverQis" title="Filtrar No. QIS">
@@ -204,7 +204,7 @@
                 </div>
               </th>
               <th class="th-filterable">
-                <span>Descripcion</span>
+                <span>Description</span>
                 <button type="button" class="th-filter-trigger" data-filter-target="popoverDescription" title="Filtrar Descripcion">
                   <i class="bi bi-sliders2-vertical"></i>
                 </button>
@@ -213,7 +213,7 @@
                 </div>
               </th>
               <th class="th-filterable">
-                <span>Proveedor</span>
+                <span>Vendor</span>
                 <button type="button" class="th-filter-trigger" data-filter-target="popoverVendor" title="Filtrar Proveedor">
                   <i class="bi bi-sliders2-vertical"></i>
                 </button>
@@ -222,7 +222,7 @@
                 </div>
               </th>
               <th class="th-filterable">
-                <span>Cantidad</span>
+                <span>Quantity</span>
                 <button type="button" class="th-filter-trigger" data-filter-target="popoverQuantity" title="Filtrar Cantidad">
                   <i class="bi bi-sliders2-vertical"></i>
                 </button>
@@ -234,7 +234,7 @@
           </thead>
           <tbody id="pendingPurchasesTableBody">
             <tr>
-              <td colspan="8" class="text-center">Selecciona el reporte de compras pendientes para visualizar datos.</td>
+              <td colspan="8" class="text-center">Select the pending purchases report to view the data.</td>
             </tr>
           </tbody>
         </table>
@@ -244,17 +244,17 @@
     <section id="deadInventoryPanel" class="report-panel card border-0 shadow-sm" hidden>
       <div class="row g-3 align-items-end">
         <div class="col-md-6">
-          <label for="deadInventorySearch" class="reports-search-label">Buscar por número de parte</label>
+          <label for="deadInventorySearch" class="reports-search-label">Search by Part Number</label>
           <input
             type="text"
             id="deadInventorySearch"
             class="form-control reports-search-input"
-            placeholder="Buscar número de parte..."
+            placeholder="Search part number..."
             autocomplete="off"
           >
         </div>
         <div class="col-md-4">
-          <label for="deadInventoryThemeSelect" class="reports-search-label">Diseño del reporte</label>
+          <label for="deadInventoryThemeSelect" class="reports-search-label">Report Design</label>
           <select id="deadInventoryThemeSelect" class="form-select reports-search-input">
             <option value="silver" selected>Corporate Pulse Dashboard</option>
             <option value="ocean">Insight Spectrum Dashboard</option>
@@ -263,13 +263,13 @@
         </div>
       </div>
 
-      <div id="deadInventoryMeta" class="reports-meta">Total de items sin movimiento en 3 meses: 0</div>
+      <div id="deadInventoryMeta" class="reports-meta">Total number of items with no activity in 3 months: 0</div>
 
       <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-3">
         <div class="col">
           <article class="card report-kpi-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <div class="report-kpi-label">Total de Números de Parte</div>
+              <div class="report-kpi-label">Total Part Numbers</div>
               <p id="deadInventoryKpiTotal" class="report-kpi-value">0</p>
             </div>
           </article>
@@ -277,7 +277,7 @@
         <div class="col">
           <article class="card report-kpi-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <div class="report-kpi-label">Items sin Movimiento</div>
+              <div class="report-kpi-label">Items with No Movement</div>
               <p id="deadInventoryKpiDead" class="report-kpi-value emphasis">0</p>
             </div>
           </article>
@@ -285,7 +285,7 @@
         <div class="col">
           <article class="card report-kpi-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <div class="report-kpi-label">% Items Muertos</div>
+              <div class="report-kpi-label">% Items Dead</div>
               <p id="deadInventoryKpiPercent" class="report-kpi-value">0.0%</p>
             </div>
           </article>
@@ -293,7 +293,7 @@
         <div class="col">
           <article class="card report-kpi-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <div class="report-kpi-label">Cantidad Total Muerta</div>
+              <div class="report-kpi-label">Total Dead Stock Quantity</div>
               <p id="deadInventoryKpiQuantity" class="report-kpi-value">0</p>
             </div>
           </article>
@@ -301,18 +301,18 @@
       </div>
 
       <div class="report-percent-strip card border-0 shadow-sm mb-3">
-        <div class="report-percent-title">Proporción de inventario muerto</div>
-        <div id="deadInventoryPercentProgress" class="progress report-progress" role="progressbar" aria-label="Porcentaje inventario muerto" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="report-percent-title">Proportion of Dead Inventory</div>
+        <div id="deadInventoryPercentProgress" class="progress report-progress" role="progressbar" aria-label="Percentage of Dead Inventory" aria-valuemin="0" aria-valuemax="100" ariavaluenow="0">
           <div id="deadInventoryPercentBar" class="progress-bar report-progress-bar"></div>
         </div>
-        <p id="deadInventoryPercentCaption" class="report-percent-caption">0% del inventario sin movimiento en 3 meses.</p>
+        <p id="deadInventoryPercentCaption" class="report-percent-caption">0% of inventory has not moved in 3 months.</p>
       </div>
 
       <div class="row row-cols-1 row-cols-lg-2 g-3 mb-3">
         <div class="col">
           <article class="card report-chart-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <h3 class="report-chart-title h6">Distribución de inventario muerto por antigüedad</h3>
+              <h3 class="report-chart-title h6">Distribution of Dead Inventory by Age</h3>
               <div class="report-chart-wrap">
                 <canvas id="deadInventoryAgeChart"></canvas>
               </div>
@@ -322,7 +322,7 @@
         <div class="col">
           <article class="card report-chart-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <h3 class="report-chart-title h6">Top 10 items con más stock muerto</h3>
+              <h3 class="report-chart-title h6">Top 10 Dead Stock Items</h3>
               <div class="report-chart-wrap">
                 <canvas id="deadInventoryTopChart"></canvas>
               </div>
@@ -335,15 +335,15 @@
         <table class="table table-striped table-bordered table-hover align-middle bg-white table-reports mb-0">
           <thead class="pending-table-head">
             <tr>
-              <th>No. Parte</th>
-              <th>Descripcion</th>
-              <th>Cantidad en Stock</th>
-              <th>Último Movimiento</th>
+              <th>Part Number</th>
+              <th>Description</th>
+              <th>Stock Quantity</th>
+              <th>Last Movement</th>
             </tr>
           </thead>
           <tbody id="deadInventoryTableBody">
             <tr>
-              <td colspan="4" class="text-center">Selecciona el reporte de inventario muerto para visualizar datos.</td>
+              <td colspan="4" class="text-center">Select the dead inventory report to view data.</td>
             </tr>
           </tbody>
         </table>
@@ -351,7 +351,7 @@
     </section>
 
     <section id="genericReportPanel" class="report-panel card border-0 shadow-sm">
-      <p id="genericReportMessage" class="report-placeholder">Selecciona un tipo de reporte para visualizar su informacion.</p>
+      <p id="genericReportMessage" class="report-placeholder">Select a report type to view its information.</p>
     </section>
   </main>
 
