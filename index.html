@@ -587,6 +587,8 @@
             const deactivateBtn = document.getElementById('deactivateBtn');
             const userForm = document.getElementById('userForm');
             const deleteUserForm = document.getElementById('deleteUserForm');
+            const deleteUserNameInput = document.getElementById('deleteUserName');
+            const deleteUserNameSuggestions = document.getElementById('deleteUserNameSuggestions');
             const toggleUserPasswordBtn = document.getElementById('toggleUserPasswordBtn');
             const toggleDeleteUserSectionBtn = document.getElementById('toggleDeleteUserSectionBtn');
 
@@ -614,6 +616,16 @@
 
             if (deleteUserForm) {
                 deleteUserForm.addEventListener('submit', handleDeleteUserFormSubmit);
+            }
+
+            if (deleteUserNameInput) {
+                deleteUserNameInput.addEventListener('input', handleDeleteUserNameInput);
+                deleteUserNameInput.addEventListener('change', handleDeleteUserNameSelection);
+                deleteUserNameInput.addEventListener('focus', () => {
+                    if (!deleteUserNameInput.value.trim()) {
+                        loadDeleteUserSuggestions('');
+                    }
+                });
             }
 
             if (toggleUserPasswordBtn) {
@@ -1076,6 +1088,7 @@
             if (!addUserContainer || !deleteUserContainer) return;
             addUserContainer.classList.add('d-none');
             deleteUserContainer.classList.remove('d-none');
+            loadDeleteUserSuggestions('');
         }
 
         function handleBackToAddUser() {
@@ -1085,6 +1098,64 @@
             deleteUserContainer.classList.add('d-none');
             addUserContainer.classList.remove('d-none');
             document.getElementById('deleteUserForm').reset();
+        }
+
+        let deleteUserSuggestionsCache = [];
+
+        function renderDeleteUserNameSuggestions(users) {
+            if (!deleteUserNameSuggestions) return;
+
+            deleteUserNameSuggestions.innerHTML = users
+                .map((user) => {
+                    const safeName = String(user.user_name || '').replace(/"/g, '&quot;');
+                    const safeLabel = `${user.user_name || ''} | ${user.last_name || ''} ${user.second_last_name || ''}`.trim();
+                    return `<option value="${safeName}" label="${safeLabel}"></option>`;
+                })
+                .join('');
+        }
+
+        async function loadDeleteUserSuggestions(termRaw = '') {
+            const term = String(termRaw || '').trim();
+
+            try {
+                const response = await fetch(`${BASE_URL}/users/search?term=${encodeURIComponent(term)}`);
+                const result = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    deleteUserSuggestionsCache = [];
+                    renderDeleteUserNameSuggestions([]);
+                    return;
+                }
+
+                deleteUserSuggestionsCache = Array.isArray(result.users) ? result.users : [];
+                renderDeleteUserNameSuggestions(deleteUserSuggestionsCache);
+            } catch (error) {
+                deleteUserSuggestionsCache = [];
+                renderDeleteUserNameSuggestions([]);
+            }
+        }
+
+        function handleDeleteUserNameSelection() {
+            const userName = document.getElementById('deleteUserName').value.trim().toLowerCase();
+            const lastNameInput = document.getElementById('deleteUserLastName');
+            const secondLastNameInput = document.getElementById('deleteUserSecondLastName');
+
+            if (!userName || !lastNameInput || !secondLastNameInput) return;
+
+            const matchedUser = deleteUserSuggestionsCache.find((user) =>
+                String(user.user_name || '').trim().toLowerCase() === userName
+            );
+
+            if (!matchedUser) return;
+
+            lastNameInput.value = String(matchedUser.last_name || '').trim();
+            secondLastNameInput.value = String(matchedUser.second_last_name || '').trim();
+        }
+
+        function handleDeleteUserNameInput(e) {
+            const term = e?.target?.value || '';
+            loadDeleteUserSuggestions(term);
+            handleDeleteUserNameSelection();
         }
 
         async function handleDeleteUserFormSubmit(e) {
@@ -1264,11 +1335,11 @@
                         </div>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-warning">
+                        <button type="submit" class="btn btn-success">
                             <i class="bi bi-person-plus"></i> Add User
                         </button>
-                        <button type="button" class="btn btn-danger" id="toggleDeleteUserSectionBtn">
-                            <i class="bi bi-trash"></i> Delete User
+                        <button type="button" class="btn btn-warning" id="toggleDeleteUserSectionBtn">
+                            <i class="bi bi-arrow-right-circle"></i> Delete User
                         </button>
                     </div>
                 </form>
@@ -1280,7 +1351,8 @@
                 <form id="deleteUserForm">
                     <div class="mb-3">
                         <label for="deleteUserName" class="form-label">User Name</label>
-                        <input type="text" class="form-control" id="deleteUserName" placeholder="Enter user name" required>
+                        <input type="text" class="form-control" id="deleteUserName" list="deleteUserNameSuggestions" placeholder="Enter user name" autocomplete="off" required>
+                        <datalist id="deleteUserNameSuggestions"></datalist>
                     </div>
                     <div class="mb-3">
                         <label for="deleteUserLastName" class="form-label">Last Name</label>
@@ -1292,7 +1364,7 @@
                     </div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-danger">
-                            <i class="bi bi-trash"></i> Confirm Delete User
+                            <i class="bi bi-trash"></i> Delete
                         </button>
                         <button type="button" class="btn btn-secondary" id="backToAddUserBtn">
                             <i class="bi bi-arrow-left"></i> Back

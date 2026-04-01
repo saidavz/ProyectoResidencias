@@ -423,6 +423,40 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
+app.get('/api/users/search', async (req, res) => {
+  const term = String(req.query.term || '').trim();
+
+  try {
+    const params = [];
+    let whereClause = '';
+
+    if (term) {
+      params.push(`%${term}%`);
+      whereClause = `
+        WHERE LOWER(BTRIM(CAST(user_name AS TEXT))) LIKE LOWER($1)
+           OR LOWER(BTRIM(CAST(last_name AS TEXT))) LIKE LOWER($1)
+           OR LOWER(BTRIM(CAST(second_last_name AS TEXT))) LIKE LOWER($1)
+      `;
+    }
+
+    const query = `
+      SELECT
+        BTRIM(CAST(user_name AS TEXT)) AS user_name,
+        BTRIM(CAST(last_name AS TEXT)) AS last_name,
+        BTRIM(CAST(second_last_name AS TEXT)) AS second_last_name
+      FROM user_
+      ${whereClause}
+      ORDER BY user_name, last_name, second_last_name
+      LIMIT 25
+    `;
+
+    const result = await pool.query(query, params);
+    return res.json({ success: true, users: result.rows });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: 'Error al buscar usuarios: ' + error.message });
+  }
+});
+
 app.post('/api/users/delete', async (req, res) => {
   const {
     user_name,
