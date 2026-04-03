@@ -24,13 +24,8 @@
             <div id="qrMode" class="login-mode-section">
                 <div class="qr-input-wrapper">
                     <i class="bi bi-upc-scan"></i>
-                    <input
-                        type="text"
-                        id="loginQrInput"
-                        placeholder="Scan your QR code..."
-                        autofocus
-                        autocomplete="off"
-                    />
+                    <input type="text" id="loginQrInput" placeholder="Scan your QR code..." autofocus
+                        autocomplete="off" />
                 </div>
 
                 <div class="scanning-animation" id="scanningIndicator">
@@ -43,29 +38,15 @@
                 <div class="credentials-input-wrapper">
                     <div class="input-group mb-3">
                         <span class="input-group-text"><i class="bi bi-person"></i></span>
-                        <input
-                            type="text"
-                            id="loginUserNameInput"
-                            class="form-control"
-                            placeholder="User Name"
-                            autocomplete="off"
-                        />
+                        <input type="text" id="loginUserNameInput" class="form-control" placeholder="User Name"
+                            autocomplete="off" />
                     </div>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        <input
-                            type="password"
-                            id="loginPasswordInput"
-                            class="form-control"
-                            placeholder="Password"
-                            autocomplete="off"
-                        />
-                        <button 
-                            type="button" 
-                            class="btn btn-outline-secondary toggle-password-btn" 
-                            id="togglePasswordBtn"
-                            tabindex="-1"
-                        >
+                        <input type="password" id="loginPasswordInput" class="form-control" placeholder="Password"
+                            autocomplete="off" />
+                        <button type="button" class="btn btn-outline-secondary toggle-password-btn"
+                            id="togglePasswordBtn" tabindex="-1">
                             <i class="bi bi-eye"></i>
                         </button>
                     </div>
@@ -80,7 +61,8 @@
 
             <!-- Login Mode Buttons -->
             <div class="login-buttons-container">
-                <button type="button" class="login-btn login-btn-credentials" id="loginBtnCredentials" style="display: none;">
+                <button type="button" class="login-btn login-btn-credentials" id="loginBtnCredentials"
+                    style="display: none;">
                     <i class="bi bi-shield-check me-2"></i>Login
                 </button>
                 <button type="button" class="login-btn login-btn-toggle" id="toggleLoginMode">
@@ -120,27 +102,38 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="bom.html">Upload BOM</a></li>
-                                                        <li>
+                            <li>
                                 <hr class="dropdown-divider">
                             </li>
                             <li><a class="dropdown-item" href="bomView.html">View BOM</a></li>
                         </ul>
                     </li>
-                    <li class="nav-item requires-full-access"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
-                    <li class="nav-item requires-full-access"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
-                    <li class="nav-item requires-full-access"><a class="nav-link" href="requisition.html">Requisition</a></li>
+                    <li class="nav-item requires-full-access"><a class="nav-link" href="recordPurchase.html">Register
+                            Purchase</a></li>
+                    <li class="nav-item requires-full-access"><a class="nav-link" href="purchaseTracking.html">Purchase
+                            Tracking</a></li>
+                    <li class="nav-item requires-full-access"><a class="nav-link"
+                            href="requisition.html">Requisition</a></li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
                             Inventory
                         </a>
                         <ul class="dropdown-menu text-center" aria-labelledby="dropdownBom">
-                            <li class="requires-full-access"><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
-                            <li class="requires-full-access"><hr class="dropdown-divider"></li>
+                            <li class="requires-full-access"><a class="dropdown-item" href="createQr.html">Create QR
+                                    Codes</a></li>
+                            <li class="requires-full-access">
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item" href="io.html">Register Inbound And Outbound</a></li>
-                            <li class="requires-full-access"><hr class="dropdown-divider"></li>
-                            <li class="requires-full-access"><a class="dropdown-item" href="stock.html">View Inventory</a></li>
-                            <li class="requires-full-access"><hr class="dropdown-divider"></li>
+                            <li class="requires-full-access">
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li class="requires-full-access"><a class="dropdown-item" href="stock.html">View
+                                    Inventory</a></li>
+                            <li class="requires-full-access">
+                                <hr class="dropdown-divider">
+                            </li>
                         </ul>
                     </li>
                     <li class="nav-item requires-full-access"><a class="nav-link" href="reports.html">Reports</a></li>
@@ -152,7 +145,7 @@
             </div>
         </div>
     </nav>
-    
+
 
     <main class="container my-5">
         <div class="text-center mb-5">
@@ -161,18 +154,17 @@
         </div>
         <div class="home-buttons-container">
             <div class="dropdown home-btn-dropdown requires-full-access">
-                <button class="home-btn dropdown-toggle" 
-                        type="button" 
-                        id="dropdownBom"
-                        data-bs-toggle="dropdown"
-                        aria-expanded="false">
+                <button class="home-btn dropdown-toggle" type="button" id="dropdownBom" data-bs-toggle="dropdown"
+                    aria-expanded="false">
                     <i class="bi bi-list-check btn-icon"></i>
                     <div class="btn-title">BOM</div>
                     <div class="btn-description">Upload and view the Bill of Materials</div>
                 </button>
                 <ul class="dropdown-menu w-100 text-center" aria-labelledby="dropdownBom">
                     <li><a class="dropdown-item" href="bom.html">Upload BOM</a></li>
-                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
                     <li><a class="dropdown-item" href="bomView.html">View BOM</a></li>
                 </ul>
             </div>
@@ -197,20 +189,22 @@
                 <div class="btn-description">Report consultation and download</div>
             </a>
             <div class="dropdown home-btn-dropdown">
-                <button class="home-btn dropdown-toggle" 
-                        type="button" 
-                        id="dropdownBom"
-                        data-bs-toggle="dropdown"
-                        aria-expanded="false">
+                <button class="home-btn dropdown-toggle" type="button" id="dropdownBom" data-bs-toggle="dropdown"
+                    aria-expanded="false">
                     <i class="bi bi-box-seam-fill btn-icon"></i>
                     <div class="btn-title">Inventory</div>
                     <div class="btn-description">Stock management and inventory</div>
                 </button>
                 <ul class="dropdown-menu w-100 text-center" aria-labelledby="dropdownBom">
-                    <li class="requires-full-access"><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
-                    <li class="requires-full-access"><hr class="dropdown-divider"></li>
+                    <li class="requires-full-access"><a class="dropdown-item" href="createQr.html">Create QR Codes</a>
+                    </li>
+                    <li class="requires-full-access">
+                        <hr class="dropdown-divider">
+                    </li>
                     <li><a class="dropdown-item" href="io.html">Register Inbound And Outbound</a></li>
-                    <li class="requires-full-access"><hr class="dropdown-divider"></li>
+                    <li class="requires-full-access">
+                        <hr class="dropdown-divider">
+                    </li>
                     <li class="requires-full-access"><a class="dropdown-item" href="stock.html">View Inventory</a></li>
                 </ul>
             </div>
@@ -224,18 +218,22 @@
             <i class="bi bi-gear"></i>
         </button>
         <div class="floating-manage-menu" id="floatingManageMenu">
-            <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#networkOffcanvas" aria-controls="networkOffcanvas">
+            <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#networkOffcanvas"
+                aria-controls="networkOffcanvas">
                 <i class="bi bi-cash-coin"></i> Manage Network
             </a>
-            <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#projectOffcanvas" aria-controls="projectOffcanvas">
+            <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#projectOffcanvas"
+                aria-controls="projectOffcanvas">
                 <i class="bi bi-folder"></i> Manage Project
             </a>
-            <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#userOffcanvas" aria-controls="userOffcanvas">
+            <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#userOffcanvas"
+                aria-controls="userOffcanvas">
                 <i class="bi bi-people"></i> Manage Users
             </a>
-                <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#vendorOffcanvas" aria-controls="vendorOffcanvas">
-                    <i class="bi bi-truck"></i> Manage Vendors
-                </a>
+            <a href="#" class="manage-menu-item" data-bs-toggle="offcanvas" data-bs-target="#vendorOffcanvas"
+                aria-controls="vendorOffcanvas">
+                <i class="bi bi-truck"></i> Manage Vendors
+            </a>
         </div>
     </div>
 
@@ -364,13 +362,13 @@
             const password = passwordInput.value.trim();
 
             if (!userName) {
-                showHomeLoginAlert('User name es requerido.');
+                showHomeLoginAlert('User name is required.');
                 userNameInput.focus();
                 return;
             }
 
             if (!password) {
-                showHomeLoginAlert('Password es requerido.');
+                showHomeLoginAlert('Password is required.');
                 passwordInput.focus();
                 return;
             }
@@ -451,7 +449,7 @@
                     if (passwordField) {
                         const currentType = passwordField.type;
                         passwordField.type = currentType === 'password' ? 'text' : 'password';
-                        
+
                         // Cambiar ícono
                         const icon = togglePasswordBtn.querySelector('i');
                         if (icon) {
@@ -793,13 +791,13 @@
 
             try {
                 let response;
-                
+
                 if (isEditingNetwork && originalName) {
                     // Actualizar network existente
                     response = await fetch(`${BASE_URL}/networks/${encodeURIComponent(originalName)}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
+                        body: JSON.stringify({
                             newNetwork: networkName,
                             balance: balance,
                             currency: currency
@@ -810,7 +808,7 @@
                     response = await fetch(`${BASE_URL}/networks`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
+                        body: JSON.stringify({
                             network: networkName,
                             balance: balance,
                             currency: currency
@@ -882,17 +880,19 @@
             }
         }
 
-        function updateProjectSuggestions(filter = '') {
+        function updateProjectSuggestions(filter = '', excludeProjects = []) {
             const datalist = document.getElementById('projectSuggestions');
             if (!datalist) return;
             datalist.innerHTML = '';
 
-            const filteredProjects = filter 
-                ? allProjects.filter(p => 
+            let filteredProjects = allProjects.filter(p => !excludeProjects.includes(p.no_project));
+
+            if (filter) {
+                filteredProjects = filteredProjects.filter(p =>
                     p.no_project.toLowerCase().includes(filter.toLowerCase()) ||
                     p.name_project.toLowerCase().includes(filter.toLowerCase())
-                )
-                : allProjects;
+                );
+            }
 
             filteredProjects.forEach(project => {
                 const option = document.createElement('option');
@@ -921,7 +921,7 @@
                 const response = await fetch(`${BASE_URL}/projects`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
+                    body: JSON.stringify({
                         no_project: projectNumber,
                         name_project: projectName
                     })
@@ -948,7 +948,7 @@
             const typedValue = this.value.trim().toLowerCase();
             const deactivateBtn = document.getElementById('deactivateBtn');
 
-            updateProjectSuggestions(typedValue);
+            updateProjectSuggestions(typedValue, ['AUT-STOCK']);
 
             if (!typedValue) {
                 selectedProjectForDeactivate = null;
@@ -956,10 +956,11 @@
                 return;
             }
 
-            const exactMatch = allProjects.find(p => 
-                `${p.no_project} - ${p.name_project}`.toLowerCase() === typedValue ||
-                p.no_project.toLowerCase() === typedValue ||
-                p.name_project.toLowerCase() === typedValue
+            const exactMatch = allProjects.find(p =>
+                (p.no_project !== 'AUT-STOCK') &&
+                (`${p.no_project} - ${p.name_project}`.toLowerCase() === typedValue ||
+                    p.no_project.toLowerCase() === typedValue ||
+                    p.name_project.toLowerCase() === typedValue)
             );
 
             if (exactMatch) {
@@ -991,7 +992,7 @@
                 const response = await fetch(`${BASE_URL}/projects/${encodeURIComponent(selectedProjectForDeactivate.no_project)}/status`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
+                    body: JSON.stringify({
                         status: 'Inactive'
                     })
                 });
@@ -1204,10 +1205,12 @@
     </script>
 
     <!-- Offcanvas para gestionar Networks -->
-    <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="networkOffcanvas" aria-labelledby="networkOffcanvasLabel">
+    <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1"
+        id="networkOffcanvas" aria-labelledby="networkOffcanvasLabel">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="networkOffcanvasLabel"><i class="bi bi-cash-coin"></i> Manage Networks</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
+                aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
             <!-- Formulario para crear/actualizar Network -->
@@ -1216,13 +1219,16 @@
                     <input type="hidden" id="originalNetworkName" value="">
                     <div class="mb-3">
                         <label for="networkName" class="form-label">Network-Number</label>
-                        <input type="text" class="form-control" id="networkName" list="networkNameSuggestions" placeholder="Type to create or search network" required>
+                        <input type="text" class="form-control" id="networkName" list="networkNameSuggestions"
+                            placeholder="Type to create or search network" required>
                         <datalist id="networkNameSuggestions"></datalist>
-                        <div class="form-text text-light">Type an existing network to update balance, or a new name to create.</div>
+                        <div class="form-text text-light">Type an existing network to update balance, or a new name to
+                            create.</div>
                     </div>
                     <div class="mb-3">
                         <label for="networkBalance" class="form-label">Balance ($)</label>
-                        <input type="number" class="form-control" id="networkBalance" placeholder="Enter balance" step="0.01" required>
+                        <input type="number" class="form-control" id="networkBalance" placeholder="Enter balance"
+                            step="0.01" required>
                     </div>
                     <div class="mb-3">
                         <label for="networkCurrency" class="form-label">Currency</label>
@@ -1248,10 +1254,12 @@
     </div>
 
     <!-- Offcanvas para gestionar Proyectos -->
-    <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="projectOffcanvas" aria-labelledby="projectOffcanvasLabel">
+    <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1"
+        id="projectOffcanvas" aria-labelledby="projectOffcanvasLabel">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="projectOffcanvasLabel"><i class="bi bi-folder"></i> Manage Project</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
+                aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
             <!-- Formulario para activar Proyecto -->
@@ -1260,11 +1268,13 @@
                 <form id="activateProjectForm">
                     <div class="mb-3">
                         <label for="projectNumber" class="form-label">Project Number</label>
-                        <input type="text" class="form-control" id="projectNumber" placeholder="Enter project number" required>
+                        <input type="text" class="form-control" id="projectNumber" placeholder="Enter project number"
+                            required>
                     </div>
                     <div class="mb-3">
                         <label for="projectName" class="form-label">Project Name</label>
-                        <input type="text" class="form-control" id="projectName" placeholder="Enter project name" required>
+                        <input type="text" class="form-control" id="projectName" placeholder="Enter project name"
+                            required>
                     </div>
                     <button type="submit" class="btn btn-success">
                         <i class="bi bi-play-circle"></i> Activate Project
@@ -1278,7 +1288,8 @@
                 <form id="deactivateProjectForm">
                     <div class="mb-3">
                         <label for="deactivateProjectInput" class="form-label">Search Project (Number or Name)</label>
-                        <input type="text" class="form-control" id="deactivateProjectInput" list="projectSuggestions" placeholder="Type to search active projects" required>
+                        <input type="text" class="form-control" id="deactivateProjectInput" list="projectSuggestions"
+                            placeholder="Type to search active projects" required>
                         <datalist id="projectSuggestions"></datalist>
                         <div class="form-text text-light">Type project number or name to find active projects.</div>
                     </div>
@@ -1291,10 +1302,12 @@
     </div>
 
     <!-- Offcanvas para registrar usuarios -->
-    <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="userOffcanvas" aria-labelledby="userOffcanvasLabel">
+    <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="userOffcanvas"
+        aria-labelledby="userOffcanvasLabel">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="userOffcanvasLabel"><i class="bi bi-people"></i> Manage Users</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
+                aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
             <!-- Formulario para agregar usuario -->
@@ -1303,7 +1316,8 @@
                 <form id="userForm">
                     <div class="mb-3">
                         <label for="userPid" class="form-label">PID</label>
-                        <input type="text" class="form-control" id="userPid" placeholder="Scan your access card" required>
+                        <input type="text" class="form-control" id="userPid" placeholder="Scan your access card"
+                            required>
                     </div>
                     <div class="mb-3">
                         <label for="userName" class="form-label">User Name</label>
@@ -1311,11 +1325,13 @@
                     </div>
                     <div class="mb-3">
                         <label for="userLastName" class="form-label">Last Name</label>
-                        <input type="text" class="form-control" id="userLastName" placeholder="Enter last name" required>
+                        <input type="text" class="form-control" id="userLastName" placeholder="Enter last name"
+                            required>
                     </div>
                     <div class="mb-3">
                         <label for="userSecondLastName" class="form-label">Second Last Name</label>
-                        <input type="text" class="form-control" id="userSecondLastName" placeholder="Enter second last name" required>
+                        <input type="text" class="form-control" id="userSecondLastName"
+                            placeholder="Enter second last name" required>
                     </div>
                     <div class="mb-3">
                         <label for="userRol" class="form-label">Role</label>
@@ -1328,8 +1344,10 @@
                     <div class="mb-3">
                         <label for="userPassword" class="form-label">User Password</label>
                         <div class="input-group">
-                            <input type="password" class="form-control" id="userPassword" placeholder="Enter password" required>
-                            <button type="button" class="btn btn-outline-secondary" id="toggleUserPasswordBtn" aria-label="Show or hide password">
+                            <input type="password" class="form-control" id="userPassword" placeholder="Enter password"
+                                required>
+                            <button type="button" class="btn btn-outline-secondary" id="toggleUserPasswordBtn"
+                                aria-label="Show or hide password">
                                 <i class="bi bi-eye" id="toggleUserPasswordIcon"></i>
                             </button>
                         </div>
@@ -1351,16 +1369,19 @@
                 <form id="deleteUserForm">
                     <div class="mb-3">
                         <label for="deleteUserName" class="form-label">User Name</label>
-                        <input type="text" class="form-control" id="deleteUserName" list="deleteUserNameSuggestions" placeholder="Enter user name" autocomplete="off" required>
+                        <input type="text" class="form-control" id="deleteUserName" list="deleteUserNameSuggestions"
+                            placeholder="Enter user name" autocomplete="off" required>
                         <datalist id="deleteUserNameSuggestions"></datalist>
                     </div>
                     <div class="mb-3">
                         <label for="deleteUserLastName" class="form-label">Last Name</label>
-                        <input type="text" class="form-control" id="deleteUserLastName" placeholder="Enter last name" required>
+                        <input type="text" class="form-control" id="deleteUserLastName" placeholder="Enter last name"
+                            required>
                     </div>
                     <div class="mb-3">
                         <label for="deleteUserSecondLastName" class="form-label">Second Last Name</label>
-                        <input type="text" class="form-control" id="deleteUserSecondLastName" placeholder="Enter second last name" required>
+                        <input type="text" class="form-control" id="deleteUserSecondLastName"
+                            placeholder="Enter second last name" required>
                     </div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-danger">
@@ -1376,10 +1397,12 @@
     </div>
 
     <!-- Offcanvas para gestionar Vendors -->
-    <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="vendorOffcanvas" aria-labelledby="vendorOffcanvasLabel">
+    <div class="offcanvas offcanvas-end bg-dark text-white" data-bs-backdrop="static" tabindex="-1" id="vendorOffcanvas"
+        aria-labelledby="vendorOffcanvasLabel">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="vendorOffcanvasLabel"><i class="bi bi-truck"></i> Manage Vendors</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
+                aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
             <div class="mb-4" id="vendorContainer">
@@ -1387,22 +1410,26 @@
                 <form id="vendorForm">
                     <div class="mb-3">
                         <label for="id_vendor" class="form-label text-light">Vendor Number</label>
-                        <input type="text" class="form-control bg-light text-dark" id="id_vendor" placeholder="Enter vendor number" required>
+                        <input type="text" class="form-control bg-light text-dark" id="id_vendor"
+                            placeholder="Enter vendor number" required>
                     </div>
                     <div class="mb-3">
                         <label for="name_vendor" class="form-label text-light">Vendor Name</label>
-                        <input type="text" class="form-control bg-light text-dark" id="name_vendor" placeholder="Enter vendor name" required>
+                        <input type="text" class="form-control bg-light text-dark" id="name_vendor"
+                            placeholder="Enter vendor name" required>
                     </div>
                     <div class="mb-3">
                         <label for="email_vendor" class="form-label text-light">Email</label>
-                        <input type="email" class="form-control bg-light text-dark" id="email_vendor" placeholder="Enter email" required>
+                        <input type="email" class="form-control bg-light text-dark" id="email_vendor"
+                            placeholder="Enter email" required>
                     </div>
                     <div class="mb-3">
                         <label for="telephone_vendor" class="form-label text-light">Telephone</label>
-                        <input type="text" class="form-control bg-light text-dark" id="telephone_vendor" placeholder="Enter telephone (10 digits)" maxlength="10" inputmode="numeric">
+                        <input type="text" class="form-control bg-light text-dark" id="telephone_vendor"
+                            placeholder="Enter telephone (10 digits)" maxlength="10" inputmode="numeric">
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-success">Save Vendor</button>
+                        <button type="submit" class="btn btn-primary btn-lg">Save Vendor</button>
                         <button type="button" id="clearVendorBtn" class="btn btn-secondary">Clear</button>
                     </div>
                 </form>
@@ -1418,15 +1445,15 @@
                             <option value="all">All</option>
                             <option value="id_vendor">Number</option>
                             <option value="name_vendor">Name</option>
-                            <option value="email_vendor">Email</option>
-                            <option value="telephone_vendor">Telephone</option>
                         </select>
                     </div>
                     <div class="col-5">
                         <input id="searchQueryVendor" class="form-control bg-light text-dark" placeholder="Search text">
                     </div>
                     <div class="col-2 d-grid">
-                        <button id="btnSearchVendor" type="button" class="btn btn-primary btn-sm p-1" aria-label="Buscar" title="Buscar" style="width:50px;height:50px;display:flex;align-items:center;justify-content:center">
+                        <button id="btnSearchVendor" type="button" class="btn btn-primary btn-sm p-1"
+                            aria-label="Buscar" title="Buscar"
+                            style="width:50px;height:50px;display:flex;align-items:center;justify-content:center">
                             <i class="bi bi-search" style="line-height:1"></i>
                         </button>
                     </div>
@@ -1483,7 +1510,7 @@
                     return await response.json();
                 } catch (e) {
                     console.error('Error saving vendor:', e);
-                    alert('Error guardando vendor: ' + e.message);
+                    alert('Error saving vendor: ' + e.message);
                     throw e;
                 }
             }
@@ -1508,7 +1535,7 @@
                 body.innerHTML = '';
                 results.forEach(r => {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${escapeHtml(r.id_vendor)}</td><td>${escapeHtml(r.name_vendor)}</td><td>${escapeHtml(r.email||'')}</td><td>${escapeHtml(r.telephone||'')}</td>`;
+                    tr.innerHTML = `<td>${escapeHtml(r.id_vendor)}</td><td>${escapeHtml(r.name_vendor)}</td><td>${escapeHtml(r.email || '')}</td><td>${escapeHtml(r.telephone || '')}</td>`;
                     body.appendChild(tr);
                 });
             }
@@ -1516,7 +1543,7 @@
             function escapeHtml(s) {
                 if (!s && s !== 0) return '';
                 return String(s).replace(/[&<>"']/g, function (c) {
-                    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c];
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": "&#39;" }[c];
                 });
             }
 
@@ -1525,9 +1552,9 @@
                 if (!query) return list;
                 const q = String(query).toLowerCase();
                 if (field === 'all') {
-                    return list.filter(v => Object.values(v).some(val => String(val||'').toLowerCase().includes(q)));
+                    return list.filter(v => Object.values(v).some(val => String(val || '').toLowerCase().includes(q)));
                 }
-                return list.filter(v => String(v[field]||'').toLowerCase().includes(q));
+                return list.filter(v => String(v[field] || '').toLowerCase().includes(q));
             }
 
             document.addEventListener('DOMContentLoaded', function () {
@@ -1553,15 +1580,15 @@
                             email: document.getElementById('email_vendor').value.trim(),
                             telephone: document.getElementById('telephone_vendor').value.trim()
                         };
-                        
+
                         if (!vendor.id_vendor || !vendor.name_vendor) {
-                            alert('ID y Nombre son requeridos');
+                            alert('ID and Name are required');
                             return;
                         }
-                        
+
                         try {
                             await upsertVendor(vendor);
-                            alert('Vendor guardado correctamente');
+                            alert('Vendor saved successfully');
                             const vendors = await loadVendors();
                             renderResults(vendors);
                             vendorForm.reset();

@@ -152,7 +152,7 @@
   }
 
   function expireSessionByInactivity() {
-    setNotice('Tu sesion se cerro por inactividad. Escanea tu QR para ingresar nuevamente.');
+    setNotice('Your session has closed due to inactivity. Scan your QR to log in again.');
     clearUser();
     window.location.replace('index.html');
   }
@@ -283,7 +283,7 @@
   function setUser(user) {
     const normalizedUser = normalizeUser(user);
     if (!normalizedUser) {
-      throw new Error('Usuario invalido para sesion.');
+      throw new Error('Invalid user for session.');
     }
 
     removeLegacyPersistentSession();
@@ -434,7 +434,7 @@
     const normalizedPid = String(pid || '').trim();
 
     if (!normalizedPid) {
-      throw new Error('PID es requerido');
+      throw new Error('PID is required');
     }
 
     const response = await fetch(`${getApiBase()}/api/auth/validate-qr`, {
@@ -464,11 +464,11 @@
     const normalizedPassword = String(password || '').trim();
 
     if (!normalizedUserName) {
-      throw new Error('User name es requerido');
+      throw new Error('User name is required');
     }
 
     if (!normalizedPassword) {
-      throw new Error('Password es requerido');
+      throw new Error('Password is required');
     }
 
     const response = await fetch(`${getApiBase()}/api/auth/validate-credentials`, {
