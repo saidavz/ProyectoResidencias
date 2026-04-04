@@ -151,11 +151,12 @@
                 <div class="row">
                   <div class="col-md-6 mb-3">
                     <label class="form-label">Currency</label>
-                    <select class="form-select bg-secondary text-light" name="currency" required>
+                    <select class="form-select bg-secondary text-light" id="currencySelect" disabled>
                       <option value="">Select...</option>
                       <option value="USD">USD</option>
                       <option value="MXN">MXN</option>
                     </select>
+                    <input type="hidden" name="currency" id="currencyHidden" required>
                   </div>
                   <!-- Campo para ingresar PR -->
                   <div class="col-md-6 mb-3">
@@ -706,12 +707,16 @@
       if (networkSelectElem) {
         networkSelectElem.addEventListener('change', function () {
           const network = this.value;
-          const currencySelect = document.querySelector('select[name="currency"]');
+          const currencySelect = document.getElementById('currencySelect');
+          const currencyHidden = document.getElementById('currencyHidden');
           const selectedOption = this.options[this.selectedIndex];
           if (currencySelect && selectedOption && selectedOption.dataset.currency) {
-            currencySelect.value = selectedOption.dataset.currency;
+            const selectedCurrency = selectedOption.dataset.currency;
+            currencySelect.value = selectedCurrency;
+            if (currencyHidden) currencyHidden.value = selectedCurrency;
           } else if (currencySelect && !network) {
             currencySelect.value = '';
+            if (currencyHidden) currencyHidden.value = '';
           }
 
           if (network) {

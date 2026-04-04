@@ -47,71 +47,71 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const REPORT_MODES = Object.freeze({
     spending: {
-      pendingLabel: 'registros de gasto',
-      kpiPendingLabel: 'Gasto total',
-      kpiPercentLabel: 'Ticket promedio',
-      kpiProjectsLabel: 'Networks con gasto',
-      topProjectsTitle: 'Top proyectos por gasto',
-      projectsDatasetLabel: 'Monto gastado',
-      loadingMessage: 'Cargando reporte de gastos...',
-      emptyMessage: 'No se encontraron registros de gasto para el filtro aplicado.',
-      errorMeta: 'No fue posible cargar el reporte de gastos.',
-      errorTable: 'Error al cargar datos del reporte de gastos.',
-      excelTitle: 'Reporte de Gastos',
-      excelPendingKpiLabel: 'Gasto total',
-      excelTopSectionTitle: 'Top proyectos por gasto (filtro actual)',
-      excelFilePrefix: 'reporte_gastos',
+      pendingLabel: 'expense records',
+      kpiPendingLabel: 'Total Expense',
+      kpiPercentLabel: 'Average Ticket',
+      kpiProjectsLabel: 'Networks with Expense',
+      topProjectsTitle: 'Top Projects by Expense',
+      projectsDatasetLabel: 'Spent Amount',
+      loadingMessage: 'Loading expense report...',
+      emptyMessage: 'No expense records were found for the applied filter.',
+      errorMeta: 'Unable to load the expense report.',
+      errorTable: 'Error loading expense report data.',
+      excelTitle: 'Expense Report',
+      excelPendingKpiLabel: 'Total Expense',
+      excelTopSectionTitle: 'Top projects by expense (current filter)',
+      excelFilePrefix: 'expense_report',
       statusFilter: () => true
     },
     'pending-purchases': {
-      pendingLabel: 'compras pendientes (Quoted)',
-      kpiPendingLabel: 'Pendientes Quoted',
-      kpiPercentLabel: '% Pendiente (Quoted)',
-      kpiProjectsLabel: 'Proyectos con compras pendientes',
-      topProjectsTitle: 'Top proyectos con compras pendientes',
-      projectsDatasetLabel: 'Compras pendientes',
-      loadingMessage: 'Cargando compras pendientes...',
-      emptyMessage: 'No se encontraron compras pendientes para el proyecto buscado.',
-      errorMeta: 'No fue posible cargar el reporte de compras pendientes.',
-      errorTable: 'Error al cargar datos de compras pendientes.',
-      excelTitle: 'Reporte de Compras Pendientes',
-      excelPendingKpiLabel: 'Compras pendientes (Quoted)',
-      excelTopSectionTitle: 'Top proyectos con compras pendientes (filtro actual)',
-      excelFilePrefix: 'reporte_compras_pendientes',
+      pendingLabel: 'pending purchases (Quoted)',
+      kpiPendingLabel: 'Pending Quotes',
+      kpiPercentLabel: '% Pending (Quoted)',
+      kpiProjectsLabel: 'Projects with Pending Purchases',
+      topProjectsTitle: 'Top Projects with Pending Purchases',
+      projectsDatasetLabel: 'Pending Purchases',
+      loadingMessage: 'Loading pending purchases...',
+      emptyMessage: 'No pending purchases were found for the searched project.',
+      errorMeta: 'Unable to load the pending purchases report.',
+      errorTable: 'Error loading pending purchases data.',
+      excelTitle: 'Pending Purchases Report',
+      excelPendingKpiLabel: 'Pending Purchases (Quoted)',
+      excelTopSectionTitle: 'Top projects with pending purchases (current filter)',
+      excelFilePrefix: 'pending_purchases_report',
       statusFilter: (status) => isQuotedStatus(status)
     },
     'po-pending-delivery': {
-      pendingLabel: 'compras pendientes de entrega (Pending Delivery)',
-      kpiPendingLabel: 'Pendientes Delivery',
-      kpiPercentLabel: '% Pendiente (Delivery)',
-      kpiProjectsLabel: 'Proyectos con pendientes de entrega',
-      topProjectsTitle: 'Top proyectos con pendientes de entrega',
-      projectsDatasetLabel: 'Pendientes de entrega',
-      loadingMessage: 'Cargando compras pendientes de entrega...',
-      emptyMessage: 'No se encontraron compras pendientes de entrega para el proyecto buscado.',
-      errorMeta: 'No fue posible cargar el reporte de pendientes de entrega.',
-      errorTable: 'Error al cargar datos de pendientes de entrega.',
-      excelTitle: 'Reporte de POs Pendientes de Entrega',
-      excelPendingKpiLabel: 'Compras pendientes de entrega (Pending Delivery)',
-      excelTopSectionTitle: 'Top proyectos con pendientes de entrega (filtro actual)',
-      excelFilePrefix: 'reporte_pos_pendientes_entrega',
+      pendingLabel: 'pending purchase orders (Pending Delivery)',
+      kpiPendingLabel: 'Pending Delivery',
+      kpiPercentLabel: '% Pending (Delivery)',
+      kpiProjectsLabel: 'Projects with Pending Delivery',
+      topProjectsTitle: 'Top Projects with Pending Delivery',
+      projectsDatasetLabel: 'Pending Delivery',
+      loadingMessage: 'Loading pending delivery purchase orders...',
+      emptyMessage: 'No pending delivery orders were found for the searched project.',
+      errorMeta: 'Unable to load the pending delivery report.',
+      errorTable: 'Error loading pending delivery data.',
+      excelTitle: 'Pending Delivery POs Report',
+      excelPendingKpiLabel: 'Pending Delivery Purchase Orders',
+      excelTopSectionTitle: 'Top projects with pending delivery (current filter)',
+      excelFilePrefix: 'pending_delivery_pos_report',
       statusFilter: (status) => isPendingDeliveryStatus(status)
     },
     'po-closed': {
-      pendingLabel: 'POs cerradas (Delivered)',
-      kpiPendingLabel: 'POs Cerradas',
-      kpiPercentLabel: '% Cerradas',
-      kpiProjectsLabel: 'Proyectos con PO cerradas',
-      topProjectsTitle: 'Top proyectos con POs cerradas',
-      projectsDatasetLabel: 'POs cerradas',
-      loadingMessage: 'Cargando POs cerradas...',
-      emptyMessage: 'No se encontraron POs cerradas para el proyecto buscado.',
-      errorMeta: 'No fue posible cargar el reporte de POs cerradas.',
-      errorTable: 'Error al cargar datos de POs cerradas.',
-      excelTitle: 'Reporte de POs Cerradas',
-      excelPendingKpiLabel: 'POs cerradas (Delivered)',
-      excelTopSectionTitle: 'Top proyectos con POs cerradas (filtro actual)',
-      excelFilePrefix: 'reporte_pos_cerradas',
+      pendingLabel: 'closed POs (Delivered)',
+      kpiPendingLabel: 'Closed POs',
+      kpiPercentLabel: '% Closed',
+      kpiProjectsLabel: 'Projects with Closed POs',
+      topProjectsTitle: 'Top Projects with Closed POs',
+      projectsDatasetLabel: 'Closed POs',
+      loadingMessage: 'Loading closed POs...',
+      emptyMessage: 'No closed POs were found for the searched project.',
+      errorMeta: 'Unable to load the closed POs report.',
+      errorTable: 'Error loading closed POs data.',
+      excelTitle: 'Closed POs Report',
+      excelPendingKpiLabel: 'Closed POs (Delivered)',
+      excelTopSectionTitle: 'Top projects with closed POs (current filter)',
+      excelFilePrefix: 'closed_pos_report',
       statusFilter: (status) => isDeliveredStatus(status)
     }
   });
@@ -122,9 +122,9 @@ document.addEventListener('DOMContentLoaded', () => {
         '--report-header-from': '#123A67',
         '--report-header-to': '#1F6DB5',
         '--report-header-text': '#FFFFFF',
-        '--report-card-from': '#EAF3FF',
-        '--report-card-to': '#D6E8FF',
-        '--report-card-accent': '#0E74C8',
+        '--report-card-from': '#B6D8FF',
+        '--report-card-to': '#82B8F5',
+        '--report-card-accent': '#006FD6',
         '--report-chart-card': '#FFFFFF',
         '--report-progress-from': '#0E74C8',
         '--report-progress-to': '#FF9F1C',
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         '--report-filter-btn-hover-to': '#FF9F1C',
         '--report-toolbar-from': '#EEF5FF',
         '--report-toolbar-to': '#DDEBFF',
-        '--report-toolbar-border': '#AFC7E8',
+        '--report-toolbar-border': '#4F8AC5',
         '--report-label-color': '#1F2937',
         '--report-field-bg': '#FFFFFF',
         '--report-field-text': '#2F3E4D',
@@ -144,19 +144,19 @@ document.addEventListener('DOMContentLoaded', () => {
         '--report-print-text': '#111827',
         '--report-panel-from': '#F4F9FF',
         '--report-panel-to': '#EAF2FF',
-        '--report-panel-border': '#C5D9F1',
+        '--report-panel-border': '#6EA4D8',
         '--report-panel-shadow': 'rgba(14, 116, 200, 0.14)',
         '--report-meta-text': '#5F6E7D',
         '--report-kpi-label-text': '#334155',
         '--report-kpi-value-text': '#0F172A',
-        '--report-kpi-emphasis-glow': 'rgba(14, 116, 200, 0.24)',
+        '--report-kpi-emphasis-glow': 'rgba(0, 111, 214, 0.46)',
         '--report-percent-strip-bg': '#FFFFFF',
-        '--report-percent-strip-border': '#A8C7EB',
+        '--report-percent-strip-border': '#5E96CD',
         '--report-percent-title': '#2F3E4D',
         '--report-progress-bg': '#DFEBF8',
         '--report-percent-caption': '#6B7C8D',
         '--report-chart-title': '#2F3E4D',
-        '--report-chart-border': '#C5D9F1',
+        '--report-chart-border': '#6EA4D8',
         '--report-table-border': '#C3D7EF',
         '--report-table-text': '#2F3E4D',
         '--report-row-hover': 'rgba(14, 116, 200, 0.12)',
@@ -194,54 +194,54 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     ocean: {
       cssVars: {
-        '--report-header-from': '#0E7490',
-        '--report-header-to': '#2563EB',
+        '--report-header-from': '#111111',
+        '--report-header-to': '#3A3A3A',
         '--report-header-text': '#FFFFFF',
-        '--report-card-from': '#E5FAFF',
-        '--report-card-to': '#D5E9FF',
-        '--report-card-accent': '#0EA5E9',
+        '--report-card-from': '#5C5C5C',
+        '--report-card-to': '#232323',
+        '--report-card-accent': '#D32F2F',
         '--report-chart-card': '#FFFFFF',
-        '--report-progress-from': '#00A6A6',
-        '--report-progress-to': '#22C55E',
-        '--report-filter-btn-from': '#0EA5E9',
-        '--report-filter-btn-to': '#2563EB',
-        '--report-filter-btn-hover-from': '#22C1FF',
-        '--report-filter-btn-hover-to': '#0EA5E9',
-        '--report-toolbar-from': '#ECFEFF',
-        '--report-toolbar-to': '#E0EDFF',
-        '--report-toolbar-border': '#B7D7E8',
-        '--report-label-color': '#1F2937',
+        '--report-progress-from': '#2F2F2F',
+        '--report-progress-to': '#D32F2F',
+        '--report-filter-btn-from': '#4A4A4A',
+        '--report-filter-btn-to': '#1F1F1F',
+        '--report-filter-btn-hover-from': '#616161',
+        '--report-filter-btn-hover-to': '#333333',
+        '--report-toolbar-from': '#F5F5F5',
+        '--report-toolbar-to': '#E4E4E4',
+        '--report-toolbar-border': '#8A8A8A',
+        '--report-label-color': '#1A1A1A',
         '--report-field-bg': '#FFFFFF',
-        '--report-field-text': '#2E3A45',
-        '--report-field-border': '#C7DDEA',
-        '--report-field-focus': '#0EA5E9',
-        '--report-field-focus-ring': 'rgba(14, 165, 233, 0.24)',
+        '--report-field-text': '#1F1F1F',
+        '--report-field-border': '#8D8D8D',
+        '--report-field-focus': '#D32F2F',
+        '--report-field-focus-ring': 'rgba(211, 47, 47, 0.24)',
         '--report-print-text': '#111827',
-        '--report-panel-from': '#F2FCFF',
-        '--report-panel-to': '#EAF4FF',
-        '--report-panel-border': '#C5DFEA',
-        '--report-panel-shadow': 'rgba(14, 165, 233, 0.14)',
-        '--report-meta-text': '#7B8794',
-        '--report-kpi-label-text': '#334155',
-        '--report-kpi-value-text': '#0F172A',
-        '--report-kpi-emphasis-glow': 'rgba(14, 165, 233, 0.22)',
+        '--report-panel-from': '#F8F8F8',
+        '--report-panel-to': '#ECECEC',
+        '--report-panel-border': '#8D8D8D',
+        '--report-panel-shadow': 'rgba(0, 0, 0, 0.2)',
+        '--report-meta-text': '#4E4E4E',
+        '--report-kpi-label-text': '#F2F2F2',
+        '--report-kpi-value-text': '#FFFFFF',
+        '--report-kpi-emphasis-glow': 'rgba(211, 47, 47, 0.4)',
         '--report-percent-strip-bg': '#FFFFFF',
-        '--report-percent-strip-border': '#BFDCE8',
-        '--report-percent-title': '#2E3A45',
-        '--report-progress-bg': '#DFF4FA',
-        '--report-percent-caption': '#7B8794',
-        '--report-chart-title': '#2E3A45',
-        '--report-chart-border': '#C5DFEA',
-        '--report-table-border': '#C4DEE9',
-        '--report-table-text': '#2E3A45',
-        '--report-row-hover': 'rgba(14, 165, 233, 0.1)',
+        '--report-percent-strip-border': '#8D8D8D',
+        '--report-percent-title': '#1F1F1F',
+        '--report-progress-bg': '#DADADA',
+        '--report-percent-caption': '#4E4E4E',
+        '--report-chart-title': '#1F1F1F',
+        '--report-chart-border': '#8D8D8D',
+        '--report-table-border': '#8D8D8D',
+        '--report-table-text': '#1F1F1F',
+        '--report-row-hover': 'rgba(211, 47, 47, 0.12)',
         '--report-popover-bg': '#FFFFFF',
-        '--report-popover-border': '#BFD9E7',
-        '--report-popover-input-bg': '#F2FCFF',
-        '--report-popover-input-border': '#BBD6E6',
-        '--report-popover-input-text': '#2E3A45',
-        '--report-popover-input-placeholder': '#7B8794',
-        '--report-placeholder-text': '#617181'
+        '--report-popover-border': '#8D8D8D',
+        '--report-popover-input-bg': '#F8F8F8',
+        '--report-popover-input-border': '#8D8D8D',
+        '--report-popover-input-text': '#1F1F1F',
+        '--report-popover-input-placeholder': '#666666',
+        '--report-placeholder-text': '#555555'
       },
       excel: {
         headerBg: 'EAE4FA',
@@ -254,17 +254,17 @@ document.addEventListener('DOMContentLoaded', () => {
         gridBorder: '8791A6'
       },
       chart: {
-        quoted: '#0EA5E9',
-        pr: '#2563EB',
-        shopping: '#00A6A6',
-        po: '#22C1FF',
-        delivered: '#22C55E',
-        other: '#14B8A6',
-        projectsBar: '#0EA5E9',
-        legendText: '#2E3A45',
-        ticks: '#2E3A45',
-        gridMajor: 'rgba(14, 165, 233, 0.18)',
-        gridMinor: 'rgba(14, 165, 233, 0.1)'
+        quoted: '#D32F2F',
+        pr: '#111111',
+        shopping: '#4A4A4A',
+        po: '#8D8D8D',
+        delivered: '#F3F3F3',
+        other: '#6E6E6E',
+        projectsBar: '#D32F2F',
+        legendText: '#1F1F1F',
+        ticks: '#1F1F1F',
+        gridMajor: 'rgba(31, 31, 31, 0.22)',
+        gridMinor: 'rgba(211, 47, 47, 0.12)'
       }
     },
     carbon: {
@@ -272,9 +272,9 @@ document.addEventListener('DOMContentLoaded', () => {
         '--report-header-from': '#0F172A',
         '--report-header-to': '#312E81',
         '--report-header-text': '#E5E7EB',
-        '--report-card-from': '#E8EEFF',
-        '--report-card-to': '#D7E1FF',
-        '--report-card-accent': '#4F46E5',
+        '--report-card-from': '#2B3550',
+        '--report-card-to': '#161D2F',
+        '--report-card-accent': '#7B61FF',
         '--report-chart-card': '#FFFFFF',
         '--report-progress-from': '#4338CA',
         '--report-progress-to': '#06B6D4',
@@ -297,9 +297,9 @@ document.addEventListener('DOMContentLoaded', () => {
         '--report-panel-border': '#B9C6E6',
         '--report-panel-shadow': 'rgba(79, 70, 229, 0.16)',
         '--report-meta-text': '#475569',
-        '--report-kpi-label-text': '#334155',
-        '--report-kpi-value-text': '#0F172A',
-        '--report-kpi-emphasis-glow': 'rgba(79, 70, 229, 0.2)',
+        '--report-kpi-label-text': '#C9D7F5',
+        '--report-kpi-value-text': '#F8FAFC',
+        '--report-kpi-emphasis-glow': 'rgba(123, 97, 255, 0.45)',
         '--report-percent-strip-bg': '#FFFFFF',
         '--report-percent-strip-border': '#B8C6E6',
         '--report-percent-title': '#0F172A',
@@ -479,12 +479,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function filterClosedPOs(rows) {
-    // Agrupar por número de PO
+    // Group by PO number
     const poMap = new Map();
     
     rows.forEach((row) => {
       const poNumber = row.po || '';
-      if (!poNumber) return; // Ignorar items sin PO
+      if (!poNumber) return; // Ignore items without a PO
       
       if (!poMap.has(poNumber)) {
         poMap.set(poNumber, []);
@@ -492,13 +492,13 @@ document.addEventListener('DOMContentLoaded', () => {
       poMap.get(poNumber).push(row);
     });
 
-    // Retornar solo un item representativo por cada PO donde TODOS los items están delivered
+    // Return only one representative item per PO where ALL items are delivered
     const closedPOs = [];
     poMap.forEach((items, poNumber) => {
       const allDelivered = items.every((item) => isDeliveredStatus(item.status));
       
       if (allDelivered) {
-        // Usar el primer item como representante del PO
+        // Use the first item as the PO representative
         closedPOs.push(items[0]);
       }
     });
@@ -526,18 +526,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const searchLabel = document.querySelector('label[for="pendingProjectSearch"]');
     if (searchLabel) {
-      searchLabel.textContent = isSpending ? 'Buscar proyecto o network' : 'Buscar proyecto';
+      searchLabel.textContent = isSpending ? 'Search project or network' : 'Search project';
     }
 
     const quantityHeader = filterQuantityInput?.closest('th')?.querySelector('span');
     if (quantityHeader) {
-      quantityHeader.textContent = isSpending ? 'Monto' : 'Cantidad';
+      quantityHeader.textContent = isSpending ? 'Amount' : 'Quantity';
     }
     if (filterQuantityInput) {
-      filterQuantityInput.placeholder = isSpending ? 'Buscar monto' : 'Buscar cantidad';
+      filterQuantityInput.placeholder = isSpending ? 'Search amount' : 'Search quantity';
     }
     
-    // Mostrar/ocultar columna de PO
+    // Show/hide PO column
     const poColumnHeader = document.getElementById('poColumnHeader');
     if (poColumnHeader) {
       poColumnHeader.style.display = shouldShowPoColumn ? '' : 'none';
@@ -788,7 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
     rows.forEach((row) => {
       const noProject = String(row.no_project || '').trim();
       const projectName = String(row.project_name || '').trim();
-      const label = noProject ? `${noProject}${projectName ? ` - ${projectName}` : ''}` : 'Sin proyecto';
+      const label = noProject ? `${noProject}${projectName ? ` - ${projectName}` : ''}` : 'No project';
       const increment = spendingMode ? parseAmount(row.total_amount) : 1;
       projectTotals.set(label, (projectTotals.get(label) || 0) + increment);
     });
@@ -808,7 +808,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const visibleSpent = currentFilteredRows.reduce((sum, row) => sum + parseAmount(row.total_amount), 0);
     const pendingPercent = totalPurchases > 0 ? (totalPending / totalPurchases) * 100 : 0;
     const visiblePercent = totalPending > 0 ? (visiblePending / totalPending) * 100 : 0;
-    const selectedProjectLabel = projectSearchInput?.value?.trim() || 'Todos los proyectos';
+    const selectedProjectLabel = projectSearchInput?.value?.trim() || 'All projects';
     const pendingLabel = getPendingItemLabel();
     const spendingMode = isSpendingMode();
 
@@ -817,36 +817,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const kpiRows = spendingMode
       ? [
-          ['Total registros de gasto (proyectos activos)', totalPurchases],
-          ['Gasto total', formatCurrency(totalSpent)],
-          ['Ticket promedio', formatCurrency(totalPending > 0 ? (totalSpent / totalPending) : 0)],
-          ['Gasto visible (filtro actual)', formatCurrency(visibleSpent)],
-          ['Cobertura del filtro', `${(totalSpent > 0 ? (visibleSpent / totalSpent) * 100 : 0).toFixed(1)}%`]
+          ['Total expense records (active projects)', totalPurchases],
+          ['Total expense', formatCurrency(totalSpent)],
+          ['Average ticket', formatCurrency(totalPending > 0 ? (totalSpent / totalPending) : 0)],
+          ['Visible expense (current filter)', formatCurrency(visibleSpent)],
+          ['Filter coverage', `${(totalSpent > 0 ? (visibleSpent / totalSpent) * 100 : 0).toFixed(1)}%`]
         ]
       : [
-          ['Total compras (proyectos activos)', totalPurchases],
+          ['Total purchases (active projects)', totalPurchases],
           [config.excelPendingKpiLabel, totalPending],
-          [`${pendingLabel} % (proyectos activos)`, `${pendingPercent.toFixed(1)}%`],
-          [`${pendingLabel} visibles (filtro actual)`, visiblePending],
-          ['Cobertura del filtro', `${visiblePercent.toFixed(1)}%`]
+          [`${pendingLabel} % (active projects)`, `${pendingPercent.toFixed(1)}%`],
+          [`Visible ${pendingLabel}`, visiblePending],
+          ['Filter coverage', `${visiblePercent.toFixed(1)}%`]
         ];
 
     const rows = [
       [config.excelTitle],
-      [`Generado: ${new Date().toLocaleString()}`],
-      [`Filtro de proyecto: ${selectedProjectLabel}`],
+      [`Generated: ${new Date().toLocaleString()}`],
+      [`Project filter: ${selectedProjectLabel}`],
       [],
-      ['Resumen Ejecutivo'],
-      ['Indicador', 'Valor'],
+      ['Executive Summary'],
+      ['Metric', 'Value'],
       ...kpiRows,
       [],
-      ['Distribucion de estatus (general)'],
-      ['Estatus', 'Cantidad', 'Porcentaje'],
+      ['Status Distribution (overall)'],
+      ['Status', 'Count', 'Percentage'],
       ...statusDistributionRows,
       [],
       [config.excelTopSectionTitle],
-      ['Proyecto', spendingMode ? 'Monto' : pendingLabel],
-      ...(topProjectsRows.length ? topProjectsRows : [['Sin datos para el filtro actual', 0]])
+      ['Project', spendingMode ? 'Amount' : pendingLabel],
+      ...(topProjectsRows.length ? topProjectsRows : [['No data for the current filter', 0]])
     ];
 
     return rows;
@@ -856,12 +856,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const config = getActiveReportConfig();
 
     if (typeof ExcelJS === 'undefined') {
-      alert('No se pudo cargar el motor de ExcelJS. Recarga la pagina e intenta de nuevo.');
+      alert('Could not load the ExcelJS engine. Refresh the page and try again.');
       return;
     }
 
     if (!Array.isArray(currentFilteredRows) || currentFilteredRows.length === 0) {
-      alert('No hay datos visibles para exportar a Excel.');
+      alert('No visible data to export to Excel.');
       return;
     }
 
@@ -893,10 +893,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const generatedAt = new Date().toLocaleString();
-    const selectedProjectLabel = projectSearchInput?.value?.trim() || 'Todos los proyectos';
+    const selectedProjectLabel = projectSearchInput?.value?.trim() || 'All projects';
 
-    summarySheet.getCell('A2').value = `Generado: ${generatedAt}`;
-    summarySheet.getCell('A3').value = `Filtro de proyecto: ${selectedProjectLabel}`;
+    summarySheet.getCell('A2').value = `Generated: ${generatedAt}`;
+    summarySheet.getCell('A3').value = `Project filter: ${selectedProjectLabel}`;
     summarySheet.getCell('A2').font = { name: 'Calibri', size: 11 };
     summarySheet.getCell('A3').font = { name: 'Calibri', size: 11 };
 
@@ -908,25 +908,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const pendingPercent = totalPurchases > 0 ? (totalPending / totalPurchases) * 100 : 0;
     const visiblePercent = totalPending > 0 ? (visiblePending / totalPending) * 100 : 0;
 
-    summarySheet.getCell('A5').value = 'Resumen Ejecutivo';
+    summarySheet.getCell('A5').value = 'Executive Summary';
     summarySheet.getCell('A5').font = { bold: true, size: 13, color: { argb: argb(theme.excel.sectionTitle) } };
 
     const pendingLabel = getPendingItemLabel();
     const spendingMode = isSpendingMode();
     const kpiRows = spendingMode
       ? [
-          ['Total registros de gasto (proyectos activos)', totalPurchases],
-          ['Gasto total', formatCurrency(totalSpent)],
-          ['Ticket promedio', formatCurrency(totalPending > 0 ? (totalSpent / totalPending) : 0)],
-          ['Gasto visible (filtro actual)', formatCurrency(visibleSpent)],
-          ['Cobertura del filtro', `${(totalSpent > 0 ? (visibleSpent / totalSpent) * 100 : 0).toFixed(1)}%`]
+          ['Total expense records (active projects)', totalPurchases],
+          ['Total expense', formatCurrency(totalSpent)],
+          ['Average ticket', formatCurrency(totalPending > 0 ? (totalSpent / totalPending) : 0)],
+          ['Visible expense (current filter)', formatCurrency(visibleSpent)],
+          ['Filter coverage', `${(totalSpent > 0 ? (visibleSpent / totalSpent) * 100 : 0).toFixed(1)}%`]
         ]
       : [
-          ['Total compras (proyectos activos)', totalPurchases],
+          ['Total purchases (active projects)', totalPurchases],
           [config.excelPendingKpiLabel, totalPending],
-          [`${pendingLabel} % (proyectos activos)`, `${pendingPercent.toFixed(1)}%`],
-          [`${pendingLabel} visibles (filtro actual)`, visiblePending],
-          ['Cobertura del filtro', `${visiblePercent.toFixed(1)}%`]
+          [`${pendingLabel} % (active projects)`, `${pendingPercent.toFixed(1)}%`],
+          [`Visible ${pendingLabel}`, visiblePending],
+          ['Filter coverage', `${visiblePercent.toFixed(1)}%`]
         ];
 
     kpiRows.forEach((item, index) => {
@@ -946,11 +946,11 @@ document.addEventListener('DOMContentLoaded', () => {
     applyExcelTableBorders(summarySheet, 6, 5 + kpiRows.length, 1, 2, theme);
 
     const statusStart = 13;
-    summarySheet.getCell(`A${statusStart}`).value = 'Distribucion de estatus (general)';
+    summarySheet.getCell(`A${statusStart}`).value = 'Status Distribution (overall)';
     summarySheet.getCell(`A${statusStart}`).font = { bold: true, size: 12, color: { argb: argb(theme.excel.sectionTitle) } };
-    summarySheet.getCell(`A${statusStart + 1}`).value = 'Estatus';
-    summarySheet.getCell(`B${statusStart + 1}`).value = 'Cantidad';
-    summarySheet.getCell(`C${statusStart + 1}`).value = 'Porcentaje';
+    summarySheet.getCell(`A${statusStart + 1}`).value = 'Status';
+    summarySheet.getCell(`B${statusStart + 1}`).value = 'Count';
+    summarySheet.getCell(`C${statusStart + 1}`).value = 'Percentage';
 
     ['A', 'B', 'C'].forEach((col) => {
       applyHeaderCellStyle(summarySheet.getCell(`${col}${statusStart + 1}`), theme);
@@ -974,21 +974,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const topStart = statusStart + 10;
     summarySheet.getCell(`A${topStart}`).value = config.excelTopSectionTitle;
     summarySheet.getCell(`A${topStart}`).font = { bold: true, size: 12, color: { argb: argb(theme.excel.sectionTitle) } };
-    summarySheet.getCell(`A${topStart + 1}`).value = 'Proyecto';
-    summarySheet.getCell(`B${topStart + 1}`).value = spendingMode ? 'Monto' : pendingLabel;
+    summarySheet.getCell(`A${topStart + 1}`).value = 'Project';
+    summarySheet.getCell(`B${topStart + 1}`).value = spendingMode ? 'Amount' : pendingLabel;
 
     ['A', 'B'].forEach((col) => {
       applyHeaderCellStyle(summarySheet.getCell(`${col}${topStart + 1}`), theme);
     });
 
-    (topProjectsRows.length ? topProjectsRows : [['Sin datos para el filtro actual', 0]]).forEach((item, index) => {
+    (topProjectsRows.length ? topProjectsRows : [['No data for the current filter', 0]]).forEach((item, index) => {
       const rowNumber = topStart + 2 + index;
       summarySheet.getCell(`A${rowNumber}`).value = item[0];
       summarySheet.getCell(`B${rowNumber}`).value = item[1];
       summarySheet.getCell(`B${rowNumber}`).alignment = { horizontal: 'right' };
     });
 
-    const topRowsCount = (topProjectsRows.length ? topProjectsRows : [['Sin datos para el filtro actual', 0]]).length;
+    const topRowsCount = (topProjectsRows.length ? topProjectsRows : [['No data for the current filter', 0]]).length;
     applyExcelTableBorders(summarySheet, topStart + 1, topStart + 1 + topRowsCount, 1, 2, theme);
 
     summarySheet.views = [{ state: 'frozen', ySplit: 5 }];
@@ -1022,21 +1022,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const detailColumns = [
-      { header: 'Proyecto', key: 'project_name', width: 32 },
-      { header: 'No. Proyecto', key: 'no_project', width: 16 }
+      { header: 'Project', key: 'project_name', width: 32 },
+      { header: 'Project No.', key: 'no_project', width: 16 }
     ];
     
     const showPoColumnInExcel = activeReportType === 'po-closed' || activeReportType === 'po-pending-delivery';
     if (showPoColumnInExcel) {
-      detailColumns.push({ header: 'No. PO', key: 'po', width: 14 });
+      detailColumns.push({ header: 'PO No.', key: 'po', width: 14 });
     }
     
     detailColumns.push(
-      { header: 'No. QIS', key: 'no_qis', width: 14 },
-      { header: 'No. Parte', key: 'no_part', width: 18 },
-      { header: 'Descripcion', key: 'description', width: 42 },
-      { header: 'Proveedor', key: 'vendor_name', width: 26 },
-      { header: spendingMode ? 'Monto' : 'Cantidad', key: 'quantity', width: 12 }
+      { header: 'QIS No.', key: 'no_qis', width: 14 },
+      { header: 'Part No.', key: 'no_part', width: 18 },
+      { header: 'Description', key: 'description', width: 42 },
+      { header: 'Vendor', key: 'vendor_name', width: 26 },
+      { header: spendingMode ? 'Amount' : 'Quantity', key: 'quantity', width: 12 }
     );
     
     detailSheet.columns = detailColumns;
@@ -1049,7 +1049,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     detailSheet.getRow(1).height = 22;
     
-    // Aplicar estilos al encabezado solo a las primeras 8 columnas
+    // Apply header styles only to the first 8 columns
     const numDetailColumns = detailColumns.length;
     for (let col = 1; col <= numDetailColumns; col += 1) {
       applyHeaderCellStyle(detailSheet.getRow(1).getCell(col), theme);
@@ -1077,7 +1077,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     detailSheet.views = [{ state: 'frozen', ySplit: 1 }];
     
-    const quantityColumnIndex = detailColumns.length; // La cantidad siempre es la última columna
+    const quantityColumnIndex = detailColumns.length; // Quantity is always the last column
     detailSheet.autoFilter = {
       from: { row: 1, column: 1 },
       to: { row: 1, column: quantityColumnIndex }
@@ -1120,12 +1120,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function exportDeadInventoryToExcel() {
     if (typeof ExcelJS === 'undefined') {
-      alert('No se pudo cargar el motor de ExcelJS. Recarga la página e intenta de nuevo.');
+      alert('Could not load the ExcelJS engine. Refresh the page and try again.');
       return;
     }
 
     if (!Array.isArray(allDeadInventory) || allDeadInventory.length === 0) {
-      alert('No hay datos para exportar a Excel.');
+      alert('No data available to export to Excel.');
       return;
     }
 
@@ -1148,7 +1148,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     summarySheet.mergeCells('A1:D1');
     const titleCell = summarySheet.getCell('A1');
-    titleCell.value = 'Reporte de Inventario Muerto';
+    titleCell.value = 'Dead Inventory Report';
     titleCell.font = { name: 'Calibri', bold: true, size: 18, color: { argb: argb(theme.excel.textLight) } };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
     titleCell.fill = {
@@ -1158,22 +1158,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const generatedAt = new Date().toLocaleString();
-    summarySheet.getCell('A2').value = `Generado: ${generatedAt}`;
+    summarySheet.getCell('A2').value = `Generated: ${generatedAt}`;
     summarySheet.getCell('A2').font = { name: 'Calibri', size: 11 };
 
     const deadCount = allDeadInventory.length;
     const deadQuantity = allDeadInventory.reduce((sum, row) => sum + (parseInt(row.available) || 0), 0);
     const deadPercent = totalItemsInStock > 0 ? ((deadCount / totalItemsInStock) * 100).toFixed(1) : 0;
 
-    summarySheet.getCell('A4').value = 'Resumen Ejecutivo';
+    summarySheet.getCell('A4').value = 'Executive Summary';
     summarySheet.getCell('A4').font = { bold: true, size: 13, color: { argb: argb(theme.excel.sectionTitle) } };
 
     const kpiRows = [
-      ['Total items en stock (números de parte únicos)', totalItemsInStock],
-      ['Cantidad total en stock', totalQuantityInStock],
-      ['Items sin movimiento en 3 meses', deadCount],
-      ['Cantidad muerta en stock', deadQuantity],
-      ['% Items muertos', `${deadPercent}%`]
+      ['Total items in stock (unique part numbers)', totalItemsInStock],
+      ['Total quantity in stock', totalQuantityInStock],
+      ['Items without movement in 3 months', deadCount],
+      ['Dead stock quantity', deadQuantity],
+      ['% Dead items', `${deadPercent}%`]
     ];
 
     kpiRows.forEach((item, index) => {
@@ -1194,12 +1194,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Age distribution section
     const ageStart = 11;
-    summarySheet.getCell(`A${ageStart}`).value = 'Distribución por antigüedad';
+    summarySheet.getCell(`A${ageStart}`).value = 'Age Distribution';
     summarySheet.getCell(`A${ageStart}`).font = { bold: true, size: 12, color: { argb: argb(theme.excel.sectionTitle) } };
 
     const ageData = analyzeDeadInventoryAge();
     const ageRows = [
-      ['Rango de antigüedad', 'Cantidad de items']
+      ['Age range', 'Item count']
     ];
     ageData.labels.forEach((label, idx) => {
       ageRows.push([label, ageData.data[idx]]);
@@ -1228,7 +1228,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     summarySheet.views = [{ state: 'frozen', ySplit: 5 }];
 
-    // Agregar gráficas como imágenes
+    // Add charts as images
     const ageCanvas = document.getElementById('deadInventoryAgeChart');
     if (ageCanvas && ageCanvas.toDataURL) {
       try {
@@ -1241,7 +1241,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ext: { width: 340, height: 340 }
         });
       } catch (err) {
-        console.warn('No se pudo agregar gráfica de antigüedad:', err);
+        console.warn('Could not add age chart:', err);
       }
     }
 
@@ -1257,20 +1257,20 @@ document.addEventListener('DOMContentLoaded', () => {
           ext: { width: 460, height: 260 }
         });
       } catch (err) {
-        console.warn('No se pudo agregar gráfica de top items:', err);
+        console.warn('Could not add top items chart:', err);
       }
     }
 
     // Data sheet
-    const sheet = workbook.addWorksheet('Inventario Muerto', {
+    const sheet = workbook.addWorksheet('Dead Inventory', {
       properties: { defaultRowHeight: 18 }
     });
 
     sheet.columns = [
       { header: 'No. Parte', key: 'no_part', width: 18 },
-      { header: 'Descripcion', key: 'description', width: 42 },
-      { header: 'Cantidad en Stock', key: 'available', width: 18 },
-      { header: 'Último Movimiento', key: 'last_movement_date', width: 20 }
+      { header: 'Description', key: 'description', width: 42 },
+      { header: 'Stock Quantity', key: 'available', width: 18 },
+      { header: 'Last Movement', key: 'last_movement_date', width: 20 }
     ];
 
     sheet.getRow(1).font = { bold: true, color: { argb: argb(theme.excel.textLight) } };
@@ -1425,7 +1425,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (pendingPercentProgress) {
         pendingPercentProgress.setAttribute('aria-valuenow', boundedVisiblePct.toFixed(1));
       }
-      pendingPercentCaption.textContent = `${toPercent(visiblePct)} del gasto visible con el filtro.`;
+      pendingPercentCaption.textContent = `${toPercent(visiblePct)} of the visible expense with the filter.`;
       return;
     }
 
@@ -1447,7 +1447,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (pendingPercentProgress) {
       pendingPercentProgress.setAttribute('aria-valuenow', boundedVisiblePct.toFixed(1));
     }
-    pendingPercentCaption.textContent = `${toPercent(visiblePct)} de las ${config.pendingLabel} visibles con el filtro.`;
+    pendingPercentCaption.textContent = `${toPercent(visiblePct)} of the visible ${config.pendingLabel} with the filter.`;
   }
 
   function updateStatusChart() {
@@ -1499,6 +1499,19 @@ document.addEventListener('DOMContentLoaded', () => {
               boxWidth: 14,
               boxHeight: 14
             }
+          },
+          tooltip: {
+            callbacks: {
+              label(context) {
+                const dataset = context.dataset || {};
+                const data = Array.isArray(dataset.data) ? dataset.data : [];
+                const total = data.reduce((sum, value) => sum + (Number(value) || 0), 0);
+                const value = Number(context.raw) || 0;
+                const pct = total > 0 ? (value / total) * 100 : 0;
+                const label = context.label || 'Sin etiqueta';
+                return `${label}: ${value} (${toPercent(pct)})`;
+              }
+            }
           }
         }
       }
@@ -1519,7 +1532,7 @@ document.addEventListener('DOMContentLoaded', () => {
     filteredRows.forEach((row) => {
       const noProject = String(row.no_project || '').trim();
       const projectName = String(row.project_name || '').trim();
-      const label = noProject ? `${noProject}${projectName ? ` - ${projectName}` : ''}` : 'Sin proyecto';
+      const label = noProject ? `${noProject}${projectName ? ` - ${projectName}` : ''}` : 'No project';
       const increment = spendingMode ? parseAmount(row.total_amount) : 1;
       projectTotals.set(label, (projectTotals.get(label) || 0) + increment);
     });
@@ -1605,7 +1618,7 @@ document.addEventListener('DOMContentLoaded', () => {
     pendingMeta.textContent = config.loadingMessage;
     pendingTableBody.innerHTML = `
       <tr>
-        <td colspan="${colspan}" class="text-center">Cargando datos...</td>
+        <td colspan="${colspan}" class="text-center">Loading data...</td>
       </tr>
     `;
 
@@ -1661,10 +1674,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let deadInventoryTopChart = null;
 
   async function loadDeadInventoryReport() {
-    deadInventoryMeta.textContent = 'Cargando inventario muerto...';
+    deadInventoryMeta.textContent = 'Loading dead inventory...';
     deadInventoryTableBody.innerHTML = `
       <tr>
-        <td colspan="4" class="text-center">Cargando datos...</td>
+        <td colspan="4" class="text-center">Loading data...</td>
       </tr>
     `;
 
@@ -1673,7 +1686,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const responseData = await response.json();
 
       if (!response.ok) {
-        throw new Error('Error al cargar inventario muerto');
+        throw new Error('Error loading dead inventory');
       }
 
       allDeadInventory = Array.isArray(responseData.deadInventory) ? responseData.deadInventory : [];
@@ -1681,17 +1694,17 @@ document.addEventListener('DOMContentLoaded', () => {
       totalQuantityInStock = responseData.totalQuantity || 0;
 
       if (allDeadInventory.length === 0) {
-        deadInventoryMeta.textContent = 'No se encontraron items con inventario muerto.';
+        deadInventoryMeta.textContent = 'No items with dead inventory were found.';
         document.getElementById('deadInventoryKpiTotal').textContent = totalItemsInStock.toLocaleString('es-ES') || '0';
         document.getElementById('deadInventoryKpiDead').textContent = '0';
         document.getElementById('deadInventoryKpiPercent').textContent = '0.0%';
         document.getElementById('deadInventoryKpiQuantity').textContent = '0';
         document.getElementById('deadInventoryPercentBar').style.width = '0%';
         document.getElementById('deadInventoryPercentProgress').setAttribute('aria-valuenow', '0');
-        document.getElementById('deadInventoryPercentCaption').textContent = '0% del inventario sin movimiento en 3 meses.';
+        document.getElementById('deadInventoryPercentCaption').textContent = '0% of inventory has not moved in 3 months.';
         deadInventoryTableBody.innerHTML = `
           <tr>
-            <td colspan="4" class="text-center">No hay inventario muerto en estos momentos.</td>
+            <td colspan="4" class="text-center">There is no dead inventory at the moment.</td>
           </tr>
         `;
         destroyDeadInventoryCharts();
@@ -1703,7 +1716,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderDeadInventoryCharts();
     } catch (error) {
       console.error('Error:', error);
-      deadInventoryMeta.textContent = 'No fue posible cargar el reporte de inventario muerto.';
+      deadInventoryMeta.textContent = 'Unable to load the dead inventory report.';
       deadInventoryTableBody.innerHTML = `
         <tr>
           <td colspan="4" class="text-center text-danger">Error al cargar datos</td>
@@ -1718,7 +1731,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const deadPercent = totalItemsInStock > 0 ? ((deadCount / totalItemsInStock) * 100).toFixed(1) : 0;
     const deadQuantity = allDeadInventory.reduce((sum, row) => sum + (parseInt(row.available) || 0), 0);
 
-    deadInventoryMeta.textContent = `Total de items sin movimiento en 3 meses: ${deadCount}`;
+    deadInventoryMeta.textContent = `Total items without movement in 3 months: ${deadCount}`;
     document.getElementById('deadInventoryKpiTotal').textContent = totalItemsInStock.toLocaleString('es-ES');
     document.getElementById('deadInventoryKpiDead').textContent = deadCount.toLocaleString('es-ES');
     document.getElementById('deadInventoryKpiPercent').textContent = `${deadPercent}%`;
@@ -1727,7 +1740,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const percentBar = document.getElementById('deadInventoryPercentBar');
     percentBar.style.width = `${deadPercent}%`;
     document.getElementById('deadInventoryPercentProgress').setAttribute('aria-valuenow', deadPercent);
-    document.getElementById('deadInventoryPercentCaption').textContent = `${deadPercent}% del inventario (${deadCount} de ${totalItemsInStock} items) sin movimiento en 3 meses.`;
+    document.getElementById('deadInventoryPercentCaption').textContent = `${deadPercent}% of inventory (${deadCount} of ${totalItemsInStock} items) has not moved in 3 months.`;
 
     deadInventoryTableBody.innerHTML = rowsToDisplay
       .map((row) => {
@@ -1774,6 +1787,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderDeadInventoryCharts() {
     destroyDeadInventoryCharts();
+    const theme = getActiveTheme();
 
     // Age distribution chart
     const ageData = analyzeDeadInventoryAge();
@@ -1787,7 +1801,7 @@ document.addEventListener('DOMContentLoaded', () => {
           datasets: [{
             label: 'Items por antigüedad',
             data: ageData.data,
-            backgroundColor: ['#4285F4', '#34A853', '#FBBC04', '#EA4335'],
+            backgroundColor: [theme.chart.quoted, theme.chart.pr, theme.chart.shopping, theme.chart.po],
             borderColor: '#fff',
             borderWidth: 2
           }]
@@ -1796,7 +1810,28 @@ document.addEventListener('DOMContentLoaded', () => {
           responsive: true,
           maintainAspectRatio: true,
           plugins: {
-            legend: { position: 'bottom', labels: { font: { size: 12 }, usePointStyle: true, padding: 15 } }
+            legend: {
+              position: 'bottom',
+              labels: {
+                color: theme.chart.legendText,
+                font: { size: 12 },
+                usePointStyle: true,
+                padding: 15
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label(context) {
+                  const dataset = context.dataset || {};
+                  const data = Array.isArray(dataset.data) ? dataset.data : [];
+                  const total = data.reduce((sum, value) => sum + (Number(value) || 0), 0);
+                  const value = Number(context.raw) || 0;
+                  const pct = total > 0 ? (value / total) * 100 : 0;
+                  const label = context.label || 'Sin etiqueta';
+                  return `${label}: ${value} (${toPercent(pct)})`;
+                }
+              }
+            }
           }
         }
       });
@@ -1812,7 +1847,7 @@ document.addEventListener('DOMContentLoaded', () => {
         data: {
           labels: topData.labels,
           datasets: [{
-            label: 'Cantidad en stock',
+            label: 'Stock quantity',
             data: topData.data,
             backgroundColor: '#4285F4',
             borderColor: '#1e40af',
@@ -1833,10 +1868,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function analyzeDeadInventoryAge() {
     const now = new Date();
     const ranges = {
-      '3-6 meses': { min: 90, max: 180, count: 0 },
-      '6-12 meses': { min: 180, max: 365, count: 0 },
-      '1-2 años': { min: 365, max: 730, count: 0 },
-      '2+ años': { min: 730, max: Infinity, count: 0 }
+      '3-6 months': { min: 90, max: 180, count: 0 },
+      '6-12 months': { min: 180, max: 365, count: 0 },
+      '1-2 years': { min: 365, max: 730, count: 0 },
+      '2+ years': { min: 730, max: Infinity, count: 0 }
     };
 
     allDeadInventory.forEach((row) => {
@@ -1904,7 +1939,7 @@ document.addEventListener('DOMContentLoaded', () => {
     pendingPanel.hidden = true;
     deadInventoryPanel.hidden = true;
     genericPanel.hidden = false;
-    genericMessage.textContent = 'Este tipo de reporte se encuentra en desarrollo.';
+    genericMessage.textContent = 'This report type is under development.';
   }
 
   reportTypeMenu.addEventListener('change', updateReportView);

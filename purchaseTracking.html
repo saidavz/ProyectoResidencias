@@ -15,6 +15,136 @@
       deniedMessage: 'Solo Administrador y Compras tienen acceso a esta seccion.'
     });
   </script>
+  <style>
+    #collapse .kpi-card {
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    #collapse .kpi-card:hover {
+      border-color: var(--kpi-accent, rgba(255, 255, 255, 0.35));
+      box-shadow: 0 0 0 1px var(--kpi-accent, rgba(255, 255, 255, 0.35)), 0 10px 24px rgba(0, 0, 0, 0.28);
+      transform: translateY(-1px);
+    }
+
+    #collapse .kpi-card.kpi-complete {
+      border-color: var(--kpi-accent, rgba(255, 255, 255, 0.45));
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+      filter: brightness(1.2) saturate(1.22);
+    }
+
+    #collapse .kpi-card.kpi-complete:hover {
+      border-color: var(--kpi-accent, rgba(255, 255, 255, 0.35));
+      box-shadow: 0 0 0 1px var(--kpi-accent, rgba(255, 255, 255, 0.35)), 0 14px 30px rgba(0, 0, 0, 0.35);
+      transform: translateY(-1px);
+    }
+
+    #collapse .kpi-card.kpi-complete .card-header {
+      border-bottom-color: rgba(255, 255, 255, 0.28);
+    }
+
+    #collapse .kpi-quoted.kpi-complete {
+      background: linear-gradient(145deg, rgba(59, 130, 246, 0.55) 0%, rgba(30, 64, 175, 0.48) 100%) !important;
+    }
+
+    #collapse .kpi-pr.kpi-complete {
+      background: linear-gradient(145deg, rgba(245, 158, 11, 0.56) 0%, rgba(180, 83, 9, 0.48) 100%) !important;
+    }
+
+    #collapse .kpi-shopping.kpi-complete {
+      background: linear-gradient(145deg, rgba(239, 68, 68, 0.56) 0%, rgba(127, 29, 29, 0.48) 100%) !important;
+    }
+
+    #collapse .kpi-po.kpi-complete {
+      background: linear-gradient(145deg, rgba(139, 92, 246, 0.56) 0%, rgba(76, 29, 149, 0.48) 100%) !important;
+    }
+
+    #collapse .kpi-delivered.kpi-complete {
+      background: linear-gradient(145deg, rgba(34, 197, 94, 0.56) 0%, rgba(21, 128, 61, 0.48) 100%) !important;
+    }
+
+    #collapse .kpi-spended.kpi-complete {
+      background: linear-gradient(145deg, rgba(156, 163, 175, 0.62) 0%, rgba(75, 85, 99, 0.56) 100%) !important;
+    }
+
+    #collapse .kpi-spent-amount.kpi-complete {
+      background: linear-gradient(145deg, rgba(156, 163, 175, 0.62) 0%, rgba(75, 85, 99, 0.56) 100%) !important;
+    }
+
+    #collapse .kpi-card .card-header,
+    #collapse .kpi-card .card-body,
+    #collapse .kpi-card h5 {
+      color: rgba(255, 255, 255, 0.76) !important;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.24);
+    }
+
+    #collapse .kpi-card.kpi-complete .card-header,
+    #collapse .kpi-card.kpi-complete .card-body,
+    #collapse .kpi-card.kpi-complete h5 {
+      color: #ffffff !important;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    #collapse .kpi-card .card-header {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+      background: transparent;
+      font-size: 20px !important;
+      font-weight: 400;
+      letter-spacing: 0.4px;
+      text-align: center;
+    }
+
+    #collapse .kpi-card h5 {
+      font-size: 40px !important;
+      font-weight: 300;
+      letter-spacing: 0.6px;
+      text-align: center;
+    }
+
+    #collapse #spentAmount {
+      font-size: 30px !important;
+      white-space: nowrap;
+      letter-spacing: 0.2px;
+    }
+
+    #collapse .kpi-quoted {
+      --kpi-accent: rgba(56, 189, 248, 0.9);
+      background: linear-gradient(145deg, rgba(59, 130, 246, 0.25) 0%, rgba(30, 64, 175, 0.22) 100%) !important;
+    }
+
+    #collapse .kpi-pr {
+      --kpi-accent: rgba(251, 191, 36, 0.9);
+      background: linear-gradient(145deg, rgba(245, 158, 11, 0.25) 0%, rgba(180, 83, 9, 0.22) 100%) !important;
+    }
+
+    #collapse .kpi-shopping {
+      --kpi-accent: rgba(248, 113, 113, 0.9);
+      background: linear-gradient(145deg, rgba(239, 68, 68, 0.25) 0%, rgba(127, 29, 29, 0.22) 100%) !important;
+    }
+
+    #collapse .kpi-po {
+      --kpi-accent: rgba(196, 181, 253, 0.9);
+      background: linear-gradient(145deg, rgba(139, 92, 246, 0.25) 0%, rgba(76, 29, 149, 0.22) 100%) !important;
+    }
+
+    #collapse .kpi-delivered {
+      --kpi-accent: rgba(74, 222, 128, 0.9);
+      background: linear-gradient(145deg, rgba(34, 197, 94, 0.25) 0%, rgba(21, 128, 61, 0.22) 100%) !important;
+    }
+
+    #collapse .kpi-spended {
+      --kpi-accent: rgba(229, 231, 235, 0.95);
+      background: linear-gradient(145deg, rgba(156, 163, 175, 0.32) 0%, rgba(75, 85, 99, 0.28) 100%) !important;
+    }
+
+    #collapse .kpi-spent-amount {
+      --kpi-accent: rgba(229, 231, 235, 0.95);
+      background: linear-gradient(145deg, rgba(156, 163, 175, 0.32) 0%, rgba(75, 85, 99, 0.28) 100%) !important;
+    }
+  </style>
 </head>
 
 <body>
@@ -106,31 +236,31 @@
     <div style="min-height: 120px;">
       <div class="collapse collapse-vertical" id="collapse">
         <div class="d-flex justify-content-center flex-wrap flex-md-nowrap" style="gap: 50px;">
-          <div class="card mb-3" style="width: 12rem;">
+          <div class="card mb-3 kpi-card kpi-quoted" style="width: 12rem;">
             <div class="card-header text-secondary" style="text-align: center; font-size: 20px;">% Quoted</div>
             <div class="card-body text-secondary">
               <h5 id="percentCotizado" style="text-align: center; font-size: 40px;">0%</h5>
             </div>
           </div>
-          <div class="card mb-3" style="width: 12rem;">
+          <div class="card mb-3 kpi-card kpi-pr" style="width: 12rem;">
             <div class="card-header" style="text-align: center; font-size: 20px;">% PR</div>
             <div class="card-body">
               <h5 id="percentPR" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
             </div>
           </div>
-          <div class="card bg-red-soft mb-3" style="width: 12rem;">
+          <div class="card bg-red-soft mb-3 kpi-card kpi-shopping" style="width: 12rem;">
             <div class="card-header text-danger" style="text-align: center; font-size: 20px;">% Shopping Cart</div>
             <div class="card-body text-danger">
               <h5 id="percentShopping" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
             </div>
           </div>
-          <div class="card mb-3 bg-purple-soft" style="width: 12rem;">
+          <div class="card mb-3 bg-purple-soft kpi-card kpi-po" style="width: 12rem;">
             <div class="card-header" style="text-align: center; font-size: 20px;">% PO</div>
             <div class="card-body">
               <h5 id="percentPO" class="card-title" style="text-align: center; font-size: 40px;">0%</h5>
             </div>
           </div>
-          <div class="card bg-green-soft mb-3" style="width: 12rem;">
+          <div class="card bg-green-soft mb-3 kpi-card kpi-delivered" style="width: 12rem;">
             <div class="card-header text-success" style="text-align: center; font-size: 20px;">% Delivered</div>
             <div class="card-body text-success">
               <h5 id="percentEntregado" style="text-align: center; font-size: 40px;">0%</h5>
@@ -138,13 +268,13 @@
           </div>
         </div>
         <div style="display: flex; gap: 20px; justify-content: center; margin-top: 18px;">
-          <div class="card bg-white-soft mb-3" style="width: 12rem;">
+          <div class="card bg-white-soft mb-3 kpi-card kpi-spended kpi-complete" style="width: 12rem;">
             <div class="card-header" style="text-align: center; font-size: 20px; color: white;">% Spended</div>
             <div class="card-body">
               <h5 id="percentGastado" style="text-align: center; font-size: 40px; color: white;">0%</h5>
             </div>
           </div>
-          <div class="card bg-white-soft mb-3" style="width: 12rem;">
+          <div class="card bg-white-soft mb-3 kpi-card kpi-spent-amount kpi-complete" style="width: 14rem;">
             <div class="card-header" style="text-align: center; font-size: 16px; color: white;">Spended Amount</div>
             <div class="card-body">
               <h5 id="spentAmount" style="text-align: center; font-size: 28px; color: white;">$0.00</h5>
@@ -237,6 +367,23 @@
         return (Array.isArray(rows) ? rows : []).filter(row => {
           return String(row.project_status || '').trim().toLowerCase() === 'active';
         });
+      }
+
+      function setKpiCompletion(metricId, value) {
+        const metricEl = document.getElementById(metricId);
+        if (!metricEl) return;
+        const card = metricEl.closest('.kpi-card');
+        if (!card) return;
+
+        // % Spended stays in completed format because it is treated like amount KPI.
+        if (metricId === 'percentGastado') {
+          card.classList.add('kpi-complete');
+          return;
+        }
+
+        const numericValue = Number(value);
+        const isComplete = Number.isFinite(numericValue) && numericValue >= 100;
+        card.classList.toggle('kpi-complete', isComplete);
       }
 
       // Cargar todos los proyectos al inicio
@@ -353,10 +500,12 @@
           // Formato a los porcentajes
           const formatPercent = (v) => {
             const n = Number(v);
-            return Number.isFinite(n) ? n.toFixed(1) : '0.0';
+            return Number.isFinite(n) ? n.toFixed(2) : '0.00';
           };
           // Mantener solo tarjetas de gasto desde backend
-          document.getElementById("percentGastado").innerText = `${formatPercent(data.porcentaje_gastado)}%`;
+          const porcentajeGastado = Number(data.porcentaje_gastado);
+          document.getElementById("percentGastado").innerText = `${formatPercent(porcentajeGastado)}%`;
+          setKpiCompletion('percentGastado', porcentajeGastado);
 
           try {
             const spent = Number(data.total_gastado || 0);
@@ -366,6 +515,8 @@
           }
 
         } catch (error) {
+
+          setKpiCompletion('percentGastado', 0);
 
 
         }
@@ -512,6 +663,9 @@
             return 'PO';
           case 'Shopping cart':
             return 'Shopping cart';
+          case 'Pending Delivery':
+            // Count as PO stage (already passed PO), but not as Delivered.
+            return 'PO';
           case 'Delivered':
           case 'Delivered to BRK':
           case 'Reviewed and imported':
@@ -526,7 +680,14 @@
       // Calcular porcentajes acumulativos por etapa y actualiza cards
       function updateCumulativePercentages(purchases) {
         const stages = ['Quoted', 'PR', 'Shopping cart', 'PO', 'Delivered'];
-        const total = Array.isArray(purchases) ? purchases.length : 0;
+        const stageIndexes = (Array.isArray(purchases) ? purchases : []).map(p => {
+          const normalized = normalizeStage(p.status);
+          return stages.indexOf(normalized);
+        });
+
+        // Exclude statuses outside KPI flow (e.g., Pending Delivery) from KPI totals.
+        const eligibleStageIndexes = stageIndexes.filter(ix => ix >= 0);
+        const total = eligibleStageIndexes.length;
 
         if (!total) {
           document.getElementById("percentCotizado").innerText = '0%';
@@ -534,18 +695,17 @@
           document.getElementById("percentPO").innerText = '0%';
           document.getElementById("percentShopping").innerText = '0%';
           document.getElementById("percentEntregado").innerText = '0%';
+          setKpiCompletion('percentCotizado', 0);
+          setKpiCompletion('percentPR', 0);
+          setKpiCompletion('percentShopping', 0);
+          setKpiCompletion('percentPO', 0);
+          setKpiCompletion('percentEntregado', 0);
           return;
         }
 
-        // Obtener índices de etapa para cada item
-        const stageIndexes = purchases.map(p => {
-          const normalized = normalizeStage(p.status);
-          return stages.indexOf(normalized);
-        });
-
         // Calcular porcentajes
         const percents = stages.map((_, stageIdx) => {
-          const num = stageIndexes.filter(ix => ix >= stageIdx).length;
+          const num = eligibleStageIndexes.filter(ix => ix >= stageIdx).length;
           return ((num / total) * 100);
         });
 
@@ -556,6 +716,12 @@
         document.getElementById("percentShopping").innerText = fmt(percents[2]);
         document.getElementById("percentPO").innerText = fmt(percents[3]);
         document.getElementById("percentEntregado").innerText = fmt(percents[4]);
+
+        setKpiCompletion('percentCotizado', percents[0]);
+        setKpiCompletion('percentPR', percents[1]);
+        setKpiCompletion('percentShopping', percents[2]);
+        setKpiCompletion('percentPO', percents[3]);
+        setKpiCompletion('percentEntregado', percents[4]);
       }
 
       function getStatusClass(status) {

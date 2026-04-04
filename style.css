@@ -259,6 +259,14 @@ body > .container.mt-4 {
   padding: 0.75rem 1rem;
   font-size: var(--nav-dropdown-font-size) !important;
   font-family: 'Poppins', sans-serif !important;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.navbar-nav .dropdown-item:hover,
+.navbar-nav .dropdown-item:focus,
+.navbar-nav .dropdown-item:active {
+  background-color: #1d4ed8 !important;
+  color: #ffffff !important;
 }
 
 @media (max-width: 576px) {
@@ -487,22 +495,22 @@ body > .container.mt-4 {
 
 /* ===== REPORTS "REPORTE DE COMPRAS PENDIENTES" ===== */
 .reports-toolbar {
-  background: linear-gradient(145deg, #e2e6ea, #cfd6dd) !important;
-  border: 1px solid #aeb8c2 !important;
+  background: linear-gradient(145deg, var(--report-toolbar-from), var(--report-toolbar-to)) !important;
+  border: 1px solid var(--report-toolbar-border) !important;
   border-radius: 12px;
   padding: 1.2rem;
 }
 
 .reports-select-label {
-  color: #393f44 !important;
+  color: var(--report-label-color) !important;
   font-weight: 600;
   margin-bottom: 0.5rem;
 }
 
 .reports-select {
-  background-color: #f2f4f7 !important;
-  color: #2f3a44 !important;
-  border: 1px solid #aeb8c2 !important;
+  background-color: var(--report-field-bg) !important;
+  color: var(--report-field-text) !important;
+  border: 1px solid var(--report-field-border) !important;
   border-radius: 10px;
   min-height: 46px;
 }
@@ -525,22 +533,22 @@ body > .container.mt-4 {
   font-weight: 600;
   border-radius: 10px;
   border: none;
-  color: var(--report-print-text);
-  background: linear-gradient(135deg, var(--report-filter-btn-from), var(--report-filter-btn-to));
+  color: #f5f7fa;
+  background: linear-gradient(135deg, #626a73, #434a52);
 }
 
 .reports-print-btn:hover {
-  filter: brightness(1.08);
-  color: var(--report-print-text);
+  filter: brightness(1.1);
+  color: #ffffff;
 }
 
 .report-panel {
   margin-top: 1.25rem;
-  background: linear-gradient(145deg, #e2e6ea, #cfd6dd) !important;
-  border: 1px solid #aeb8c2 !important;
+  background: linear-gradient(145deg, var(--report-panel-from), var(--report-panel-to)) !important;
+  border: 1px solid var(--report-panel-border) !important;
   border-radius: 12px;
   padding: 1rem;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 14px 30px var(--report-panel-shadow);
 }
 
 .report-panel[hidden] {
@@ -611,13 +619,13 @@ body > .container.mt-4 {
 }
 
 .report-kpi-card {
-  background: linear-gradient(160deg, var(--report-card-from), var(--report-card-to));
-  border: 1px solid color-mix(in srgb, var(--report-card-accent) 35%, #423a3a 20%);
+  background: linear-gradient(160deg, var(--report-card-from), var(--report-card-to)) !important;
+  border: 1px solid color-mix(in srgb, var(--report-card-accent) 62%, #0f172a 12%) !important;
   border-radius: 12px;
   min-height: 110px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 10px 28px rgba(123, 66, 66, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--report-card-accent) 34%, rgba(0, 0, 0, 0.24));
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
@@ -625,53 +633,44 @@ body > .container.mt-4 {
 .report-kpi-spending-total,
 .report-kpi-spending-ticket,
 .report-kpi-spending-networks {
-  background: #ffffff !important;
-  border: 1px solid #d8e0ea !important;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  background: linear-gradient(160deg, var(--report-card-from), var(--report-card-to)) !important;
+  border: 1px solid color-mix(in srgb, var(--report-card-accent) 62%, #0f172a 12%) !important;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--report-card-accent) 34%, rgba(0, 0, 0, 0.24));
 }
 
 .report-kpi-total-purchases .report-kpi-label,
-.report-kpi-total-purchases .report-kpi-value,
-.report-kpi-total-purchases .report-kpi-value.emphasis,
 .report-kpi-spending-total .report-kpi-label,
-.report-kpi-spending-total .report-kpi-value,
-.report-kpi-spending-total .report-kpi-value.emphasis,
 .report-kpi-spending-ticket .report-kpi-label,
-.report-kpi-spending-ticket .report-kpi-value,
-.report-kpi-spending-ticket .report-kpi-value.emphasis,
 .report-kpi-spending-networks .report-kpi-label,
-.report-kpi-spending-networks .report-kpi-value,
-.report-kpi-spending-networks .report-kpi-value.emphasis {
-  color: #1f2933 !important;
+.report-kpi-spending-networks .report-kpi-label {
+  color: var(--report-kpi-label-text) !important;
   text-shadow: none;
 }
 
+.report-kpi-total-purchases .report-kpi-value,
+.report-kpi-total-purchases .report-kpi-value.emphasis,
+.report-kpi-spending-total .report-kpi-value,
+.report-kpi-spending-total .report-kpi-value.emphasis,
+.report-kpi-spending-ticket .report-kpi-value,
+.report-kpi-spending-ticket .report-kpi-value.emphasis,
+.report-kpi-spending-networks .report-kpi-value,
+.report-kpi-spending-networks .report-kpi-value.emphasis {
+  color: var(--report-kpi-value-text) !important;
+  text-shadow: 0 0 10px var(--report-kpi-emphasis-glow);
+}
+
 .report-kpi-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--report-card-accent), rgba(255, 255, 255, 0.85));
+  display: none;
 }
 
 .report-kpi-card::after {
-  content: '';
-  position: absolute;
-  width: 180px;
-  height: 180px;
-  right: -80px;
-  top: -80px;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--report-card-accent) 40%, transparent) 0%, transparent 68%);
-  pointer-events: none;
+  display: none;
 }
 
 .report-kpi-card:hover {
   transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--report-card-accent) 55%, #ffffff 25%);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.42), 0 0 22px color-mix(in srgb, var(--report-card-accent) 35%, transparent);
+  border-color: color-mix(in srgb, var(--report-card-accent) 82%, #ffffff 18%);
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--report-card-accent) 45%, rgba(0, 0, 0, 0.3));
 }
 
 .report-kpi-card .card-body,
@@ -680,7 +679,7 @@ body > .container.mt-4 {
 }
 
 .report-kpi-label {
-  color: var(--report-kpi-label-text);
+  color: var(--report-kpi-label-text) !important;
   font-size: 0.84rem;
   margin-bottom: 0.35rem;
   text-transform: uppercase;
@@ -688,7 +687,7 @@ body > .container.mt-4 {
 }
 
 .report-kpi-value {
-  color: var(--report-kpi-value-text);
+  color: var(--report-kpi-value-text) !important;
   font-size: 1.85rem;
   font-weight: 600;
   margin: 0;
@@ -696,30 +695,30 @@ body > .container.mt-4 {
 }
 
 .report-kpi-value.emphasis {
-  color: var(--report-kpi-value-text);
+  color: var(--report-kpi-value-text) !important;
   text-shadow: 0 0 14px var(--report-kpi-emphasis-glow);
 }
 
 .report-percent-strip {
   margin-bottom: 1.1rem;
-  background: var(--report-percent-strip-bg);
-  border: 1px solid var(--report-percent-strip-border);
+  background: var(--report-percent-strip-bg) !important;
+  border: 1px solid var(--report-percent-strip-border) !important;
   border-radius: 10px;
   padding: 0.85rem;
 }
 
 .report-percent-strip-spending {
-  background: #ffffff !important;
-  border: 1px solid #d8e0ea !important;
+  background: var(--report-percent-strip-bg) !important;
+  border: 1px solid var(--report-percent-strip-border) !important;
 }
 
 .report-percent-strip-spending .report-percent-title,
 .report-percent-strip-spending .report-percent-caption {
-  color: #1f2933 !important;
+  color: var(--report-percent-title) !important;
 }
 
 .report-percent-title {
-  color: var(--report-percent-title);
+  color: var(--report-percent-title) !important;
   margin-bottom: 0.4rem;
   font-weight: 600;
   font-size: 0.95rem;
@@ -741,15 +740,15 @@ body > .container.mt-4 {
 }
 
 .report-percent-caption {
-  color: var(--report-percent-caption);
+  color: var(--report-percent-caption) !important;
   margin-top: 0.45rem;
   margin-bottom: 0;
   font-size: 0.9rem;
 }
 
 .report-chart-card {
-  background: var(--report-chart-card);
-  border: 1px solid var(--report-chart-border);
+  background: var(--report-chart-card) !important;
+  border: 1px solid var(--report-chart-border) !important;
   border-radius: 12px;
   min-height: 320px;
   display: flex;
@@ -758,18 +757,18 @@ body > .container.mt-4 {
 
 .report-chart-spending-status,
 .report-chart-spending-top {
-  background: #ffffff !important;
-  border: 1px solid #d8e0ea !important;
+  background: var(--report-chart-card) !important;
+  border: 1px solid var(--report-chart-border) !important;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 .report-chart-spending-status .report-chart-title,
 .report-chart-spending-top .report-chart-title {
-  color: #1f2933 !important;
+  color: var(--report-chart-title) !important;
 }
 
 .report-chart-title {
-  color: var(--report-chart-title);
+  color: var(--report-chart-title) !important;
   margin-bottom: 0.7rem;
   font-weight: 600;
   font-size: 0.98rem;
@@ -2705,47 +2704,110 @@ input:focus {
 
 /* ============== ESTILOS PARA HISTORIAL DE MOVIMIENTOS ============== */
 
+#historyOffcanvas .card.bg-secondary.text-white.mb-3 {
+  margin-bottom: 0.75rem !important;
+}
+
+#historyOffcanvas .card.bg-secondary.text-white.mb-3 .card-body {
+  padding: 0.75rem 0.85rem;
+}
+
+#historyOffcanvas .card.bg-secondary.text-white.mb-3 .card-title {
+  font-size: 0.9rem;
+  margin-bottom: 0.55rem !important;
+  font-weight: 600;
+}
+
+#historyOffcanvas #searchMovements {
+  font-size: 0.95rem;
+  padding: 0.5rem 0.75rem;
+}
+
 /* Tabla de historial con tema oscuro */
 .history-movements-table {
-  background-color: #0f0f10;
-  color: #ffffff;
+  background: var(--pure-white) !important;
+  color: var(--pure-black);
   border-collapse: separate;
   border-spacing: 0;
-  border-radius: 8px;
+  border-radius: var(--card-radius);
   overflow: hidden;
+  border: 2px solid rgba(255, 59, 48, 0.2);
+  box-shadow: var(--shadow-strong);
+  width: 100%;
+  table-layout: fixed;
 }
 
 .history-movements-table thead {
-  background: linear-gradient(135deg, #790919 0%, #c8102e 100%);
+  background: linear-gradient(135deg, var(--primary-red), var(--dark-red));
 }
 
 .history-movements-table thead th {
-  color: #ffffff;
-  font-weight: 600;
+  color: var(--pure-white) !important;
+  font-weight: 500;
   text-transform: uppercase;
-  font-size: 0.85rem;
-  padding: 16px 12px;
-  border: none;
-  letter-spacing: 0.5px;
+  font-size: 0.78rem;
+  padding: 0.85rem 0.45rem;
+  border-top: none;
+  border-left: none;
+  border-bottom: 4px solid var(--pure-black);
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  letter-spacing: 0.45px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+.history-movements-table thead th:last-child {
+  border-right: none;
 }
 
 .history-movements-table tbody tr {
-  background-color: #1a1a1c;
-  border-bottom: 1px solid #333;
-  transition: all 0.3s ease;
+  background: var(--pure-white);
+  transition: var(--transition);
+}
+
+.history-movements-table tbody tr:nth-child(even) {
+  background: #f8f9fa;
 }
 
 .history-movements-table tbody tr:hover {
-  background-color: #2a2a2e;
+  background: rgba(255, 59, 48, 0.1) !important;
   transform: scale(1.01);
-  box-shadow: 0 4px 8px rgba(200, 16, 46, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 59, 48, 0.2);
+}
+
+.history-movements-table tbody tr:hover td {
+  color: var(--pure-black) !important;
+  text-shadow: none;
 }
 
 .history-movements-table tbody td {
-  padding: 14px 12px;
-  border: none;
-  color: #e0e0e0;
-  font-size: 0.9rem;
+  padding: 0.75rem 0.45rem;
+  border-top: none;
+  border-left: none;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--pure-black) !important;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+#historyOffcanvas .table-responsive {
+  overflow-x: hidden;
+}
+
+.history-movements-table tbody td:last-child {
+  border-right: none;
+}
+
+.history-movements-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 

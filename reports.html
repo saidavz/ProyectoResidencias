@@ -68,11 +68,11 @@
         <div class="col-md-8">
           <label for="reportTypeMenu" class="reports-select-label">Select Report Type</label>
           <select id="reportTypeMenu" class="form-select reports-select">
-            <option value="spending">Reporte de gastos</option>
-            <option value="dead-inventory">Reporte de inventario muerto</option>
-            <option value="pending-purchases">Reporte de compras pendientes</option>
-            <option value="po-closed">Reporte de POs cerradas</option>
-            <option value="po-pending-delivery">Reporte de POs pendientes de entrega</option>
+            <option value="spending">Expense Report</option>
+            <option value="dead-inventory">Dead Inventory Report</option>
+            <option value="pending-purchases">Pending Purchases Report</option>
+            <option value="po-closed">Closed POs Report</option>
+            <option value="po-pending-delivery">Pending Delivery POs Report</option>
           </select>
         </div>
         <div class="col-md-4">
@@ -88,7 +88,7 @@
     <section id="pendingPurchasesPanel" class="report-panel card border-0 shadow-sm" hidden>
       <div class="row g-3 align-items-end">
         <div class="col-md-6">
-          <label for="pendingProjectSearch" class="reports-search-label">Search Project</label>
+          <label for="pendingProjectSearch" class="reports-search-label">Project Search</label>
           <div class="reports-project-search-wrap">
             <input
               type="text"
@@ -103,20 +103,20 @@
         <div class="col-md-4">
           <label for="reportThemeSelect" class="reports-search-label">Design Style</label>
           <select id="reportThemeSelect" class="form-select reports-search-input">
-            <option value="silver" selected>Corporate Pulse Dashboard</option>
-            <option value="ocean">Insight Spectrum Dashboard</option>
+            <option value="ocean" selected>Insight Spectrum Dashboard</option>
+            <option value="silver">Corporate Pulse Dashboard</option>
             <option value="carbon">Neon BI Command Center</option>
           </select>
         </div>
       </div>
 
-      <div id="pendingPurchasesMeta" class="reports-meta">loading pending purchases...</div>
+      <div id="pendingPurchasesMeta" class="reports-meta">Loading pending purchases...</div>
 
       <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-3">
         <div class="col">
           <article class="card report-kpi-card report-kpi-total-purchases h-100 border-0 shadow-sm">
             <div class="card-body">
-              <div class="report-kpi-label">Total purchases</div>
+              <div class="report-kpi-label">Total Purchases</div>
               <p id="kpiTotalPurchases" class="report-kpi-value">0</p>
             </div>
           </article>
@@ -124,7 +124,7 @@
         <div class="col">
           <article class="card report-kpi-card report-kpi-spending-total h-100 border-0 shadow-sm">
             <div class="card-body">
-              <div class="report-kpi-label">Pending Quoted</div>
+              <div class="report-kpi-label">Pending Quotes</div>
               <p id="kpiPendingQuoted" class="report-kpi-value emphasis">0</p>
             </div>
           </article>
@@ -140,7 +140,7 @@
         <div class="col">
           <article class="card report-kpi-card report-kpi-spending-networks h-100 border-0 shadow-sm">
             <div class="card-body">
-              <div class="report-kpi-label">Projects with Pending</div>
+              <div class="report-kpi-label">Projects with Pending Purchases</div>
               <p id="kpiProjectsWithPending" class="report-kpi-value">0</p>
             </div>
           </article>
@@ -148,7 +148,7 @@
       </div>
 
       <div class="report-percent-strip report-percent-strip-spending card border-0 shadow-sm mb-3">
-        <div class="report-percent-title">Progress of current project filter</div>
+        <div class="report-percent-title">Current Project Filter Progress</div>
         <div id="pendingPercentProgress" class="progress report-progress" role="progressbar" aria-label="Visible percentage" aria-valuemin="0" aria-valuemax="100" ariavaluenow="0">
           <div id="pendingPercentBar" class="progress-bar report-progress-bar"></div>
         </div>
@@ -159,7 +159,7 @@
         <div class="col">
           <article class="card report-chart-card report-chart-spending-status h-100 border-0 shadow-sm">
             <div class="card-body">
-              <h3 class="report-chart-title h6">Distribution of Status</h3>
+              <h3 class="report-chart-title h6">Status Distribution</h3>
               <div class="report-chart-wrap">
                 <canvas id="pendingStatusChart"></canvas>
               </div>
@@ -187,54 +187,54 @@
               <th id="poColumnHeader" style="display: none;">PO No.</th>
               <th class="th-filterable">
                 <span>No. QIS</span>
-                <button type="button" class="th-filter-trigger" data-filter-target="popoverQis" title="Filtrar No. QIS">
+                <button type="button" class="th-filter-trigger" data-filter-target="popoverQis" title="Filter QIS No.">
                   <i class="bi bi-sliders2-vertical"></i>
                 </button>
                 <div id="popoverQis" class="th-filter-popover" hidden>
-                  <input id="filterQis" type="text" class="form-control form-control-sm" placeholder="Buscar QIS">
+                  <input id="filterQis" type="text" class="form-control form-control-sm" placeholder="Search QIS">
                 </div>
               </th>
               <th class="th-filterable">
                 <span>No. Parte</span>
-                <button type="button" class="th-filter-trigger" data-filter-target="popoverPart" title="Filtrar No. Parte">
+                <button type="button" class="th-filter-trigger" data-filter-target="popoverPart" title="Filter Part No.">
                   <i class="bi bi-sliders2-vertical"></i>
                 </button>
                 <div id="popoverPart" class="th-filter-popover" hidden>
-                  <input id="filterPart" type="text" class="form-control form-control-sm" placeholder="Buscar parte">
+                  <input id="filterPart" type="text" class="form-control form-control-sm" placeholder="Search part">
                 </div>
               </th>
               <th class="th-filterable">
                 <span>Description</span>
-                <button type="button" class="th-filter-trigger" data-filter-target="popoverDescription" title="Filtrar Descripcion">
+                <button type="button" class="th-filter-trigger" data-filter-target="popoverDescription" title="Filter Description">
                   <i class="bi bi-sliders2-vertical"></i>
                 </button>
                 <div id="popoverDescription" class="th-filter-popover" hidden>
-                  <input id="filterDescription" type="text" class="form-control form-control-sm" placeholder="Buscar descripcion">
+                  <input id="filterDescription" type="text" class="form-control form-control-sm" placeholder="Search description">
                 </div>
               </th>
               <th class="th-filterable">
                 <span>Vendor</span>
-                <button type="button" class="th-filter-trigger" data-filter-target="popoverVendor" title="Filtrar Proveedor">
+                <button type="button" class="th-filter-trigger" data-filter-target="popoverVendor" title="Filter Vendor">
                   <i class="bi bi-sliders2-vertical"></i>
                 </button>
                 <div id="popoverVendor" class="th-filter-popover" hidden>
-                  <input id="filterVendor" type="text" class="form-control form-control-sm" placeholder="Buscar proveedor">
+                  <input id="filterVendor" type="text" class="form-control form-control-sm" placeholder="Search vendor">
                 </div>
               </th>
               <th class="th-filterable">
                 <span>Quantity</span>
-                <button type="button" class="th-filter-trigger" data-filter-target="popoverQuantity" title="Filtrar Cantidad">
+                <button type="button" class="th-filter-trigger" data-filter-target="popoverQuantity" title="Filter Quantity">
                   <i class="bi bi-sliders2-vertical"></i>
                 </button>
                 <div id="popoverQuantity" class="th-filter-popover" hidden>
-                  <input id="filterQuantity" type="text" class="form-control form-control-sm" placeholder="Buscar cantidad">
+                  <input id="filterQuantity" type="text" class="form-control form-control-sm" placeholder="Search quantity">
                 </div>
               </th>
             </tr>
           </thead>
           <tbody id="pendingPurchasesTableBody">
             <tr>
-              <td colspan="8" class="text-center">Select the pending purchases report to view the data.</td>
+              <td colspan="8" class="text-center">Select the Pending Purchases Report to view the data.</td>
             </tr>
           </tbody>
         </table>
@@ -256,8 +256,8 @@
         <div class="col-md-4">
           <label for="deadInventoryThemeSelect" class="reports-search-label">Report Design</label>
           <select id="deadInventoryThemeSelect" class="form-select reports-search-input">
-            <option value="silver" selected>Corporate Pulse Dashboard</option>
-            <option value="ocean">Insight Spectrum Dashboard</option>
+            <option value="ocean" selected>Insight Spectrum Dashboard</option>
+            <option value="silver">Corporate Pulse Dashboard</option>
             <option value="carbon">Neon BI Command Center</option>
           </select>
         </div>
@@ -301,7 +301,7 @@
       </div>
 
       <div class="report-percent-strip card border-0 shadow-sm mb-3">
-        <div class="report-percent-title">Proportion of Dead Inventory</div>
+        <div class="report-percent-title">Dead Inventory Proportion</div>
         <div id="deadInventoryPercentProgress" class="progress report-progress" role="progressbar" aria-label="Percentage of Dead Inventory" aria-valuemin="0" aria-valuemax="100" ariavaluenow="0">
           <div id="deadInventoryPercentBar" class="progress-bar report-progress-bar"></div>
         </div>
@@ -312,7 +312,7 @@
         <div class="col">
           <article class="card report-chart-card h-100 border-0 shadow-sm">
             <div class="card-body">
-              <h3 class="report-chart-title h6">Distribution of Dead Inventory by Age</h3>
+              <h3 class="report-chart-title h6">Dead Inventory by Age Distribution</h3>
               <div class="report-chart-wrap">
                 <canvas id="deadInventoryAgeChart"></canvas>
               </div>
@@ -343,7 +343,7 @@
           </thead>
           <tbody id="deadInventoryTableBody">
             <tr>
-              <td colspan="4" class="text-center">Select the dead inventory report to view data.</td>
+              <td colspan="4" class="text-center">Select the Dead Inventory Report to view data.</td>
             </tr>
           </tbody>
         </table>
