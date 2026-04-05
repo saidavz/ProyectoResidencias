@@ -500,7 +500,7 @@
           // Formato a los porcentajes
           const formatPercent = (v) => {
             const n = Number(v);
-            return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+            return Number.isFinite(n) ? n.toFixed(3) : '0.000';
           };
           // Mantener solo tarjetas de gasto desde backend
           const porcentajeGastado = Number(data.porcentaje_gastado);

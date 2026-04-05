@@ -1156,7 +1156,7 @@ app.get('/api/purchases', async (req, res) => {
         bp.no_qis,
         p.no_part,
         p.description,
-        v.name_vendor AS vendor_name,
+        pd.vendor_name,
         COALESCE(pd.quantity, bp.quantity_project) AS quantity,
         bp.status,
         pd.time_delivered_product,
@@ -1175,19 +1175,19 @@ app.get('/api/purchases', async (req, res) => {
           pd.time_delivered_product,
           pd.price_unit,
           (pd.quantity * pd.price_unit) AS total_amount,
-          pu.id_vendor,
+          v.name_vendor AS vendor_name,
           pu.network,
           pu.id_purchase,
           pu.po AS po,
           pu.shopping AS shopping
         FROM purchase_detail pd
         JOIN purchase pu ON pu.id_purchase = pd.id_purchase
+        LEFT JOIN vendor v ON pu.id_vendor = v.id_vendor
         WHERE pu.no_project = bp.no_project
           AND pd.no_part = bp.no_part
         ORDER BY pu.id_purchase DESC
         LIMIT 1
       ) pd ON TRUE
-      LEFT JOIN vendor v ON pd.id_vendor = v.id_vendor
     `;
 
     const params = [];
