@@ -47,7 +47,7 @@
     }
 
     #collapse .kpi-quoted.kpi-complete {
-      background: linear-gradient(145deg, rgba(59, 130, 246, 0.55) 0%, rgba(30, 64, 175, 0.48) 100%) !important;
+      background: linear-gradient(145deg, rgba(251, 113, 133, 0.58) 0%, rgba(244, 63, 94, 0.5) 100%) !important;
     }
 
     #collapse .kpi-pr.kpi-complete {
@@ -111,8 +111,8 @@
     }
 
     #collapse .kpi-quoted {
-      --kpi-accent: rgba(56, 189, 248, 0.9);
-      background: linear-gradient(145deg, rgba(59, 130, 246, 0.25) 0%, rgba(30, 64, 175, 0.22) 100%) !important;
+      --kpi-accent: rgba(251, 113, 133, 0.95);
+      background: linear-gradient(145deg, rgba(251, 113, 133, 0.28) 0%, rgba(244, 63, 94, 0.24) 100%) !important;
     }
 
     #collapse .kpi-pr {
@@ -143,6 +143,16 @@
     #collapse .kpi-spent-amount {
       --kpi-accent: rgba(229, 231, 235, 0.95);
       background: linear-gradient(145deg, rgba(156, 163, 175, 0.32) 0%, rgba(75, 85, 99, 0.28) 100%) !important;
+    }
+
+    .badge.status-quoted {
+      background-color: #f0627d !important;
+      color: #ffffff !important;
+    }
+
+    .badge.status-pr {
+      background-color: #f2b84b !important;
+      color: #212529 !important;
     }
   </style>
 </head>
@@ -529,8 +539,7 @@
           const activeData = filterActiveProjectRows(data);
           allPurchasesData = activeData; // Guardar datos globalmente
           populateSupplierFilter(activeData); // Poblar filtro de proveedores
-          displayPurchasesData(activeData);
-          updateCumulativePercentages(activeData);
+          applyFilters(); // Respeta el filtro activo (status/supplier) si existe
         } catch (error) {
           document.getElementById('purchasesTableBody').innerHTML =
             '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
@@ -727,9 +736,9 @@
       function getStatusClass(status) {
         switch (status) {
           case 'Quoted':
-            return 'bg-secondary';
+            return 'status-quoted';
           case 'PR':
-            return 'bg-dark';
+            return 'status-pr';
           case 'PO':
             return 'bg-purple text-white';
           case 'Shopping cart':
