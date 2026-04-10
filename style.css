@@ -568,6 +568,13 @@ body > .container.mt-4 {
   border: 1px solid var(--report-field-border);
   background-color: var(--report-field-bg);
   color: var(--report-field-text);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+}
+
+.reports-search-input:hover {
+  border-color: var(--report-field-focus);
+  background-color: color-mix(in srgb, var(--report-field-bg) 86%, #ffffff 14%);
+  box-shadow: 0 0 0 0.28rem color-mix(in srgb, var(--report-field-focus-ring) 88%, transparent 12%);
 }
 
 .reports-search-input:focus {
@@ -601,6 +608,7 @@ body > .container.mt-4 {
   cursor: pointer;
   border-bottom: 1px solid #e4e7ec;
   font-size: 0.9rem;
+  transition: background-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
 }
 
 .reports-project-suggestion-item:last-child {
@@ -608,7 +616,9 @@ body > .container.mt-4 {
 }
 
 .reports-project-suggestion-item:hover {
-  background: #e9ecef;
+  background: color-mix(in srgb, var(--report-field-focus) 22%, #ffffff 78%);
+  color: color-mix(in srgb, var(--report-field-text) 72%, #000000 28%);
+  box-shadow: inset 3px 0 0 var(--report-field-focus);
 }
 
 .reports-meta {
@@ -1324,9 +1334,126 @@ body > .container.mt-4 {
   transform: translateX(5px);
 }
 
+/* Purchase Tracking - fixed column widths */
 .enhanced-table .table tbody tr:hover td {
   color: var(--pure-black) !important;
   font-weight: 600;
+}
+
+/* Purchase Tracking - ellipsis in all columns */
+.purchase-tracking-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1500px;
+}
+
+.purchase-tracking-table tbody td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.purchase-tracking-table thead th {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.15;
+}
+
+.enhanced-table .purchase-tracking-table thead th:nth-child(3),
+.enhanced-table .purchase-tracking-table thead th:nth-child(8) {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  line-height: 1.15;
+  min-width: 10ch;
+}
+
+.purchase-tracking-table th:nth-child(4),
+.purchase-tracking-table td:nth-child(4) {
+  width: 27%;
+}
+
+.purchase-tracking-table th:nth-child(6),
+.purchase-tracking-table td:nth-child(6) {
+  width: 7%;
+}
+
+.purchase-tracking-table th:nth-child(7),
+.purchase-tracking-table td:nth-child(7) {
+  width: 9%;
+}
+
+/* View BOM - ellipsis in all columns */
+.bom-view-table {
+  table-layout: auto;
+  width: max-content;
+  min-width: 100%;
+}
+
+.bom-view-table tbody td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bom-view-table thead th {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+
+.bom-view-table th:nth-child(1),
+.bom-view-table td:nth-child(1) {
+  min-width: 15ch;
+}
+
+.bom-view-table th:nth-child(2),
+.bom-view-table td:nth-child(2) {
+  min-width: 10ch;
+}
+
+.bom-view-table th:nth-child(3),
+.bom-view-table td:nth-child(3) {
+  min-width: 8ch;
+}
+
+.bom-view-table th:nth-child(4),
+.bom-view-table td:nth-child(4) {
+  min-width: 10ch;
+}
+
+.bom-view-table th:nth-child(5),
+.bom-view-table td:nth-child(5) {
+  min-width: 24ch;
+}
+
+.bom-view-table th:nth-child(6),
+.bom-view-table td:nth-child(6) {
+  min-width: 12ch;
+}
+
+.bom-view-table th:nth-child(7),
+.bom-view-table td:nth-child(7) {
+  min-width: 10ch;
+}
+
+.bom-view-table th:nth-child(8),
+.bom-view-table td:nth-child(8) {
+  min-width: 8ch;
+}
+
+.bom-view-table th:nth-child(9),
+.bom-view-table td:nth-child(9) {
+  min-width: 16ch;
+}
+
+.bom-view-table th:nth-child(10),
+.bom-view-table td:nth-child(10) {
+  min-width: 18ch;
 }
 
 /* TABLA PRODUCTOS */
@@ -1860,6 +1987,23 @@ h1 {
   background-color: #495057;
 }
 
+/* ===== REQUISITION PROJECT SUGGESTIONS ===== */
+.requisition-project-suggestion {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.requisition-project-suggestion:hover {
+  background-color: #1d4ed8;
+  color: #ffffff;
+}
+
+.requisition-project-suggestion:last-child {
+  border-bottom: none;
+}
+
 .total-row {
   background-color: #495057 !important;
   font-weight: bold;
@@ -2195,6 +2339,43 @@ input:focus {
   margin-bottom: 1rem;
 }
 
+/* Inventory - Create QR project search hover */
+#projectSearch {
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+#projectSearch:hover {
+  border-color: rgba(255, 255, 255, 0.52);
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.18);
+}
+
+#projectSearch:focus {
+  border-color: #ff6b63 !important;
+  box-shadow: 0 0 0 0.24rem rgba(255, 59, 48, 0.25) !important;
+}
+
+/* Inventory - Stock project search hover */
+#projectSearchStock {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+#projectSearchStock:hover {
+  border-color: #8fb3d9 !important;
+  background-color: #f7fbff !important;
+  box-shadow: 0 0 0 0.22rem rgba(85, 127, 170, 0.24);
+}
+
+#projectSearchStock:focus {
+  border-color: #5f8fbd !important;
+  box-shadow: 0 0 0 0.24rem rgba(95, 143, 189, 0.28) !important;
+}
+
+#projectSuggestionsStock > div {
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
 /* ===== IO LOGIN OVERLAY ===== */
 :root {
   --login-black: #0f0f10;
@@ -2321,6 +2502,22 @@ input:focus {
 #ioMainSection.io-section-locked .btn-check:disabled + .btn {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+#ioMainSection .btn-group .btn-outline-danger {
+  border-width: 2px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+#ioMainSection .btn-group .btn-outline-danger:hover,
+#ioMainSection .btn-group .btn-outline-danger:focus-visible {
+  border-color: #ff8e87;
+  box-shadow: 0 0 0 0.18rem rgba(255, 59, 48, 0.18);
+}
+
+#ioMainSection .btn-group .btn-check:checked + .btn-outline-danger {
+  border-color: #ff7c74;
+  box-shadow: 0 0 0 0.15rem rgba(255, 59, 48, 0.14);
 }
 
 @keyframes fadeInUp {
@@ -2569,6 +2766,23 @@ input:focus {
   color: #b2bec3;
 }
 
+#filterSelectBom,
+#filterSearchInputBom,
+#filterOptionsList .filter-option-item {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#filterSearchInputBom:hover {
+  background-color: #d8e8f8;
+  border-color: #4f6d89;
+  box-shadow: 0 0 0 0.2rem rgba(79, 109, 137, 0.32);
+}
+
+#filterOptionsList .filter-option-item:hover {
+  background-color: #c8dcf1 !important;
+  color: #102a43 !important;
+}
+
 .clear-btn-bluegray {
   background-color: #7a8fa3;
   border-color: #6f859a;
@@ -2586,6 +2800,16 @@ input:focus {
   border-color: #5f768c;
   color: #ffffff;
   box-shadow: 0 0 0 0.2rem rgba(107, 130, 152, 0.35);
+}
+
+/* Register Purchase - Type Product suggestions hover */
+.sugerencias-type-p > div {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sugerencias-type-p > div:hover {
+  background-color: rgba(111, 133, 154, 0.35);
+  color: #ffffff;
 }
 
 .credentials-input-wrapper .form-control:focus {
@@ -2800,6 +3024,22 @@ input:focus {
 
 #historyOffcanvas .table-responsive {
   overflow-x: hidden;
+}
+
+#historyOffcanvas .offcanvas-body {
+  display: flex;
+  flex-direction: column;
+}
+
+#historyOffcanvas .history-table-wrapper {
+  flex: 1 1 auto;
+  min-height: 52vh;
+  max-height: 64vh;
+  overflow-y: auto;
+}
+
+#historyOffcanvas #historyStats {
+  margin-top: 1rem !important;
 }
 
 .history-movements-table tbody td:last-child {

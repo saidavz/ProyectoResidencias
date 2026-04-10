@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let currentMode = 'general'; // 'general' o 'project'
   let searchActive = false;
   let currentProjectData = []; // Guardar datos del proyecto actual para filtros adicionales
+  let currentProjectId = null;
 
   // cargar valores �nicos desde stock (projects, vendors, parts, brands)
   async function loadDistinctStockFilters() {
@@ -40,6 +41,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const response = await fetch("http://localhost:3000/api/stock/summary");
       allData = await response.json();
       currentMode = 'general';
+      currentProjectId = null;
       hideAdditionalFilters();
       renderTabla(allData);
 
@@ -68,6 +70,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       allData = await response.json();
       currentProjectData = [...allData]; // Guardar copia de los datos del proyecto
       currentMode = 'project';
+      currentProjectId = noProject;
       renderTabla(allData);
       
       // Mostrar filtros adicionales
@@ -78,12 +81,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  function safeValue(value) {
-    return value !== undefined && value !== null ? value : '';
+  function safeValue(value, dashForEmpty = true) {
+    const isEmpty = value === undefined || value === null || String(value).trim() === '';
+    if (isEmpty) return dashForEmpty ? '-' : '';
+    return value;
   }
 
   function renderTabla(filas) {
     tabla.innerHTML = "";
+    const isAutStockProject = currentMode === 'project' && currentProjectId === 'AUT-STOCK';
 
     let rowsToRender = filas;
 
@@ -202,6 +208,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (currentMode === 'project') {
+      if (currentProjectId === 'AUT-STOCK') {
+        // Material disponible: hide Proveedor, PR, Shopping, PO, and keep Rack hidden as in project mode.
+        return [4, 6, 7, 8, 9];
+      }
       return [9]; // Rack
     }
 
@@ -338,11 +348,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       div.addEventListener('mouseover', () => {
-        div.style.backgroundColor = '#f0f0f0';
+        div.style.backgroundColor = '#dcecff';
+        div.style.color = '#102a43';
       });
 
       div.addEventListener('mouseout', () => {
         div.style.backgroundColor = 'transparent';
+        div.style.color = '';
       });
 
       projectSuggestions.appendChild(div);

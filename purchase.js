@@ -665,7 +665,7 @@ app.get('/api/bom-projects/search', async (req, res) => {
 
 // Guardar items de requisición en bom_project
 app.post('/api/requisitions/save', async (req, res) => {
-  const { no_project, no_qis, projectTitle, items } = req.body;
+  const { no_project, no_qis, projectTitle, useRequisitionAsProject, items } = req.body;
 
   const normalizedNoProject = String(no_project || '').trim();
   const normalizedNoQis = String(no_qis || '').trim();
@@ -718,9 +718,18 @@ app.post('/api/requisitions/save', async (req, res) => {
 
     // If project does NOT exist, create it preserving the selected no_project value.
     if (projectCheck.rows.length === 0) {
+      const normalizedProjectTitle = String(projectTitle || '').trim();
+      let nameProjectToInsert = 'Untitled';
+
+      if (useRequisitionAsProject && normalizedProjectTitle) {
+        nameProjectToInsert = normalizedProjectTitle;
+      } else if (!useRequisitionAsProject && normalizedProjectTitle) {
+        nameProjectToInsert = normalizedProjectTitle;
+      }
+
       await client.query(
         'INSERT INTO project (no_project, name_project, status) VALUES ($1, $2, $3)',
-        [normalizedNoProject, projectTitle || 'Untitled', 'Active']
+        [normalizedNoProject, nameProjectToInsert, 'Active']
       );
       finalNoProject = normalizedNoProject;
     }
@@ -831,27 +840,10 @@ app.post('/api/requisitions/save', async (req, res) => {
           const targetNoProject = fitText('bom_project', 'no_project', finalNoProject);
 
           if (legacyNoProject && legacyNoProject !== targetNoProject) {
-            await client.query(
-              `UPDATE bom_project
-               SET no_project = $1,
-                   quantity_project = $2,
-                   status = $3
-               WHERE no_qis = $4
-                 AND UPPER(BTRIM(no_part)) = UPPER(BTRIM($5))`,
-              [
-                targetNoProject,
-                quantity,
-                fitText('bom_project', 'status', 'Quoted'),
-                fitText('bom_project', 'no_qis', normalizedNoQis),
-                fitText('bom_project', 'no_part', normalizedPartNumber)
-              ]
-            );
-
-            savedItems.push({
+            skippedItems.push({
+              index,
               partNumber: normalizedPartNumber,
-              description: normalizedDescription,
-              quantity,
-              units: normalizedUnit
+              reason: `Item already belongs to project ${legacyNoProject} for requisition ${normalizedNoQis}`
             });
 
             await client.query(`RELEASE SAVEPOINT ${savepointName}`);
@@ -1127,9 +1119,8 @@ app.put('/api/projects/:no_project/status', async (req, res) => {
 
     res.json({ message: `Proyecto ${status === 'Active' ? 'activado' : 'desactivado'} exitosamente` });
   } catch (error) {
-
-
-    res.status(500).json({ error: 'Error al actualizar estado del proyecto' });
+    console.error('Error updating project status:', error);
+    res.status(500).json({ error: 'Error al actualizar estado del proyecto', details: error.message });
   }
 });
 

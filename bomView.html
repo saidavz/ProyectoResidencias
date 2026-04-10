@@ -114,7 +114,7 @@
         <!-- Tabla del BOM -->
         <div class="enhanced-table" style="position: relative; z-index: 1;">
             <div class="table-responsive">
-                <table class="table table-striped table-bordered table-hover align-middle bg-white">
+                <table class="table table-striped table-bordered table-hover align-middle bg-white bom-view-table">
                     <thead class="table-dark">
                         <tr>
                             <th>Project</th>
@@ -292,24 +292,43 @@
             function displayBOMData(data) {
                 const tbody = document.getElementById('bomTableBody');
 
+                const escapeHtml = (value) => {
+                    return String(value ?? '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                };
+
                 if (!data || data.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="10" class="text-center">No materials were found.</td></tr>';
                     return;
                 }
                 const rows = data.map(item => {
-                    const uploadDate = item.upload_date ? new Date(item.upload_date).toLocaleDateString() : 'N/A';
+                    const project = escapeHtml(item.name_project || '');
+                    const qis = escapeHtml(item.no_qis || '-');
+                    const type = escapeHtml(item.type_p || '');
+                    const part = escapeHtml(item.no_part || '');
+                    const description = escapeHtml(item.description || '');
+                    const brand = escapeHtml(item.brand || '');
+                    const content = escapeHtml(item.quantity || '');
+                    const unit = escapeHtml(item.unit || '');
+                    const packages = escapeHtml(item.quantity_requested || '');
+                    const totalRequired = escapeHtml((+item.quantity || 0) * (+item.quantity_requested || 0));
+
                     return `
                         <tr>
-                            <td>${item.name_project}</td>
-                            <td>${item.no_qis || '-'}</td>
-                            <td>${item.type_p}</td>
-                            <td>${item.no_part}</td>
-                            <td>${item.description}</td>
-                            <td>${item.brand}</td>
-                            <td>${item.quantity}</td>
-                            <td>${item.unit}</td>
-                            <td class="quantity-cell">${item.quantity_requested}</td>
-                            <td>${(+item.quantity || 0) * (+item.quantity_requested || 0)}</td>
+                            <td title="${project}">${project}</td>
+                            <td title="${qis}">${qis}</td>
+                            <td title="${type}">${type}</td>
+                            <td title="${part}">${part}</td>
+                            <td title="${description}">${description}</td>
+                            <td title="${brand}">${brand}</td>
+                            <td title="${content}">${content}</td>
+                            <td title="${unit}">${unit}</td>
+                            <td class="quantity-cell" title="${packages}">${packages}</td>
+                            <td title="${totalRequired}">${totalRequired}</td>
                         </tr>
                     `;
                 }).join('');
@@ -419,7 +438,10 @@
             });
             
             // Event listener para el input de búsqueda dentro del dropdown
-            filterSearchInputBom.addEventListener('input', displayFilterOptions);
+            filterSearchInputBom.addEventListener('input', () => {
+                displayFilterOptions();
+                applyBOMFilters();
+            });
             
             // Event listener para limpiar filtros
             btnClearFiltersBom.addEventListener('click', () => {
@@ -429,15 +451,6 @@
                 btnClearFiltersBom.style.display = 'none';
                 currentFilterType = '';
                 applyBOMFilters();
-            });
-            
-            // Cerrar el dropdown al hacer click fuera
-            document.addEventListener('click', (e) => {
-                if (e.target !== filterSelectBom && 
-                    !filterOptionsContainer.contains(e.target) && 
-                    e.target !== filterSearchInputBom) {
-                    filterOptionsContainer.style.display = 'none';
-                }
             });
             
             // Cargar proyectos y BOMs al iniciar

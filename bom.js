@@ -111,6 +111,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       // Subir el archivo del BOM
+      const confirmUpload = confirm(
+        `Do you want to upload the BOM for project "${no_project} - ${name_project}"?`
+      );
+      if (!confirmUpload) {
+        uploadMessage.innerHTML = `
+          <div class="alert alert-info py-1">Upload cancelled.</div>`;
+        return;
+      }
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('no_project', no_project);

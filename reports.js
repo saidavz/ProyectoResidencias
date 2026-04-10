@@ -469,7 +469,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function parseAmount(value) {
-    const amount = Number(value);
+    if (value === null || value === undefined) {
+      return 0;
+    }
+
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    const normalized = String(value)
+      .trim()
+      .replace(/\$/g, '')
+      .replace(/,/g, '');
+
+    const amount = Number(normalized);
     return Number.isFinite(amount) ? amount : 0;
   }
 
@@ -1528,13 +1541,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const spendingMode = isSpendingMode();
 
     const projectTotals = new Map();
+    const projectNameById = new Map();
 
     filteredRows.forEach((row) => {
       const noProject = String(row.no_project || '').trim();
       const projectName = String(row.project_name || '').trim();
-      const label = noProject ? `${noProject}${projectName ? ` - ${projectName}` : ''}` : 'No project';
+      const label = noProject || 'No project';
       const increment = spendingMode ? parseAmount(row.total_amount) : 1;
       projectTotals.set(label, (projectTotals.get(label) || 0) + increment);
+
+      if (label !== 'No project' && projectName && !projectNameById.has(label)) {
+        projectNameById.set(label, projectName);
+      }
     });
 
     const ordered = Array.from(projectTotals.entries())
@@ -1543,6 +1561,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const labels = ordered.map((item) => item[0]);
     const values = ordered.map((item) => item[1]);
+    const labelProjectNames = labels.map((label) => projectNameById.get(label) || '-');
 
     if (projectsChart) {
       projectsChart.destroy();
@@ -1556,6 +1575,9 @@ document.addEventListener('DOMContentLoaded', () => {
           label: config.projectsDatasetLabel,
           data: values,
           backgroundColor: theme.chart.projectsBar,
+          borderColor: theme.chart.projectsBar,
+          borderWidth: 1,
+          minBarLength: 6,
           borderRadius: 6,
           maxBarThickness: 32
         }]
@@ -1579,7 +1601,25 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         },
         plugins: {
-          legend: { display: false }
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title(items) {
+                if (!items || items.length === 0) return 'No project';
+                return labels[items[0].dataIndex] || 'No project';
+              },
+              label(context) {
+                const value = Number(context.raw) || 0;
+                return spendingMode
+                  ? `${config.projectsDatasetLabel}: $${value.toFixed(2)}`
+                  : `${config.projectsDatasetLabel}: ${value}`;
+              },
+              afterLabel(context) {
+                const projectName = labelProjectNames[context.dataIndex] || '-';
+                return `Project name: ${projectName}`;
+              }
+            }
+          }
         }
       }
     });

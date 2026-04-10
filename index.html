@@ -709,7 +709,7 @@
             document.getElementById('originalNetworkName').value = foundNetwork.network;
             document.getElementById('networkName').value = foundNetwork.network;
             document.getElementById('networkBalance').value = Number(foundNetwork.initial_balance ?? foundNetwork.balance ?? 0);
-            document.getElementById('networkCurrency').value = foundNetwork.currency || 'USD';
+            document.getElementById('networkCurrency').value = foundNetwork.currency || '';
             document.getElementById('saveNetworkBtn').innerHTML = '<i class="bi bi-save"></i> Update';
             setDeleteButtonVisibility(true);
         }
@@ -725,7 +725,7 @@
             document.getElementById('originalNetworkName').value = '';
             document.getElementById('saveNetworkBtn').innerHTML = '<i class="bi bi-save"></i> Save';
             setDeleteButtonVisibility(false);
-            document.getElementById('networkCurrency').value = 'USD';
+            document.getElementById('networkCurrency').value = '';
             if (clearBalance) {
                 document.getElementById('networkBalance').value = '';
             }
@@ -872,7 +872,10 @@
             try {
                 const response = await fetch(`${BASE_URL}/projects/active`);
                 const projects = await response.json();
-                allProjects = Array.isArray(projects) ? projects : [];
+                allProjects = (Array.isArray(projects) ? projects : []).filter(project => {
+                    const status = String(project.status || 'active').trim().toLowerCase();
+                    return status === 'active';
+                });
                 updateProjectSuggestions();
             } catch (error) {
 
@@ -885,7 +888,10 @@
             if (!datalist) return;
             datalist.innerHTML = '';
 
-            let filteredProjects = allProjects.filter(p => !excludeProjects.includes(p.no_project));
+            let filteredProjects = allProjects.filter(p => {
+                const status = String(p.status || 'active').trim().toLowerCase();
+                return status === 'active' && !excludeProjects.includes(p.no_project);
+            });
 
             if (filter) {
                 filteredProjects = filteredProjects.filter(p =>
@@ -1233,7 +1239,8 @@
                     <div class="mb-3">
                         <label for="networkCurrency" class="form-label">Currency</label>
                         <select class="form-select" id="networkCurrency" required>
-                            <option value="USD" selected>USD</option>
+                            <option value="" selected disabled>Select...</option>
+                            <option value="USD">USD</option>
                             <option value="MXN">MXN</option>
                         </select>
                     </div>
@@ -1549,11 +1556,9 @@
 
             async function searchVendors(field, query) {
                 const list = await loadVendors();
+                if (field === 'all') return list;
                 if (!query) return list;
                 const q = String(query).toLowerCase();
-                if (field === 'all') {
-                    return list.filter(v => Object.values(v).some(val => String(val || '').toLowerCase().includes(q)));
-                }
                 return list.filter(v => String(v[field] || '').toLowerCase().includes(q));
             }
 
@@ -1586,9 +1591,61 @@
                             return;
                         }
 
+                        const confirmSave = confirm(`Do you want to save vendor "${vendor.name_vendor}" (Number: ${vendor.id_vendor})?`);
+                        if (!confirmSave) {
+                            return;
+                        }
+
                         try {
-                            await upsertVendor(vendor);
-                            alert('Vendor saved successfully');
+                            const currentVendors = await loadVendors();
+                            const normalizeVendorName = (value) => String(value || '')
+                                .toLowerCase()
+                                .normalize('NFD')
+                                .replace(/[\u0300-\u036f]/g, '')
+                                .replace(/\s+/g, ' ')
+                                .trim();
+
+                            const normalizedName = normalizeVendorName(vendor.name_vendor);
+                            const sameNameVendor = currentVendors.find(v =>
+                                normalizeVendorName(v.name_vendor) === normalizedName
+                            );
+
+                            let payload = { ...vendor };
+                            let replacedExisting = false;
+
+                            if (sameNameVendor) {
+                                const sameId = String(sameNameVendor.id_vendor) === String(vendor.id_vendor);
+
+                                if (sameId) {
+                                    const confirmUpdateSameVendor = confirm(
+                                        `Duplicate vendor name detected for Number ${sameNameVendor.id_vendor}.\n\n` +
+                                        `OK = Update this existing vendor\n` +
+                                        `Cancel = Do not save`
+                                    );
+
+                                    if (!confirmUpdateSameVendor) {
+                                        return;
+                                    }
+                                    replacedExisting = true;
+                                } else {
+                                    const replaceExisting = confirm(
+                                        `Duplicate vendor name detected (existing Number: ${sameNameVendor.id_vendor}).\n\n` +
+                                        `OK = Replace existing vendor data\n` +
+                                        `Cancel = Create a new vendor with Number: ${vendor.id_vendor}`
+                                    );
+
+                                    if (replaceExisting) {
+                                        payload = {
+                                            ...vendor,
+                                            id_vendor: String(sameNameVendor.id_vendor)
+                                        };
+                                        replacedExisting = true;
+                                    }
+                                }
+                            }
+
+                            await upsertVendor(payload);
+                            alert(replacedExisting ? 'Vendor replaced successfully' : 'Vendor saved successfully');
                             const vendors = await loadVendors();
                             renderResults(vendors);
                             vendorForm.reset();
@@ -1616,6 +1673,20 @@
                     btnSearch.addEventListener('click', async function (e) {
                         e.preventDefault();
                         const field = document.getElementById('searchFieldVendor').value;
+                        const q = document.getElementById('searchQueryVendor').value.trim();
+                        const results = await searchVendors(field, q);
+                        renderResults(results);
+                    });
+                }
+
+                const searchField = document.getElementById('searchFieldVendor');
+                if (searchField) {
+                    searchField.addEventListener('change', async function () {
+                        if (this.value === 'all') {
+                            const input = document.getElementById('searchQueryVendor');
+                            if (input) input.value = '';
+                        }
+                        const field = this.value;
                         const q = document.getElementById('searchQueryVendor').value.trim();
                         const results = await searchVendors(field, q);
                         renderResults(results);

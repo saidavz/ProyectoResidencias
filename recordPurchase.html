@@ -508,12 +508,10 @@
                 // Mostrar badge pequeño y discreto
                 autStockCell.innerHTML = `<span class="aut-stock-badge"><span class="aut-stock-icon bi bi-check-circle-fill"></span>${found.available}</span>`;
                 autStockCell.classList.add('table-success');
-                nuevaFila.title = `AUT-STOCK disponible: ${found.available}`;
               } else {
                 autStockCell.innerHTML = '';
                 autStockCell.classList.remove('table-success');
                 autStockCell.classList.remove('aut-stock-cell');
-                nuevaFila.title = 'No hay stock en AUT-STOCK';
               }
             }
           } catch (err) {
@@ -522,7 +520,6 @@
             const autStockCell = nuevaFila.querySelector('.aut-stock-cell');
             autStockCell.innerHTML = '';
             autStockCell.classList.remove('table-success');
-            nuevaFila.title = 'Error consultando stock';
           }
         })();
 
