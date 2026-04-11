@@ -94,7 +94,7 @@
               type="text"
               id="pendingProjectSearch"
               class="form-control reports-search-input"
-              placeholder="Search by project number or name..."
+              placeholder="Search by project number, name or network..."
               autocomplete="off"
             >
             <div id="pendingProjectSuggestions" class="reports-project-suggestions" style="display:none;"></div>
@@ -265,7 +265,7 @@
 
       <div id="deadInventoryMeta" class="reports-meta">Total number of items with no activity in 3 months: 0</div>
 
-      <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-3">
+      <div class="row row-cols-1 row-cols-md-2 row-cols-xl-5 g-3 mb-3">
         <div class="col">
           <article class="card report-kpi-card h-100 border-0 shadow-sm">
             <div class="card-body">
@@ -295,6 +295,14 @@
             <div class="card-body">
               <div class="report-kpi-label">Total Dead Stock Quantity</div>
               <p id="deadInventoryKpiQuantity" class="report-kpi-value">0</p>
+            </div>
+          </article>
+        </div>
+        <div class="col">
+          <article class="card report-kpi-card h-100 border-0 shadow-sm">
+            <div class="card-body">
+              <div class="report-kpi-label">Money Locked in Dead Stock</div>
+              <p id="deadInventoryKpiMoneyLocked" class="report-kpi-value emphasis">$0.00</p>
             </div>
           </article>
         </div>
@@ -337,7 +345,9 @@
             <tr>
               <th>Part Number</th>
               <th>Description</th>
+              <th>Unit Cost</th>
               <th>Stock Quantity</th>
+              <th>Total Value</th>
               <th>Last Movement</th>
             </tr>
           </thead>

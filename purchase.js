@@ -23,8 +23,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: '150403kim', //verifica bien al cambiarlo
   port: 5432,
 });
 
@@ -2486,12 +2486,20 @@ app.get('/api/dead-inventory', async (req, res) => {
         p.no_part,
         p.description,
         SUM(s.available) AS available,
-        MAX(m.date_movement) AS last_movement_date
+        MAX(m.date_movement) AS last_movement_date,
+        COALESCE(
+          (SELECT pd.price_unit 
+           FROM purchase_detail pd 
+           WHERE pd.no_part = p.no_part AND pd.price_unit > 0
+           ORDER BY pd.id_purchase DESC 
+           LIMIT 1),
+          0
+        ) AS unit_cost
       FROM stock s
       JOIN product p ON s.no_part = p.no_part
       LEFT JOIN movements m ON s.id_stock = m.id_stock
       GROUP BY p.no_part, p.description
-      HAVING MAX(m.date_movement) IS NULL OR MAX(m.date_movement) < NOW() - INTERVAL '3 months'
+      HAVING MAX(m.date_movement) IS NOT NULL AND MAX(m.date_movement) < NOW() - INTERVAL '3 months'
       ORDER BY MAX(m.date_movement) ASC
     `;
     

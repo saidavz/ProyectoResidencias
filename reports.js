@@ -665,6 +665,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const spendingMode = isSpendingMode();
+    
+    // Filter projects
     const filtered = allProjects
       .filter((project) => {
         const projectName = normalizeText(project.name_project || '');
@@ -683,6 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .slice(0, 20);
 
+    // Add projects to suggestions
     filtered.forEach((project) => {
       const item = document.createElement('div');
       item.className = 'reports-project-suggestion-item';
@@ -690,13 +694,39 @@ document.addEventListener('DOMContentLoaded', () => {
       item.addEventListener('click', () => {
         projectSearchInput.value = `${project.no_project} - ${project.name_project || ''}`;
         projectSearchInput.dataset.noProject = String(project.no_project || '').trim();
+        projectSearchInput.dataset.network = '';
         projectSuggestions.style.display = 'none';
         applyProjectFilter();
       });
       projectSuggestions.appendChild(item);
     });
 
-    projectSuggestions.style.display = filtered.length ? 'block' : 'none';
+    // For spending mode, also search by network
+    let networks = new Set();
+    if (spendingMode) {
+      networks = new Set(
+        pendingPurchases
+          .map(row => normalizeText(row.network || ''))
+          .filter(net => net && net.includes(term) && net !== 'sin asignar')
+      );
+
+      // Add network suggestions
+      networks.forEach((network) => {
+        const item = document.createElement('div');
+        item.className = 'reports-project-suggestion-item';
+        item.textContent = `Network: ${network}`;
+        item.addEventListener('click', () => {
+          projectSearchInput.value = `Network: ${network}`;
+          projectSearchInput.dataset.noProject = '';
+          projectSearchInput.dataset.network = network;
+          projectSuggestions.style.display = 'none';
+          applyProjectFilter();
+        });
+        projectSuggestions.appendChild(item);
+      });
+    }
+
+    projectSuggestions.style.display = (filtered.length > 0 || networks.size > 0) ? 'block' : 'none';
   }
 
   function updateMeta(total, filteredCount, searchTerm) {
@@ -847,7 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rows = [
       [config.excelTitle],
       [`Generated: ${new Date().toLocaleString()}`],
-      [`Project filter: ${selectedProjectLabel}`],
+      [`Filter: ${selectedProjectLabel}`],
       [],
       ['Executive Summary'],
       ['Metric', 'Value'],
@@ -909,7 +939,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedProjectLabel = projectSearchInput?.value?.trim() || 'All projects';
 
     summarySheet.getCell('A2').value = `Generated: ${generatedAt}`;
-    summarySheet.getCell('A3').value = `Project filter: ${selectedProjectLabel}`;
+    summarySheet.getCell('A3').value = `Filter: ${selectedProjectLabel}`;
     summarySheet.getCell('A2').font = { name: 'Calibri', size: 11 };
     summarySheet.getCell('A3').font = { name: 'Calibri', size: 11 };
 
@@ -1177,6 +1207,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const deadCount = allDeadInventory.length;
     const deadQuantity = allDeadInventory.reduce((sum, row) => sum + (parseInt(row.available) || 0), 0);
     const deadPercent = totalItemsInStock > 0 ? ((deadCount / totalItemsInStock) * 100).toFixed(1) : 0;
+    const moneyLockedInDeadStock = allDeadInventory.reduce((sum, row) => {
+      const quantity = parseInt(row.available) || 0;
+      const unitCost = parseAmount(row.unit_cost || row.cost || row.price_unit || 0);
+      return sum + (quantity * unitCost);
+    }, 0);
 
     summarySheet.getCell('A4').value = 'Executive Summary';
     summarySheet.getCell('A4').font = { bold: true, size: 13, color: { argb: argb(theme.excel.sectionTitle) } };
@@ -1186,13 +1221,22 @@ document.addEventListener('DOMContentLoaded', () => {
       ['Total quantity in stock', totalQuantityInStock],
       ['Items without movement in 3 months', deadCount],
       ['Dead stock quantity', deadQuantity],
-      ['% Dead items', `${deadPercent}%`]
+      ['% Dead items', `${deadPercent}%`],
+      ['Money locked in dead stock', moneyLockedInDeadStock]
     ];
 
     kpiRows.forEach((item, index) => {
       const rowNumber = 5 + index;
       summarySheet.getCell(`A${rowNumber}`).value = item[0];
-      summarySheet.getCell(`B${rowNumber}`).value = item[1];
+      
+      // Format currency values for money-related KPIs
+      if (item[0].toLowerCase().includes('cost') || item[0].toLowerCase().includes('value') || item[0].toLowerCase().includes('money')) {
+        summarySheet.getCell(`B${rowNumber}`).value = item[1];
+        summarySheet.getCell(`B${rowNumber}`).numFmt = '"$"#,##0.00';
+      } else {
+        summarySheet.getCell(`B${rowNumber}`).value = item[1];
+      }
+      
       summarySheet.getCell(`A${rowNumber}`).font = { bold: true };
       summarySheet.getCell(`A${rowNumber}`).fill = {
         type: 'pattern',
@@ -1282,7 +1326,9 @@ document.addEventListener('DOMContentLoaded', () => {
     sheet.columns = [
       { header: 'No. Parte', key: 'no_part', width: 18 },
       { header: 'Description', key: 'description', width: 42 },
+      { header: 'Unit Cost', key: 'unit_cost', width: 15 },
       { header: 'Stock Quantity', key: 'available', width: 18 },
+      { header: 'Total Value', key: 'total_value', width: 15 },
       { header: 'Last Movement', key: 'last_movement_date', width: 20 }
     ];
 
@@ -1299,10 +1345,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     allDeadInventory.forEach((row) => {
+      const quantity = parseInt(row.available) || 0;
+      const unitCost = parseAmount(row.unit_cost || row.cost || row.price_unit || 0);
+      const totalValue = quantity * unitCost;
+      
       sheet.addRow({
         no_part: row.no_part || '-',
         description: row.description || '-',
-        available: row.available || 0,
+        unit_cost: unitCost,
+        available: quantity,
+        total_value: totalValue,
         last_movement_date: row.last_movement_date 
           ? new Date(row.last_movement_date).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' })
           : '-'
@@ -1312,25 +1364,38 @@ document.addEventListener('DOMContentLoaded', () => {
     sheet.views = [{ state: 'frozen', ySplit: 1 }];
     sheet.autoFilter = {
       from: { row: 1, column: 1 },
-      to: { row: 1, column: 4 }
+      to: { row: 1, column: 6 }
     };
 
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
       if (rowNumber % 2 === 0) {
-        row.eachCell((cell) => {
+        row.eachCell((cell, colNumber) => {
           cell.fill = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: argb(theme.excel.zebraRow) }
           };
+          // Apply currency format to Unit Cost and Total Value columns
+          if (colNumber === 3 || colNumber === 5) {
+            cell.numFmt = '"$"#,##0.00';
+          }
         });
       }
     });
 
+    // Apply currency format to header row cells and data cells
+    sheet.eachRow((row, rowNumber) => {
+      row.eachCell((cell, colNumber) => {
+        if (rowNumber > 1 && (colNumber === 3 || colNumber === 5)) {
+          cell.numFmt = '"$"#,##0.00';
+        }
+      });
+    });
+
     const lastRow = sheet.rowCount;
     if (lastRow >= 1) {
-      applyExcelTableBorders(sheet, 1, lastRow, 1, 4, theme);
+      applyExcelTableBorders(sheet, 1, lastRow, 1, 6, theme);
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -1628,6 +1693,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function applyProjectFilter() {
     const searchTerm = normalizeText(projectSearchInput.value.trim());
     const selectedNoProject = normalizeText(projectSearchInput.dataset.noProject || '');
+    const selectedNetwork = normalizeText(projectSearchInput.dataset.network || '');
     const columnFilters = getColumnFilters();
     const spendingMode = isSpendingMode();
 
@@ -1636,9 +1702,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const projectName = normalizeText(row.project_name);
       const network = normalizeText(row.network);
 
-      const matchesProject = selectedNoProject
-        ? noProject === selectedNoProject
-        : (!searchTerm || noProject.includes(searchTerm) || projectName.includes(searchTerm) || (spendingMode && network.includes(searchTerm)));
+      let matchesProject;
+      
+      if (selectedNetwork) {
+        // If a network is selected, only match that network
+        matchesProject = network === selectedNetwork;
+      } else if (selectedNoProject) {
+        // If a project is selected, only match that project
+        matchesProject = noProject === selectedNoProject;
+      } else {
+        // Otherwise, search by term or show all
+        matchesProject = !searchTerm || noProject.includes(searchTerm) || projectName.includes(searchTerm) || (spendingMode && network.includes(searchTerm));
+      }
+      
       const matchesColumns = rowMatchesColumnFilters(row, columnFilters);
 
       return matchesProject && matchesColumns;
@@ -1770,12 +1846,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const deadCount = allDeadInventory.length;
     const deadPercent = totalItemsInStock > 0 ? ((deadCount / totalItemsInStock) * 100).toFixed(1) : 0;
     const deadQuantity = allDeadInventory.reduce((sum, row) => sum + (parseInt(row.available) || 0), 0);
+    
+    // Calculate the money locked in dead inventory
+    const moneyLocked = allDeadInventory.reduce((sum, row) => {
+      const quantity = parseInt(row.available) || 0;
+      const unitCost = parseAmount(row.unit_cost || row.cost || row.price_unit || 0);
+      return sum + (quantity * unitCost);
+    }, 0);
 
     deadInventoryMeta.textContent = `Total items without movement in 3 months: ${deadCount}`;
     document.getElementById('deadInventoryKpiTotal').textContent = totalItemsInStock.toLocaleString('es-ES');
     document.getElementById('deadInventoryKpiDead').textContent = deadCount.toLocaleString('es-ES');
     document.getElementById('deadInventoryKpiPercent').textContent = `${deadPercent}%`;
     document.getElementById('deadInventoryKpiQuantity').textContent = deadQuantity.toLocaleString('es-ES');
+    document.getElementById('deadInventoryKpiMoneyLocked').textContent = formatCurrency(moneyLocked);
 
     const percentBar = document.getElementById('deadInventoryPercentBar');
     percentBar.style.width = `${deadPercent}%`;
@@ -1786,7 +1870,9 @@ document.addEventListener('DOMContentLoaded', () => {
       .map((row) => {
         const partValue = escapeHtml(row.no_part || '-');
         const descriptionValue = escapeHtml(row.description || '-');
-        const quantityValue = escapeHtml(row.available ?? '-');
+        const quantityValue = parseInt(row.available) || 0;
+        const unitCost = parseAmount(row.unit_cost || row.cost || row.price_unit || 0);
+        const totalValue = quantityValue * unitCost;
         const lastMovementValue = row.last_movement_date 
           ? new Date(row.last_movement_date).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' })
           : '-';
@@ -1795,7 +1881,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <tr>
             <td>${partValue}</td>
             <td>${descriptionValue}</td>
-            <td class="text-end">${quantityValue}</td>
+            <td class="text-end">${formatCurrency(unitCost)}</td>
+            <td class="text-end">${quantityValue.toLocaleString('es-ES')}</td>
+            <td class="text-end">${formatCurrency(totalValue)}</td>
             <td>${lastMovementValue}</td>
           </tr>
         `;
@@ -1986,6 +2074,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   projectSearchInput.addEventListener('input', () => {
     delete projectSearchInput.dataset.noProject;
+    delete projectSearchInput.dataset.network;
     renderProjectSuggestions(projectSearchInput.value.trim());
     applyProjectFilter();
   });
