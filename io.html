@@ -394,13 +394,24 @@
         return;
       }
 
-      const activityEvents = ['mousemove', 'pointermove', 'touchmove', 'scroll', 'wheel'];
+      const activityEvents = [
+        'mousemove',
+        'pointermove',
+        'touchmove',
+        'scroll',
+        'wheel',
+        'mousedown',
+        'touchstart',
+        'keydown',
+        'input'
+      ];
       const onActivity = function () {
         updateTechnicianActivity('interaction');
       };
 
       activityEvents.forEach((eventName) => {
         window.addEventListener(eventName, onActivity, { passive: true });
+        document.addEventListener(eventName, onActivity, { passive: true });
       });
 
       techActivityEventsBound = true;
