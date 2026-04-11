@@ -527,11 +527,11 @@ app.get('/api/products/search', async (req, res) => {
 //OBTENER PRODUCTOS CON CÁLCULO BOM
 app.get("/api/products/bom-calculation", async (req, res) => {
   try {
-    const { no_project, type_p } = req.query;
+    const { no_project, type_p, brand } = req.query;
 
-    if (!no_project || !type_p) {
+    if (!no_project || (!type_p && !brand)) {
       return res.status(400).json({
-        message: "Debe proporcionar no_project y type_p"
+        message: "Debe proporcionar no_project y (type_p o brand)"
       });
     }
 
@@ -550,21 +550,52 @@ app.get("/api/products/bom-calculation", async (req, res) => {
     const bomItems = bomResult.rows;
     const bomNoParts = bomItems.map(item => item.no_part);
 
-    // 2. Buscar productos que coincidan con el tipo de producto Y estén en BOM
+    // 2. Buscar productos que coincidan con el tipo de producto O marca Y estén en BOM
     // PERO EXCLUIR productos que ya hayan sido registrados en una compra
-    const productResult = await pool.query(
-      `SELECT p.no_part, p.brand, p.description, p.quantity, p.unit, p.type_p 
+    let query, params;
+    
+    if (type_p && brand) {
+      // Buscar por ambos
+      query = `SELECT p.no_part, p.brand, p.description, p.quantity, p.unit, p.type_p 
        FROM product p
-       WHERE p.type_p = $1 
+       WHERE (p.type_p = $1 OR p.brand = $2)
+         AND p.no_part = ANY($3::text[])
+         AND NOT EXISTS (
+           SELECT 1 FROM purchase_detail pd
+           JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+           WHERE pd.no_part = p.no_part
+             AND pu.no_project = $4
+         )`;
+      params = [type_p, brand, bomNoParts, no_project];
+    } else if (type_p) {
+      // Buscar solo por tipo
+      query = `SELECT p.no_part, p.brand, p.description, p.quantity, p.unit, p.type_p 
+       FROM product p
+       WHERE p.type_p = $1
          AND p.no_part = ANY($2::text[])
          AND NOT EXISTS (
            SELECT 1 FROM purchase_detail pd
            JOIN purchase pu ON pd.id_purchase = pu.id_purchase
            WHERE pd.no_part = p.no_part
              AND pu.no_project = $3
-         )`,
-      [type_p, bomNoParts, no_project]
-    );
+         )`;
+      params = [type_p, bomNoParts, no_project];
+    } else {
+      // Buscar solo por marca
+      query = `SELECT p.no_part, p.brand, p.description, p.quantity, p.unit, p.type_p 
+       FROM product p
+       WHERE p.brand = $1
+         AND p.no_part = ANY($2::text[])
+         AND NOT EXISTS (
+           SELECT 1 FROM purchase_detail pd
+           JOIN purchase pu ON pd.id_purchase = pu.id_purchase
+           WHERE pd.no_part = p.no_part
+             AND pu.no_project = $3
+         )`;
+      params = [brand, bomNoParts, no_project];
+    }
+
+    const productResult = await pool.query(query, params);
 
     // 3. Calcular Quantity = quantity_project / quantity
     const productosCalculados = productResult.rows.map(product => {
@@ -965,8 +996,9 @@ app.get('/api/products/types-by-project/:no_project', async (req, res) => {
   const term = req.query.term || '';
   
   try {
-    const result = await pool.query(
-      `SELECT DISTINCT p.type_p
+    // Obtener tipos del BOM del proyecto
+    const typesResult = await pool.query(
+      `SELECT DISTINCT p.type_p as value, 'type' as category
        FROM product p
        INNER JOIN bom_project bp ON p.no_part = bp.no_part
        WHERE bp.no_project = $1
@@ -977,17 +1009,47 @@ app.get('/api/products/types-by-project/:no_project', async (req, res) => {
        LIMIT 10`,
       [no_project, `%${term}%`]
     );
-    res.json(result.rows);
+
+    // Obtener marcas del BOM del proyecto
+    const brandsResult = await pool.query(
+      `SELECT DISTINCT p.brand as value, 'brand' as category
+       FROM product p
+       INNER JOIN bom_project bp ON p.no_part = bp.no_part
+       WHERE bp.no_project = $1
+         AND p.brand IS NOT NULL 
+         AND p.brand != ''
+         AND p.brand ILIKE $2
+       ORDER BY p.brand 
+       LIMIT 10`,
+      [no_project, `%${term}%`]
+    );
+
+    const combined = [
+      ...typesResult.rows.map(row => ({ value: row.value, category: row.category, type_p: row.value })),
+      ...brandsResult.rows.map(row => ({ value: row.value, category: row.category, brand: row.value }))
+    ];
+
+    res.json(combined);
   } catch (err) {
 
 
-    res.status(500).json({ error: 'Error al buscar tipos de producto del proyecto' });
+    res.status(500).json({ error: 'Error al buscar tipos y marcas del BOM del proyecto' });
   }
 });
 
 app.get('/api/vendors', async (req, res) => {
   try {
-    const result = await pool.query('SELECT id_vendor, name_vendor, email, telephone FROM vendor ORDER BY name_vendor');
+    const term = req.query.term || '';
+    let query = 'SELECT id_vendor, name_vendor, email, telephone FROM vendor';
+    const params = [];
+    
+    if (term) {
+      query += ' WHERE name_vendor ILIKE $1 OR email ILIKE $1';
+      params.push(`%${term}%`);
+    }
+    
+    query += ' ORDER BY name_vendor';
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
 

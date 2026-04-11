@@ -117,23 +117,26 @@
                     style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;">
                   </div>
                 </div>
-                <!-- Campo Type Product con autocompletado -->
+                <!-- Campo Type Product o Brand con autocompletado -->
                 <div class="col-md-6 mb-3" style="position: relative;">
-                  <label class="form-label">Type Product</label>
+                  <label class="form-label">Type or Brand</label>
                   <input type="text" class="form-control bg-dark text-light type_p-input"
-                    placeholder="Search type product..." autocomplete="off" id="type_p_input">
+                    placeholder="Search type or brand..." autocomplete="off" id="type_p_input">
                   <div class="sugerencias-type-p bg-dark text-light"
                     style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;">
                   </div>
                 </div>
               </div>
-              <!-- Select de vendors -->
+              <!-- Input de vendors con autocompletado -->
               <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6 mb-3" style="position: relative;">
                   <label class="form-label">Vendor</label>
-                  <select class="form-select bg-secondary text-light" name="id_vendor" required>
-                    <option value="">Select...</option>
-                  </select>
+                  <input type="text" class="form-control bg-dark text-light vendor-input" 
+                    placeholder="Search vendor..." autocomplete="off">
+                  <div class="sugerencias-vendor bg-dark text-light"
+                    style="position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; border: 1px solid #ccc; display: none; max-height: 200px; overflow-y: auto;">
+                  </div>
+                  <input type="hidden" name="id_vendor" class="vendor-hidden-input" required>
                 </div>
                 <!-- Select de networks -->
                 <div class="col-md-6 mb-3">
@@ -165,7 +168,7 @@
                   </div>
                 </div>
                 <!-- Botón para agregar a la tabla -->
-                <div class="d-grid">
+                <div class="d-grid gap-2">
                   <button type="button" class="btn btn-agregar-tabla btn-lg w-100">
                     <i class="bi bi-plus-circle"></i> Added
                   </button>
@@ -179,6 +182,9 @@
                     <table class="table table-striped table-hover mb-0" id="tablaProductos">
                       <thead class="table-dark">
                         <tr>
+                          <th>
+                            <input type="checkbox" id="selectAllCheckbox" style="cursor: pointer;">
+                          </th>
                           <th>Available</th>
                           <th>Part Number</th>
                           <th>Brand</th>
@@ -223,6 +229,12 @@
                     margin-right: 4px;
                   }
                 </style>
+              </div>
+              <!-- Botón para eliminar items seleccionados -->
+              <div class="mt-2 mb-2" id="deleteContainer" style="display: none;">
+                <button type="button" class="btn btn-outline-danger btn-sm" id="deleteSelectedBtn">
+                  <i class="bi bi-trash"></i> Delete Selected Items
+                </button>
               </div>
               <br>
               <!-- Botón para guardar la compra -->
@@ -344,8 +356,8 @@
       }
 
       function inicializarAutocompletadoTypeP(inputTypeP, contenedorSugerencias) {
-        // Función para cargar y mostrar tipos
-        async function cargarYMostrarTipos(term = '') {
+        // Función para cargar y mostrar tipos y marcas
+        async function cargarYMostrarTiposYMarcas(term = '') {
           const projectInput = document.querySelector('.no_project');
           const noProject = projectInput ? projectInput.value.trim() : '';
 
@@ -357,7 +369,7 @@
           }
 
           try {
-            // Obtener SOLO los tipos del proyecto seleccionado
+            // Obtener tipos y marcas del proyecto seleccionado
             const url = `${baseURL}/products/types-by-project/${encodeURIComponent(noProject)}${term ? `?term=${encodeURIComponent(term)}` : ''}`;
             const res = await fetch(url);
             const data = await res.json();
@@ -365,42 +377,90 @@
             contenedorSugerencias.innerHTML = '';
             
             if (data.length === 0) {
-              contenedorSugerencias.innerHTML = '<div style="padding: 5px; color: #999;">No types available</div>';
+              contenedorSugerencias.innerHTML = '<div style="padding: 5px; color: #999;">No types or brands available</div>';
               contenedorSugerencias.style.display = 'block';
               return;
             }
 
-            data.forEach(item => {
-              const div = document.createElement('div');
-              div.textContent = item.type_p;
-              div.style.padding = '5px';
-              div.style.cursor = 'pointer';
-              div.addEventListener('click', () => {
-                inputTypeP.value = item.type_p;
-                // Se guarda el tipo de producto seleccionado
-                tipoProductoSeleccionado = item.type_p;
-                contenedorSugerencias.style.display = 'none';
-              });
-              contenedorSugerencias.appendChild(div);
-            });
+            // Separar tipos y marcas
+            const types = data.filter(item => item.category === 'type');
+            const brands = data.filter(item => item.category === 'brand');
 
-            contenedorSugerencias.style.display = 'block';
+            // Mostrar tipos
+            if (types.length > 0) {
+              const typesHeader = document.createElement('div');
+              typesHeader.style.cssText = 'padding: 8px 5px; background-color: #444; font-weight: bold; color: #aaa; font-size: 0.85rem;';
+              typesHeader.textContent = 'PRODUCT TYPES';
+              contenedorSugerencias.appendChild(typesHeader);
+
+              types.forEach(item => {
+                const div = document.createElement('div');
+                div.style.cssText = 'padding: 8px 5px; cursor: pointer; border-bottom: 1px solid #555;';
+                div.textContent = item.value;
+                div.addEventListener('mouseover', () => {
+                  div.style.backgroundColor = '#333';
+                });
+                div.addEventListener('mouseleave', () => {
+                  div.style.backgroundColor = 'transparent';
+                });
+                div.addEventListener('click', () => {
+                  inputTypeP.value = item.value;
+                  inputTypeP.dataset.type = 'type_p';
+                  inputTypeP.dataset.value = item.value;
+                  tipoProductoSeleccionado = item.value;
+                  contenedorSugerencias.style.display = 'none';
+                });
+                contenedorSugerencias.appendChild(div);
+              });
+            }
+
+            // Mostrar marcas
+            if (brands.length > 0) {
+              const brandsHeader = document.createElement('div');
+              brandsHeader.style.cssText = 'padding: 8px 5px; background-color: #444; font-weight: bold; color: #aaa; font-size: 0.85rem; margin-top: 8px;';
+              brandsHeader.textContent = 'BRANDS';
+              contenedorSugerencias.appendChild(brandsHeader);
+
+              brands.forEach(item => {
+                const div = document.createElement('div');
+                div.style.cssText = 'padding: 8px 5px; cursor: pointer; border-bottom: 1px solid #555;';
+                div.textContent = item.value;
+                div.addEventListener('mouseover', () => {
+                  div.style.backgroundColor = '#333';
+                });
+                div.addEventListener('mouseleave', () => {
+                  div.style.backgroundColor = 'transparent';
+                });
+                div.addEventListener('click', () => {
+                  inputTypeP.value = item.value;
+                  inputTypeP.dataset.type = 'brand';
+                  inputTypeP.dataset.value = item.value;
+                  tipoProductoSeleccionado = ''; // Limpiar tipoProductoSeleccionado
+                  contenedorSugerencias.style.display = 'none';
+                });
+                contenedorSugerencias.appendChild(div);
+              });
+            }
+
+            if (types.length > 0 || brands.length > 0) {
+              contenedorSugerencias.style.display = 'block';
+            }
 
           } catch (err) {
-            contenedorSugerencias.innerHTML = '<div style="padding: 5px; color: #999;">Error loading types</div>';
+            contenedorSugerencias.innerHTML = '<div style="padding: 5px; color: #999;">Error loading data</div>';
             contenedorSugerencias.style.display = 'block';
           }
         }
 
-        // Mostrar tipos cuando hace focus
+        // Mostrar tipos y marcas cuando hace focus
         inputTypeP.addEventListener('focus', () => {
-          cargarYMostrarTipos(inputTypeP.value.trim());
+          cargarYMostrarTiposYMarcas(inputTypeP.value.trim());
         });
 
-        // Filtrar tipos cuando escribe
+        // Filtrar tipos y marcas cuando escribe
         inputTypeP.addEventListener('input', () => {
           const term = inputTypeP.value.trim();
-          cargarYMostrarTipos(term);
+          cargarYMostrarTiposYMarcas(term);
         });
 
         document.addEventListener('click', (e) => {
@@ -429,6 +489,13 @@
       if (typePInput) typePInput.parentNode.appendChild(typePHiddenInput);
       inicializarAutocompletadoTypeP(typePInput, typePSugerenciasDiv);
 
+      const vendorInput = document.querySelector('.vendor-input');
+      const vendorSugerenciasDiv = document.querySelector('.sugerencias-vendor');
+      const vendorHiddenInput = document.querySelector('.vendor-hidden-input');
+      if (vendorInput) {
+        inicializarAutocompletadoVendor(vendorInput, vendorSugerenciasDiv, vendorHiddenInput);
+      }
+
       // Mantener hidden sincronizado
       if (typePInput) {
         typePInput.addEventListener('input', function () {
@@ -444,11 +511,16 @@
       const addedParts = new Set();
 
       // Función para cargar productos con cálculo BOM
-      async function cargarProductosConBOM(no_project, type_p) {
+      async function cargarProductosConBOM(no_project, type_p, brand) {
         try {
-          const res = await fetch(
-            `${baseURL}/products/bom-calculation?no_project=${encodeURIComponent(no_project)}&type_p=${encodeURIComponent(type_p)}`
-          );
+          let url = `${baseURL}/products/bom-calculation?no_project=${encodeURIComponent(no_project)}`;
+          if (type_p) {
+            url += `&type_p=${encodeURIComponent(type_p)}`;
+          }
+          if (brand) {
+            url += `&brand=${encodeURIComponent(brand)}`;
+          }
+          const res = await fetch(url);
           if (!res.ok) throw new Error('Error fetching BOM calculation');
           const productos = await res.json();
           return productos;
@@ -475,7 +547,8 @@
 
         // Mostrar en la tabla con quantity calculado
         const filaHTML = `
-          <tr>
+          <tr class="product-row" data-no-part="${esc(producto.no_part)}">
+            <td><input type="checkbox" class="product-checkbox" style="cursor: pointer;"></td>
             <td class="aut-stock-cell">Cargando...</td>
             <td class="cell-no-part">${esc(producto.no_part)}</td>
             <td>${esc(producto.brand)}</td>
@@ -572,6 +645,7 @@
           // Remover la parte del conjunto de partes agregadas
           addedParts.delete(productoObj.no_part);
           actualizarTotal();
+          actualizarEstadoDeleteBtn();
         });
       }
 
@@ -583,7 +657,8 @@
         const esc = (s) => (s === null || s === undefined) ? '' : String(s).replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
         const filaHTML = `
-          <tr>
+          <tr class="product-row" data-no-part="${esc(producto.no_part)}">
+            <td><input type="checkbox" class="product-checkbox" style="cursor: pointer;"></td>
             <td class="cell-no-part">${esc(producto.no_part)}</td>
             <td>${esc(producto.brand)}</td>
             <td>${esc(producto.description)}</td>
@@ -634,6 +709,7 @@
           // Remover la parte del conjunto de partes agregadas
           addedParts.delete(productoObj.no_part);
           actualizarTotal();
+          actualizarEstadoDeleteBtn();
         });
 
         // Manejo del input de fecha
@@ -648,17 +724,33 @@
       const btnAgregar = document.querySelector('.btn-agregar-tabla');
       if (btnAgregar) {
         btnAgregar.addEventListener('click', async () => {
-          // Obtener proyecto y tipo
+          // Obtener proyecto
           const no_project = document.querySelector('.no_project').value.trim();
-          const type_p = tipoProductoSeleccionado;
-
-          if (!no_project || !type_p) {
-            alert('Select a project');
+          const typePInput = document.querySelector('.type_p-input');
+          
+          if (!no_project || !typePInput.value) {
+            alert('Select a project and a type or brand');
             return;
           }
 
+          // Detectar si fue seleccionado un tipo o una marca
+          const selectedType = typePInput.dataset.type; // 'type_p' o 'brand'
+          const selectedValue = typePInput.dataset.value;
+
+          let type_p = null;
+          let brand = null;
+
+          if (selectedType === 'type_p') {
+            type_p = selectedValue;
+          } else if (selectedType === 'brand') {
+            brand = selectedValue;
+          } else {
+            // Si no hay dataset.type, asumir que es el valor viejo (por compatibilidad)
+            type_p = tipoProductoSeleccionado || typePInput.value;
+          }
+
           // llamar backend con cálculo BOM
-          const productos = await cargarProductosConBOM(no_project, type_p);
+          const productos = await cargarProductosConBOM(no_project, type_p, brand);
           if (!productos || productos.length === 0) {
             alert('No products were found that match the BOM.');
             return;
@@ -667,7 +759,7 @@
           // Filtrar solo los productos que aún no han sido agregados
           const productosNuevos = productos.filter(prod => !addedParts.has(prod.no_part));
           if (productosNuevos.length === 0) {
-            alert('All products of this type have already been added.');
+            alert('All products of this type or brand have already been added.');
             return;
           }
 
@@ -677,15 +769,58 @@
           productosNuevos.forEach(prod => addedParts.add(prod.no_part));
         });
       }
-      // Carga inicial de selects (vendors, networks)
-      fetch(`${baseURL}/vendors`).then(r => r.json()).then(data => {
-        const vendorSelect = document.querySelector('select[name="id_vendor"]');
-        if (!vendorSelect) return;
-        vendorSelect.innerHTML = '<option value="">Select vendor...</option>';
-        data.forEach(v => vendorSelect.innerHTML += `<option value="${v.id_vendor}">${v.name_vendor}</option>`);
-      }).catch(err => {});
 
-      fetch(`${baseURL}/networks`).then(r => r.json()).then(data => {
+      function inicializarAutocompletadoVendor(inputVendor, contenedorSugerencias, hiddenVendor) {
+        if (!inputVendor || !contenedorSugerencias) return;
+
+        inputVendor.addEventListener('input', async function () {
+          const term = this.value;
+          if (term.length < 1) {
+            contenedorSugerencias.style.display = 'none';
+            return;
+          }
+
+          try {
+            const response = await fetch(`${baseURL}/vendors?term=${encodeURIComponent(term)}`);
+            const data = await response.json();
+            
+            contenedorSugerencias.innerHTML = '';
+            if (data.length === 0) {
+              const div = document.createElement('div');
+              div.textContent = 'No vendors found';
+              div.style.padding = '8px';
+              contenedorSugerencias.appendChild(div);
+              contenedorSugerencias.style.display = 'block';
+              return;
+            }
+
+            data.forEach(vendor => {
+              const div = document.createElement('div');
+              div.style.padding = '8px';
+              div.style.cursor = 'pointer';
+              div.textContent = vendor.name_vendor;
+              div.addEventListener('click', () => {
+                inputVendor.value = vendor.name_vendor;
+                hiddenVendor.value = vendor.id_vendor;
+                contenedorSugerencias.style.display = 'none';
+              });
+              div.addEventListener('mouseover', () => div.style.backgroundColor = '#444');
+              div.addEventListener('mouseout', () => div.style.backgroundColor = 'transparent');
+              contenedorSugerencias.appendChild(div);
+            });
+            contenedorSugerencias.style.display = 'block';
+          } catch (err) {
+            console.error('Error fetching vendors:', err);
+          }
+        });
+
+        document.addEventListener('click', function (e) {
+          if (e.target !== inputVendor) {
+            contenedorSugerencias.style.display = 'none';
+          }
+        });
+      }
+            fetch(`${baseURL}/networks`).then(r => r.json()).then(data => {
         const networkSelect = document.querySelector('select[name="network"]');
         if (!networkSelect) return;
         networkSelect.innerHTML = '<option value="">Select network...</option>';
@@ -744,6 +879,78 @@
         // Toma la fecha más tardía
         let maxFecha = fechas.reduce((a, b) => (a > b ? a : b));
         return maxFecha;
+      }
+
+      // Funciones para manejar multi-delete
+      function actualizarEstadoDeleteBtn() {
+        const checkboxes = document.querySelectorAll('.product-checkbox:checked');
+        const deleteContainer = document.getElementById('deleteContainer');
+        if (deleteContainer) {
+          deleteContainer.style.display = checkboxes.length > 0 ? 'block' : 'none';
+        }
+      }
+
+      // Event listener para el checkbox "Select All"
+      const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+      if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function () {
+          const checkboxes = document.querySelectorAll('.product-checkbox');
+          checkboxes.forEach(cb => cb.checked = this.checked);
+          actualizarEstadoDeleteBtn();
+        });
+      }
+
+      // Event delegation para checkboxes individuales
+      document.addEventListener('change', function (e) {
+        if (e.target.classList.contains('product-checkbox')) {
+          const allCheckboxes = document.querySelectorAll('.product-checkbox');
+          const checkedCheckboxes = document.querySelectorAll('.product-checkbox:checked');
+          
+          if (selectAllCheckbox) {
+            selectAllCheckbox.checked = allCheckboxes.length === checkedCheckboxes.length;
+            selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < allCheckboxes.length;
+          }
+          actualizarEstadoDeleteBtn();
+        }
+      });
+
+      // Event listener para el botón "Delete Selected"
+      const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+      if (deleteSelectedBtn) {
+        deleteSelectedBtn.addEventListener('click', function () {
+          const checkedRows = document.querySelectorAll('.product-row:has(.product-checkbox:checked)');
+          
+          if (checkedRows.length === 0) {
+            alert('No items selected');
+            return;
+          }
+
+          const itemCount = checkedRows.length;
+          const confirmMsg = itemCount === 1 
+            ? `Are you sure you want to delete this item?`
+            : `Are you sure you want to delete ${itemCount} items?`;
+
+          if (confirm(confirmMsg)) {
+            checkedRows.forEach(row => {
+              const noPart = row.dataset.noPart;
+              // Eliminar de productosEnTabla
+              productosEnTabla = productosEnTabla.filter(p => p.no_part !== noPart);
+              // Eliminar de addedParts
+              addedParts.delete(noPart);
+              // Eliminar la fila del DOM
+              row.remove();
+            });
+
+            // Actualizar total
+            actualizarTotal();
+            // Resetear checkbox Select All
+            if (selectAllCheckbox) {
+              selectAllCheckbox.checked = false;
+              selectAllCheckbox.indeterminate = false;
+            }
+            actualizarEstadoDeleteBtn();
+          }
+        });
       }
 
       //Envío del formulario
