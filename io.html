@@ -186,6 +186,26 @@
     </div>
   </div>
 
+  <!-- Modal de inactividad para Tecnico -->
+  <div class="modal fade" id="techInactivityModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="techInactivityModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="background: linear-gradient(135deg, #1a1a1c 0%, #2a2a2e 100%); border: 2px solid #ff3b30; box-shadow: 0 0 30px rgba(255, 59, 48, 0.25);">
+        <div class="modal-header" style="border-bottom: 1px solid rgba(255, 59, 48, 0.45);">
+          <h5 class="modal-title" id="techInactivityModalLabel" style="color: #ff3b30; font-weight: 700;">
+            <i class="bi bi-hourglass-split me-2"></i>Inactivity Detected
+          </h5>
+        </div>
+        <div class="modal-body" style="color: #dfe6e9;">
+          <p class="mb-0">Do you want to continue your session? It will close in <strong><span id="techInactivityCountdown">10</span>s</strong>.</p>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid rgba(255, 59, 48, 0.45);">
+          <button type="button" class="btn btn-outline-light" id="techCloseSessionBtn">Close</button>
+          <button type="button" class="btn btn-danger" id="techContinueSessionBtn">Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Offcanvas para Historial de Movimientos -->
   <div class="offcanvas offcanvas-end bg-dark text-white requires-full-access" data-bs-backdrop="static" tabindex="-1" id="historyOffcanvas" aria-labelledby="historyOffcanvasLabel" style="width: 70%;">
     <div class="offcanvas-header border-bottom border-secondary">
@@ -270,6 +290,205 @@
     const inboundRadio = document.getElementById('btnradio1');
     const outboundRadio = document.getElementById('btnradio2');
     const mainNavbar = document.getElementById('mainNavbar');
+    const techInactivityCountdownEl = document.getElementById('techInactivityCountdown');
+    const techContinueSessionBtn = document.getElementById('techContinueSessionBtn');
+    const techCloseSessionBtn = document.getElementById('techCloseSessionBtn');
+
+    const TECH_INACTIVITY_DETECTION_MS = 20 * 1000;
+    const TECH_IDLE_WARNING_SECONDS = 15;
+    const TECH_ACTIVITY_WRITE_GAP_MS = 3000;
+    let techLastMovementAt = Date.now();
+    let techLastUserActivityAt = Date.now();
+    let techLastAuthActivityWriteAt = 0;
+    let techIdleCheckTimerId = null;
+    let techCountdownTimerId = null;
+    let techCountdownSecondsLeft = TECH_IDLE_WARNING_SECONDS;
+    let techInactivityModal = null;
+    let techInactivityPromptOpen = false;
+    let techActivityEventsBound = false;
+    let techAudioContext = null;
+
+    function isTechnicianSession() {
+      return PurchaseAuth.hasAnyRole(currentUser, ['Tecnico']) && !PurchaseAuth.hasAnyRole(currentUser, ['Administrador', 'Compras']);
+    }
+
+    function closeTechnicianSessionNow() {
+      PurchaseAuth.logout('index.html');
+    }
+
+    function closeTechnicianInactivityModal() {
+      if (techInactivityModal) {
+        techInactivityModal.hide();
+      }
+      techInactivityPromptOpen = false;
+      if (techCountdownTimerId) {
+        clearInterval(techCountdownTimerId);
+        techCountdownTimerId = null;
+      }
+    }
+
+    function updateTechnicianActivity(source) {
+      if (!isTechnicianSession()) {
+        return;
+      }
+
+      const now = Date.now();
+      techLastUserActivityAt = now;
+
+      if (source === 'movement') {
+        techLastMovementAt = now;
+      }
+
+      if (typeof PurchaseAuth.recordActivity === 'function' && (now - techLastAuthActivityWriteAt) >= TECH_ACTIVITY_WRITE_GAP_MS) {
+        PurchaseAuth.recordActivity(true);
+        techLastAuthActivityWriteAt = now;
+      }
+    }
+
+    function continueTechnicianSession() {
+      updateTechnicianActivity('interaction');
+      closeTechnicianInactivityModal();
+    }
+
+    function playTechnicianInactivityBeep() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) {
+          return;
+        }
+
+        if (!techAudioContext) {
+          techAudioContext = new AudioCtx();
+        }
+
+        if (techAudioContext.state === 'suspended') {
+          techAudioContext.resume();
+        }
+
+        const now = techAudioContext.currentTime;
+        const durations = [0, 0.18];
+
+        durations.forEach((offset) => {
+          const osc = techAudioContext.createOscillator();
+          const gain = techAudioContext.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, now + offset);
+
+          gain.gain.setValueAtTime(0.0001, now + offset);
+          gain.gain.exponentialRampToValueAtTime(0.18, now + offset + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.14);
+
+          osc.connect(gain);
+          gain.connect(techAudioContext.destination);
+
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.15);
+        });
+      } catch (error) {
+      }
+    }
+
+    function bindTechnicianActivityEvents() {
+      if (techActivityEventsBound) {
+        return;
+      }
+
+      const activityEvents = ['mousemove', 'pointermove', 'touchmove', 'scroll', 'wheel'];
+      const onActivity = function () {
+        updateTechnicianActivity('interaction');
+      };
+
+      activityEvents.forEach((eventName) => {
+        window.addEventListener(eventName, onActivity, { passive: true });
+      });
+
+      techActivityEventsBound = true;
+    }
+
+    function markTechnicianMovementActivity() {
+      if (!isTechnicianSession()) {
+        return;
+      }
+
+      updateTechnicianActivity('movement');
+    }
+
+    function openTechnicianInactivityPrompt() {
+      if (!isTechnicianSession() || techInactivityPromptOpen) {
+        return;
+      }
+
+      if (!techInactivityModal) {
+        const modalEl = document.getElementById('techInactivityModal');
+        if (!modalEl) {
+          return;
+        }
+        techInactivityModal = new bootstrap.Modal(modalEl);
+      }
+
+      techCountdownSecondsLeft = TECH_IDLE_WARNING_SECONDS;
+      if (techInactivityCountdownEl) {
+        techInactivityCountdownEl.textContent = String(techCountdownSecondsLeft);
+      }
+
+      techInactivityPromptOpen = true;
+      techInactivityModal.show();
+      playTechnicianInactivityBeep();
+
+      if (techCountdownTimerId) {
+        clearInterval(techCountdownTimerId);
+      }
+
+      techCountdownTimerId = setInterval(() => {
+        techCountdownSecondsLeft -= 1;
+
+        if (techInactivityCountdownEl) {
+          techInactivityCountdownEl.textContent = String(Math.max(techCountdownSecondsLeft, 0));
+        }
+
+        if (techCountdownSecondsLeft <= 0) {
+          clearInterval(techCountdownTimerId);
+          techCountdownTimerId = null;
+          closeTechnicianSessionNow();
+        }
+      }, 1000);
+    }
+
+    function startTechnicianIdleMonitor() {
+      if (!isTechnicianSession() || techIdleCheckTimerId) {
+        return;
+      }
+
+      techLastMovementAt = Date.now();
+      techLastUserActivityAt = Date.now();
+      bindTechnicianActivityEvents();
+
+      techIdleCheckTimerId = setInterval(() => {
+        if (!currentUser || !isTechnicianSession()) {
+          return;
+        }
+
+        if (techInactivityPromptOpen) {
+          return;
+        }
+
+        const lastAnyActivityAt = Math.max(techLastUserActivityAt, techLastMovementAt);
+        const elapsedMs = Date.now() - lastAnyActivityAt;
+        if (elapsedMs >= TECH_INACTIVITY_DETECTION_MS) {
+          openTechnicianInactivityPrompt();
+        }
+      }, 1000);
+    }
+
+    function stopTechnicianIdleMonitor() {
+      if (techIdleCheckTimerId) {
+        clearInterval(techIdleCheckTimerId);
+        techIdleCheckTimerId = null;
+      }
+
+      closeTechnicianInactivityModal();
+    }
 
     function applyIoRoleVisibility() {
       const hasFullAccess = PurchaseAuth.hasAnyRole(currentUser, ['Administrador', 'Compras']);
@@ -313,6 +532,10 @@
       if (pendingNotice) {
         window.alert(pendingNotice);
       }
+
+      if (isTechnicianSession()) {
+        startTechnicianIdleMonitor();
+      }
       
       // Cargar lista de proyectos para el modal de AUT-STOCK
       loadProjectsList();
@@ -320,7 +543,21 @@
 
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
+        stopTechnicianIdleMonitor();
         PurchaseAuth.logout('index.html');
+      });
+    }
+
+    if (techContinueSessionBtn) {
+      techContinueSessionBtn.addEventListener('click', () => {
+        continueTechnicianSession();
+      });
+    }
+
+    if (techCloseSessionBtn) {
+      techCloseSessionBtn.addEventListener('click', () => {
+        stopTechnicianIdleMonitor();
+        closeTechnicianSessionNow();
       });
     }
 
@@ -816,6 +1053,7 @@
           }
 
           showToast(`Movement recorded`, 'success');
+          markTechnicianMovementActivity();
 
           // Actualizar cantidad disponible
           // For inactive projects with rack selection, use totalAvailAfter from response
@@ -896,6 +1134,7 @@
           }
 
           showToast(`Movement ${movementType} recorded`, 'success');
+          markTechnicianMovementActivity();
         } catch (err) {
           row.remove();
           const msg = (err && err.message) ? err.message : String(err || 'Unknown error');
@@ -921,6 +1160,7 @@
       if (currentUser) {
         qrInput.focus();
       } else {
+        stopTechnicianIdleMonitor();
         PurchaseAuth.logout('index.html');
       }
     };

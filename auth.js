@@ -151,6 +151,10 @@
     setLastActivityTimestamp(now);
   }
 
+  function recordActivity(forceWrite) {
+    touchActivity(Boolean(forceWrite));
+  }
+
   function expireSessionByInactivity() {
     setNotice('Your session has closed due to inactivity. Scan your QR to log in again.');
     clearUser();
@@ -685,6 +689,7 @@
     validateCredentials,
     requireAuth,
     consumeNotice,
+    recordActivity,
     logout,
     mountUserInfoBar,
     refreshUserProfileIfNeeded
