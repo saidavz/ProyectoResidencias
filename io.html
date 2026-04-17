@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
@@ -1191,12 +1191,12 @@
         }
 
         const response = await fetch(url);
-        if (!response.ok) throw new Error('Error al cargar el historial');
+        if (!response.ok) throw new Error('Error loading history');
 
         const data = await response.json();
         
         if (!data.movements || data.movements.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No se encontraron movimientos</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No movements found</td></tr>';
           document.getElementById('historyStats').classList.add('d-none');
           return;
         }

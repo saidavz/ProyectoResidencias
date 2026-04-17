@@ -457,7 +457,7 @@
     }
 
     if (!response.ok || !data.success || !data.user) {
-      throw new Error(data.error || 'Acceso denegado. Usuario no encontrado o sin permisos.');
+      throw new Error(data.error || 'Access denied. User not found or lacks permissions.');
     }
 
     return setUser(data.user);
@@ -491,7 +491,7 @@
     }
 
     if (!response.ok || !data.success || !data.user) {
-      throw new Error(data.error || 'Acceso denegado. Usuario o contraseña incorrectos.');
+      throw new Error(data.error || 'Access denied. Incorrect username or password.');
     }
 
     return setUser(data.user);

@@ -12,7 +12,7 @@
   <script>
     PurchaseAuth.requireAuth({
       allowedRoles: ['Administrador', 'Compras'],
-      deniedMessage: 'Solo Administrador y Compras tienen acceso a esta seccion.'
+      deniedMessage: 'Only Administrators and Purchases have access to this section.'
     });
   </script>
   <style>
@@ -72,6 +72,10 @@
 
     #collapse .kpi-spent-amount.kpi-complete {
       background: linear-gradient(145deg, rgba(156, 163, 175, 0.62) 0%, rgba(75, 85, 99, 0.56) 100%) !important;
+    }
+
+    #collapse .kpi-network-balance.kpi-complete {
+      background: linear-gradient(145deg, rgba(59, 130, 246, 0.58) 0%, rgba(29, 78, 216, 0.5) 100%) !important;
     }
 
     #collapse .kpi-card .card-header,
@@ -143,6 +147,60 @@
     #collapse .kpi-spent-amount {
       --kpi-accent: rgba(229, 231, 235, 0.95);
       background: linear-gradient(145deg, rgba(156, 163, 175, 0.32) 0%, rgba(75, 85, 99, 0.28) 100%) !important;
+    }
+
+    #collapse .kpi-network-balance {
+      --kpi-accent: rgba(96, 165, 250, 0.95);
+      background: linear-gradient(145deg, rgba(59, 130, 246, 0.28) 0%, rgba(29, 78, 216, 0.24) 100%) !important;
+    }
+
+    #collapse .network-balance-section {
+      margin-top: 8px;
+      margin-bottom: 8px;
+    }
+
+    #collapse .network-balance-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    #collapse .network-mini-card {
+      border: 1px solid rgba(96, 165, 250, 0.45);
+      border-radius: 12px;
+      background: linear-gradient(155deg, rgba(15, 23, 42, 0.55) 0%, rgba(30, 64, 175, 0.42) 100%);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
+      padding: 10px 12px;
+      min-height: 92px;
+    }
+
+    #collapse .network-mini-title {
+      font-size: 11px;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: rgba(219, 234, 254, 0.95);
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    #collapse .network-mini-balance {
+      font-size: 22px;
+      font-weight: 600;
+      color: #ffffff;
+      line-height: 1.2;
+      text-align: center;
+      margin-bottom: 2px;
+    }
+
+    #collapse .network-mini-name {
+      font-size: 11px;
+      color: rgba(226, 232, 240, 0.95);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .badge.status-quoted {
@@ -287,9 +345,12 @@
           <div class="card bg-white-soft mb-3 kpi-card kpi-spent-amount kpi-complete" style="width: 14rem;">
             <div class="card-header" style="text-align: center; font-size: 16px; color: white;">Spended Amount</div>
             <div class="card-body">
-              <h5 id="spentAmount" style="text-align: center; font-size: 28px; color: white;">$0.00</h5>
+              <h5 id="spentAmount" style="text-align: center; font-size: 28px; color: white;">$0</h5>
             </div>
           </div>
+        </div>
+        <div id="networkBalanceCardsSection" class="network-balance-section" style="display:none;">
+          <div id="networkBalanceCardsGrid" class="network-balance-grid"></div>
         </div>
         <br>
       </div>
@@ -411,6 +472,72 @@
         card.classList.toggle('kpi-complete', isComplete);
       }
 
+      function formatKpiCurrency(value) {
+        const amount = Number(value);
+        if (!Number.isFinite(amount)) {
+          return '$0';
+        }
+
+        return new Intl.NumberFormat('en-US', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2
+        }).format(amount);
+      }
+
+      function formatKpiPercent(value) {
+        const amount = Number(value);
+        if (!Number.isFinite(amount)) {
+          return '0%';
+        }
+
+        return `${new Intl.NumberFormat('en-US', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2
+        }).format(amount)}%`;
+      }
+
+      function renderNetworkBalanceCards(projectId, cardsData) {
+        const sectionEl = document.getElementById('networkBalanceCardsSection');
+        const gridEl = document.getElementById('networkBalanceCardsGrid');
+        if (!sectionEl || !gridEl) {
+          return;
+        }
+
+        if (!projectId) {
+          sectionEl.style.display = 'none';
+          gridEl.innerHTML = '';
+          return;
+        }
+
+        const cards = Array.isArray(cardsData) ? cardsData.filter(item => item && item.network) : [];
+        if (cards.length === 0) {
+          sectionEl.style.display = '';
+          gridEl.innerHTML = `
+            <article class="network-mini-card">
+              <div class="network-mini-title">Network Balance</div>
+              <div class="network-mini-balance">$0</div>
+              <div class="network-mini-name">No linked network</div>
+            </article>
+          `;
+          return;
+        }
+
+        gridEl.innerHTML = cards.map((card) => {
+          const networkName = String(card.network || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `
+            <article class="network-mini-card" title="${networkName}">
+              <div class="network-mini-title">Network Balance</div>
+              <div class="network-mini-balance">$${formatKpiCurrency(card.balance)}</div>
+              <div class="network-mini-name"> ${networkName}</div>
+
+              
+            </article>
+          `;
+        }).join('');
+
+        sectionEl.style.display = '';
+      }
+
       // Cargar todos los proyectos al inicio
       async function loadAllProjects() {
         try {
@@ -523,25 +650,36 @@
           const data = await res.json();
 
           // Formato a los porcentajes
-          const formatPercent = (v) => {
-            const n = Number(v);
-            return Number.isFinite(n) ? n.toFixed(3) : '0.000';
-          };
           // Mantener solo tarjetas de gasto desde backend
           const porcentajeGastado = Number(data.porcentaje_gastado);
-          document.getElementById("percentGastado").innerText = `${formatPercent(porcentajeGastado)}%`;
+          document.getElementById("percentGastado").innerText = formatKpiPercent(porcentajeGastado);
           setKpiCompletion('percentGastado', porcentajeGastado);
 
           try {
             const spent = Number(data.total_gastado || 0);
-            document.getElementById('spentAmount').textContent = `$${spent.toFixed(2)}`;
+            document.getElementById('spentAmount').textContent = `$${formatKpiCurrency(spent)}`;
           } catch (errSet) {
-            document.getElementById('spentAmount').textContent = '$0.00';
+            document.getElementById('spentAmount').textContent = '$0';
+          }
+
+          try {
+            let networkCards = Array.isArray(data.network_cards) ? data.network_cards : [];
+            if (projectId && networkCards.length === 0 && data.network_name) {
+              networkCards = [{
+                network: data.network_name,
+                balance: Number(data.balance_actual || 0)
+              }];
+            }
+            renderNetworkBalanceCards(projectId, networkCards);
+          } catch (errBalance) {
+            renderNetworkBalanceCards(projectId, []);
           }
 
         } catch (error) {
 
           setKpiCompletion('percentGastado', 0);
+          document.getElementById('spentAmount').textContent = '$0';
+          renderNetworkBalanceCards(projectId, []);
 
 
         }
@@ -743,13 +881,11 @@
           return ((num / total) * 100);
         });
 
-        const fmt = (v) => `${Number(v).toFixed(1)}%`;
-
-        document.getElementById("percentCotizado").innerText = fmt(percents[0]);
-        document.getElementById("percentPR").innerText = fmt(percents[1]);
-        document.getElementById("percentShopping").innerText = fmt(percents[2]);
-        document.getElementById("percentPO").innerText = fmt(percents[3]);
-        document.getElementById("percentEntregado").innerText = fmt(percents[4]);
+        document.getElementById("percentCotizado").innerText = formatKpiPercent(percents[0]);
+        document.getElementById("percentPR").innerText = formatKpiPercent(percents[1]);
+        document.getElementById("percentShopping").innerText = formatKpiPercent(percents[2]);
+        document.getElementById("percentPO").innerText = formatKpiPercent(percents[3]);
+        document.getElementById("percentEntregado").innerText = formatKpiPercent(percents[4]);
 
         setKpiCompletion('percentCotizado', percents[0]);
         setKpiCompletion('percentPR', percents[1]);

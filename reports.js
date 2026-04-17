@@ -1747,7 +1747,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error('Error al consultar compras');
+        throw new Error('Error querying purchases');
       }
 
       const rows = Array.isArray(data) ? data : [];
@@ -1835,7 +1835,7 @@ document.addEventListener('DOMContentLoaded', () => {
       deadInventoryMeta.textContent = 'Unable to load the dead inventory report.';
       deadInventoryTableBody.innerHTML = `
         <tr>
-          <td colspan="4" class="text-center text-danger">Error al cargar datos</td>
+          <td colspan="4" class="text-center text-danger">Error loading data</td>
         </tr>
       `;
     }

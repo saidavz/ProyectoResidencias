@@ -75,14 +75,14 @@ async function resolveExistingUserPid(rawPid) {
 async function requireMovementUserPid(req, res, endpointName) {
   const cleanPid = sanitizePid(req?.body?.pid);
   if (!cleanPid) {
-    res.status(401).json({ ok: false, message: 'Sesion invalida: vuelve a iniciar sesion.' });
+    res.status(401).json({ ok: false, message: 'Invalid session: please sign in again.' });
     return null;
   }
 
   const userPid = await resolveExistingUserPid(cleanPid);
   if (!userPid) {
     console.warn(`PID not found in user_ for ${endpointName}:`, cleanPid);
-    res.status(401).json({ ok: false, message: `Usuario invalido para registrar movimiento (PID: ${cleanPid}).` });
+    res.status(401).json({ ok: false, message: `Invalid user for recording movement (PID: ${cleanPid}).` });
     return null;
   }
 
@@ -149,7 +149,7 @@ app.post('/api/auth/validate-qr', async (req, res) => {
   if (!pid) {
     return res.status(400).json({ 
       success: false, 
-      error: 'PID es requerido' 
+      error: 'PID is required' 
     });
   }
 
@@ -165,7 +165,7 @@ app.post('/api/auth/validate-qr', async (req, res) => {
     if (!normalizedPid) {
       return res.status(400).json({
         success: false,
-        error: 'PID invalido despues de normalizar el escaneo.'
+        error: 'Invalid PID after normalizing the scan.'
       });
     }
 
@@ -183,7 +183,7 @@ app.post('/api/auth/validate-qr', async (req, res) => {
     if (roleColumnResult.rows.length === 0) {
       return res.status(500).json({
         success: false,
-        error: 'La tabla user_ no tiene columna rol/role para validar permisos.'
+        error: 'The user_ table does not have a rol/role column to validate permissions.'
       });
     }
 
@@ -224,13 +224,13 @@ app.post('/api/auth/validate-qr', async (req, res) => {
     } else {
       res.status(401).json({
         success: false,
-        error: 'Acceso denegado. Usuario no encontrado o sin permisos.'
+        error: 'Access denied. User not found or lacks permissions.'
       });
     }
   } catch (error) {
     res.status(500).json({ 
       success: false, 
-      error: 'Error al validar usuario: ' + error.message 
+      error: 'Error validating user: ' + error.message 
     });
   }
 });
@@ -242,14 +242,14 @@ app.post('/api/auth/validate-credentials', async (req, res) => {
   if (!user_name) {
     return res.status(400).json({ 
       success: false, 
-      error: 'User name es requerido' 
+      error: 'User name is required' 
     });
   }
 
   if (!user_password) {
     return res.status(400).json({ 
       success: false, 
-      error: 'Password es requerido' 
+      error: 'Password is required' 
     });
   }
 
@@ -273,7 +273,7 @@ app.post('/api/auth/validate-credentials', async (req, res) => {
     if (roleColumnResult.rows.length === 0) {
       return res.status(500).json({
         success: false,
-        error: 'La tabla user_ no tiene columna rol/role para validar permisos.'
+        error: 'The user_ table does not have a rol/role column to validate permissions.'
       });
     }
 
@@ -299,7 +299,7 @@ app.post('/api/auth/validate-credentials', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(401).json({
         success: false,
-        error: 'Usuario no encontrado.'
+        error: 'User not found.'
       });
     }
 
@@ -316,7 +316,7 @@ app.post('/api/auth/validate-credentials', async (req, res) => {
     if (dbPassword !== normalizedPassword) {
       return res.status(401).json({
         success: false,
-        error: 'Contraseña incorrecta.'
+        error: 'Incorrect password.'
       });
     }
 
@@ -329,7 +329,7 @@ app.post('/api/auth/validate-credentials', async (req, res) => {
     if (!allowedRoles.includes(userRole)) {
       return res.status(401).json({
         success: false,
-        error: 'Acceso denegado. Usuario sin permisos suficientes.'
+        error: 'Access denied. User lacks sufficient permissions.'
       });
     }
 
@@ -351,7 +351,7 @@ app.post('/api/auth/validate-credentials', async (req, res) => {
     console.error('Auth error:', error.message);
     res.status(500).json({ 
       success: false, 
-      error: 'Error al validar credenciales: ' + error.message 
+      error: 'Error validating credentials: ' + error.message 
     });
   }
 });
@@ -374,11 +374,11 @@ app.post('/api/users', async (req, res) => {
   const normalizedPassword = String(user_password || '').trim();
 
   if (!normalizedPid || !normalizedUserName || !normalizedLastName || !normalizedSecondLastName || !normalizedRole || !normalizedPassword) {
-    return res.status(400).json({ success: false, error: 'Todos los campos son requeridos.' });
+    return res.status(400).json({ success: false, error: 'All fields are required.' });
   }
 
   if (!['Administrador', 'Tecnico'].includes(normalizedRole)) {
-    return res.status(400).json({ success: false, error: 'Rol invalido. Solo se permite Administrador o Tecnico.' });
+    return res.status(400).json({ success: false, error: 'Invalid role. Only Administrator or Technician is allowed.' });
   }
 
   try {
@@ -394,7 +394,7 @@ app.post('/api/users', async (req, res) => {
     );
 
     if (duplicateCheck.rows.length > 0) {
-      return res.status(409).json({ success: false, error: 'Ya existe un usuario con ese PID o user_name.' });
+      return res.status(409).json({ success: false, error: 'A user with that PID or user_name already exists.' });
     }
 
     const result = await pool.query(
@@ -415,11 +415,11 @@ app.post('/api/users', async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Usuario registrado correctamente.',
+      message: 'User registered successfully.',
       user: result.rows[0]
     });
   } catch (error) {
-    return res.status(500).json({ success: false, error: 'Error al registrar usuario: ' + error.message });
+    return res.status(500).json({ success: false, error: 'Error registering user: ' + error.message });
   }
 });
 
@@ -453,7 +453,7 @@ app.get('/api/users/search', async (req, res) => {
     const result = await pool.query(query, params);
     return res.json({ success: true, users: result.rows });
   } catch (error) {
-    return res.status(500).json({ success: false, error: 'Error al buscar usuarios: ' + error.message });
+    return res.status(500).json({ success: false, error: 'Error searching users: ' + error.message });
   }
 });
 
@@ -469,7 +469,7 @@ app.post('/api/users/delete', async (req, res) => {
   const normalizedSecondLastName = String(second_last_name || '').trim();
 
   if (!normalizedUserName || !normalizedLastName || !normalizedSecondLastName) {
-    return res.status(400).json({ success: false, error: 'user_name, last_name y second_last_name son requeridos.' });
+    return res.status(400).json({ success: false, error: 'user_name, last_name, and second_last_name are required.' });
   }
 
   try {
@@ -485,16 +485,16 @@ app.post('/api/users/delete', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'No se encontro usuario con los datos proporcionados.' });
+      return res.status(404).json({ success: false, error: 'No user found with the provided details.' });
     }
 
     return res.json({
       success: true,
-      message: 'Usuario eliminado correctamente.',
+      message: 'User deleted successfully.',
       user: result.rows[0]
     });
   } catch (error) {
-    return res.status(500).json({ success: false, error: 'Error al eliminar usuario: ' + error.message });
+    return res.status(500).json({ success: false, error: 'Error deleting user: ' + error.message });
   }
 });
 
@@ -503,7 +503,7 @@ app.get('/api/products', async (req, res) => {
     const result = await pool.query('SELECT no_part, description FROM product ORDER BY no_part');
     res.json(result.rows);
   } catch (error) {
-    res.status(500).json({ error: 'Error al cargar productos' });
+    res.status(500).json({ error: 'Error loading products' });
   }
 });
 
@@ -520,7 +520,7 @@ app.get('/api/products/search', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: 'Error al buscar productos' });
+    res.status(500).json({ error: 'Error searching products' });
   }
 });
 
@@ -531,7 +531,7 @@ app.get("/api/products/bom-calculation", async (req, res) => {
 
     if (!no_project || (!type_p && !brand)) {
       return res.status(400).json({
-        message: "Debe proporcionar no_project y (type_p o brand)"
+        message: "You must provide no_project and (type_p or brand)"
       });
     }
 
@@ -614,7 +614,7 @@ app.get("/api/products/bom-calculation", async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).send("Error en el servidor");
+    res.status(500).send("Server error");
   }
 });
 
@@ -624,7 +624,7 @@ app.get("/api/products/byType", async (req, res) => {
     const { type_p } = req.query;
 
     if (!type_p) {
-      return res.status(400).json({ message: "Debe proporcionar type_p" });
+      return res.status(400).json({ message: "You must provide type_p" });
     }
 
     const result = await pool.query(
@@ -637,7 +637,7 @@ app.get("/api/products/byType", async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    res.status(500).send("Error en el servidor");
+    res.status(500).send("Server error");
   }
 });
 
@@ -665,7 +665,7 @@ app.get('/api/projects/search', async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: 'Error al buscar proyectos' });
+    res.status(500).json({ error: 'Error searching projects' });
   }
 });
 
@@ -690,7 +690,7 @@ app.get('/api/bom-projects/search', async (req, res) => {
   } catch (err) {
 
 
-    res.status(500).json({ error: 'Error al buscar no_project en BOM' });
+    res.status(500).json({ error: 'Error searching no_project in BOM' });
   }
 });
 
@@ -986,7 +986,7 @@ app.get('/api/products/types', async (req, res) => {
   } catch (err) {
 
 
-    res.status(500).json({ error: 'Error al buscar tipos de producto' });
+    res.status(500).json({ error: 'Error searching product types' });
   }
 });
 
@@ -1033,7 +1033,7 @@ app.get('/api/products/types-by-project/:no_project', async (req, res) => {
   } catch (err) {
 
 
-    res.status(500).json({ error: 'Error al buscar tipos y marcas del BOM del proyecto' });
+    res.status(500).json({ error: 'Error searching BOM project types and brands' });
   }
 });
 
@@ -1054,7 +1054,7 @@ app.get('/api/vendors', async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al cargar proveedores' });
+    res.status(500).json({ error: 'Error loading vendors' });
   }
 });
 
@@ -1071,7 +1071,7 @@ app.get('/api/projects/all', async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al cargar proyectos' });
+    res.status(500).json({ error: 'Error loading projects' });
   }
 });
 
@@ -1088,7 +1088,7 @@ app.get('/api/projects/all-including-inactive', async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al cargar proyectos' });
+    res.status(500).json({ error: 'Error loading projects' });
   }
 });
 // Verificar si un proyecto existe
@@ -1121,7 +1121,7 @@ app.get('/api/projects/check/:no_project', async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al verificar proyecto' });
+    res.status(500).json({ error: 'Error checking project' });
   }
 });
 
@@ -1129,7 +1129,7 @@ app.get('/api/projects/check/:no_project', async (req, res) => {
 app.post('/api/projects', async (req, res) => {
   const { no_project, name_project } = req.body;
   if (!no_project || !name_project) {
-    return res.status(400).json({ error: 'no_project y name_project son requeridos' });
+    return res.status(400).json({ error: 'no_project and name_project are required' });
   }
   try {
     // Verificar si existe
@@ -1137,19 +1137,19 @@ app.post('/api/projects', async (req, res) => {
     if (check.rows.length > 0) {
       // Si existe, activarlo
       await pool.query('UPDATE project SET status = $1 WHERE no_project = $2', ['Active', no_project]);
-      res.json({ message: 'Proyecto activado exitosamente', project: check.rows[0] });
+      res.json({ message: 'Project activated successfully', project: check.rows[0] });
     } else {
       // Si no existe, crearlo activo
       const result = await pool.query(
         'INSERT INTO project (no_project, name_project, status) VALUES ($1, $2, $3) RETURNING *',
         [no_project, name_project, 'Active']
       );
-      res.json({ message: 'Proyecto creado y activado exitosamente', project: result.rows[0] });
+      res.json({ message: 'Project created and activated successfully', project: result.rows[0] });
     }
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al crear/activar proyecto' });
+    res.status(500).json({ error: 'Error creating/activating project' });
   }
 });
 
@@ -1158,7 +1158,7 @@ app.put('/api/projects/:no_project/status', async (req, res) => {
   const { no_project } = req.params;
   const { status } = req.body;
   if (typeof status !== 'string' || !['Active', 'Inactive'].includes(status)) {
-    return res.status(400).json({ error: "status debe ser 'Active' o 'Inactive'" });
+    return res.status(400).json({ error: "status must be 'Active' or 'Inactive'" });
   }
   try {
     const result = await pool.query(
@@ -1166,7 +1166,7 @@ app.put('/api/projects/:no_project/status', async (req, res) => {
       [status, no_project]
     );
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Proyecto no encontrado' });
+      return res.status(404).json({ error: 'Project not found' });
     }
 
     // Si se desactiva, mover material disponible a AUT-STOCK
@@ -1179,10 +1179,10 @@ app.put('/api/projects/:no_project/status', async (req, res) => {
       );
     }
 
-    res.json({ message: `Proyecto ${status === 'Active' ? 'activado' : 'desactivado'} exitosamente` });
+    res.json({ message: `Project ${status === 'Active' ? 'activated' : 'deactivated'} successfully` });
   } catch (error) {
     console.error('Error updating project status:', error);
-    res.status(500).json({ error: 'Error al actualizar estado del proyecto', details: error.message });
+    res.status(500).json({ error: 'Error updating project status', details: error.message });
   }
 });
 
@@ -1193,7 +1193,7 @@ app.get('/api/networks', async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al cargar networks' });
+    res.status(500).json({ error: 'Error loading networks' });
   }
 });
 
@@ -1256,7 +1256,7 @@ app.get('/api/purchases', async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al cargar las compras' });
+    res.status(500).json({ error: 'Error loading purchases' });
   }
 });
 
@@ -1304,7 +1304,7 @@ app.put('/api/purchases/status', async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ message: 'Error al actualizar el status', error: error.message });
+    res.status(500).json({ message: 'Error updating status', error: error.message });
   }
 });
 
@@ -1422,7 +1422,7 @@ app.get('/api/network/balance/:network', async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al cargar el balance de la network' });
+    res.status(500).json({ error: 'Error loading network balance' });
   }
 });
 
@@ -1550,7 +1550,7 @@ app.delete('/api/networks/:network', async (req, res) => {
 app.get('/api/paquetes-calculados', async (req, res) => {
   const { no_project, no_part } = req.query;
   if (!no_project || !no_part) {
-    return res.status(400).json({ error: 'Faltan parámetros no_project o no_part' });
+    return res.status(400).json({ error: 'Missing parameters: no_project or no_part' });
   }
   try {
     // Buscar quantity_project en bom_project
@@ -1559,7 +1559,7 @@ app.get('/api/paquetes-calculados', async (req, res) => {
       [no_project, no_part]
     );
     if (bomResult.rows.length === 0) {
-      return res.status(404).json({ error: 'No existe BOM para este proyecto y parte' });
+      return res.status(404).json({ error: 'No BOM exists for this project and part' });
     }
     const quantity_project = bomResult.rows[0].quantity_project;
     // Buscar quantity en product
@@ -1568,7 +1568,7 @@ app.get('/api/paquetes-calculados', async (req, res) => {
       [no_part]
     );
     if (productResult.rows.length === 0) {
-      return res.status(404).json({ error: 'No existe producto para este no_part' });
+      return res.status(404).json({ error: 'No product exists for this no_part' });
     }
     const quantity = productResult.rows[0].quantity;
     // Calcular cantidad_calculada y redondear hacia arriba
@@ -1880,7 +1880,7 @@ app.get("/api/stock/qr-code", async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al obtener el código QR' });
+    res.status(500).json({ error: 'Error fetching QR code' });
   }
 });
 
@@ -1913,7 +1913,7 @@ app.get("/api/stock/first-rack", async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al obtener el rack' });
+    res.status(500).json({ error: 'Error fetching rack' });
   }
 });
 
@@ -1927,7 +1927,7 @@ app.post("/api/stock/entry", async (req, res) => {
   if (!normalizedRack || !normalizedNoPart || !normalizedNoProject) {
     return res.status(400).json({ 
       success: false, 
-      error: 'Faltan datos requeridos (rack, no_part, no_project)' 
+      error: 'Required data missing (rack, no_part, no_project)' 
     });
   }
 
@@ -1952,7 +1952,7 @@ app.post("/api/stock/entry", async (req, res) => {
 
       return res.json({
         success: true,
-        message: 'QR ya existente, no se modificó available',
+        message: 'QR already exists, available was not modified',
         data: existingResult.rows[0]
       });
     }
@@ -1995,7 +1995,7 @@ app.post("/api/stock/entry", async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Entrada en stock registrada exitosamente',
+      message: 'Stock entry registered successfully',
       data: result.rows[0]
     });
   } catch (error) {
@@ -2003,7 +2003,7 @@ app.post("/api/stock/entry", async (req, res) => {
 
     res.status(500).json({ 
       success: false, 
-      error: 'Error al crear entrada en stock: ' + error.message 
+      error: 'Error creating stock entry: ' + error.message 
     });
   }
 });
@@ -2075,7 +2075,7 @@ app.get("/api/projects/active", async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al cargar proyectos activos' });
+    res.status(500).json({ error: 'Error loading active projects' });
   }
 });
 
@@ -2084,7 +2084,7 @@ app.post("/api/projects", async (req, res) => {
   const { no_project, name_project, status } = req.body;
 
   if (!no_project || !name_project) {
-    return res.status(400).json({ message: "no_project y name_project son requeridos" });
+    return res.status(400).json({ message: "no_project and name_project are required" });
   }
 
   try {
@@ -2094,11 +2094,11 @@ app.post("/api/projects", async (req, res) => {
        RETURNING no_project, name_project, status`,
       [no_project, name_project, status || 'Active']
     );
-    res.json({ message: "Proyecto creado exitosamente", project: result.rows[0] });
+    res.json({ message: "Project created successfully", project: result.rows[0] });
   } catch (error) {
 
 
-    res.status(500).json({ message: "Error al crear el proyecto", error: error.message });
+    res.status(500).json({ message: "Error creating project", error: error.message });
   }
 });
 
@@ -2348,7 +2348,7 @@ app.get('/api/bomView', async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al cargar los datos del BOM' });
+    res.status(500).json({ error: 'Error loading BOM data' });
   }
 });
 
@@ -2399,36 +2399,90 @@ app.get('/api/trackingCards', async (req, res) => {
         FROM purchase_detail pd
         JOIN filtered_purchases fp ON fp.id_purchase = pd.id_purchase
       ),
+      linked_networks AS (
+        SELECT DISTINCT LOWER(REGEXP_REPLACE(BTRIM(CAST(fp.network AS TEXT)), '\\s+', ' ', 'g')) AS network_key
+        FROM filtered_purchases fp
+        WHERE fp.network IS NOT NULL
+          AND BTRIM(CAST(fp.network AS TEXT)) <> ''
+      ),
+      network_entries AS (
+        SELECT
+          n.network,
+          n.balance,
+          n.initial_balance
+        FROM linked_networks ln
+        LEFT JOIN LATERAL (
+          SELECT
+            net.network,
+            net.balance,
+            net.initial_balance
+          FROM network net
+          WHERE LOWER(REGEXP_REPLACE(BTRIM(CAST(net.network AS TEXT)), '\\s+', ' ', 'g')) = ln.network_key
+          ORDER BY net.network
+          LIMIT 1
+        ) n ON TRUE
+        WHERE n.network IS NOT NULL
+      ),
+      network_cards_data AS (
+        SELECT COALESCE(
+          JSON_AGG(
+            JSON_BUILD_OBJECT(
+              'network', ne.network,
+              'balance', COALESCE(ne.balance, 0),
+              'initial_balance', COALESCE(ne.initial_balance, 0)
+            )
+            ORDER BY ne.network
+          ),
+          '[]'::json
+        ) AS network_cards
+        FROM network_entries ne
+      ),
+      selected_network AS (
+        SELECT fp.network AS purchase_network
+        FROM filtered_purchases fp
+        WHERE fp.network IS NOT NULL
+          AND BTRIM(CAST(fp.network AS TEXT)) <> ''
+        ORDER BY fp.id_purchase DESC
+        LIMIT 1
+      ),
       network_data AS (
         SELECT
-          COALESCE(SUM(n.balance), 0) AS balance_actual,
-          COALESCE(SUM(n.initial_balance), 0) AS saldo_inicial_estimado
-        FROM (
-          SELECT DISTINCT fp.network
-          FROM filtered_purchases fp
-          WHERE fp.network IS NOT NULL
-            AND BTRIM(CAST(fp.network AS TEXT)) <> ''
-        ) nw
-        JOIN network n ON n.network = nw.network
+          COALESCE(n.balance, 0) AS balance_actual,
+          COALESCE(n.initial_balance, 0) AS saldo_inicial_estimado, 
+          COALESCE(n.network, '') AS network_name
+        FROM (SELECT 1 AS anchor) a
+        LEFT JOIN selected_network sn ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT
+            n.network,
+            n.balance,
+            n.initial_balance
+          FROM network n
+          WHERE LOWER(REGEXP_REPLACE(BTRIM(CAST(n.network AS TEXT)), '\\s+', ' ', 'g'))
+              = LOWER(REGEXP_REPLACE(BTRIM(CAST(sn.purchase_network AS TEXT)), '\\s+', ' ', 'g'))
+          ORDER BY n.network
+          LIMIT 1
+        ) n ON TRUE
       ),
       finance_data AS (
         SELECT
           sd.total_gastado,
           nd.balance_actual,
-          nd.saldo_inicial_estimado
+          nd.saldo_inicial_estimado,
+          nd.network_name
         FROM spent_data sd
         CROSS JOIN network_data nd
       ),
       status_data AS (
         SELECT
-          COUNT(*) FILTER (WHERE bp.status = 'PO') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_po,
-          COUNT(*) FILTER (WHERE bp.status = 'PR') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_pr,
-          COUNT(*) FILTER (WHERE bp.status = 'Shopping cart') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_shopping,
-          COUNT(*) FILTER (WHERE bp.status = 'Delivered to BRK') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_entregado,
-          COUNT(*) FILTER (WHERE bp.status = 'Quoted') * 100.0 / NULLIF(COUNT(*),0) AS porcentaje_cotizado
+          COALESCE(COUNT(*) FILTER (WHERE bp.status = 'PO') * 100.0 / NULLIF(COUNT(*),0), 0) AS porcentaje_po,
+          COALESCE(COUNT(*) FILTER (WHERE bp.status = 'PR') * 100.0 / NULLIF(COUNT(*),0), 0) AS porcentaje_pr,
+          COALESCE(COUNT(*) FILTER (WHERE bp.status = 'Shopping cart') * 100.0 / NULLIF(COUNT(*),0), 0) AS porcentaje_shopping,
+          COALESCE(COUNT(*) FILTER (WHERE bp.status = 'Delivered to BRK') * 100.0 / NULLIF(COUNT(*),0), 0) AS porcentaje_entregado,
+          COALESCE(COUNT(*) FILTER (WHERE bp.status = 'Quoted') * 100.0 / NULLIF(COUNT(*),0), 0) AS porcentaje_cotizado
         FROM filtered_purchases fp
-        JOIN purchase_detail pd ON fp.id_purchase = pd.id_purchase
-        JOIN bom_project bp
+        LEFT JOIN purchase_detail pd ON fp.id_purchase = pd.id_purchase
+        LEFT JOIN bom_project bp
           ON bp.no_project = fp.no_project
          AND bp.no_part = pd.no_part
       )
@@ -2445,9 +2499,12 @@ app.get('/api/trackingCards', async (req, res) => {
         END AS porcentaje_gastado,
         fd.total_gastado,
         fd.balance_actual,
-        fd.saldo_inicial_estimado
+        fd.saldo_inicial_estimado,
+        fd.network_name,
+        ncd.network_cards
       FROM status_data sd
       CROSS JOIN finance_data fd
+      CROSS JOIN network_cards_data ncd
     `;
 
     const result = await pool.query(sql, [normalizedProjectId]);
@@ -2455,7 +2512,7 @@ app.get('/api/trackingCards', async (req, res) => {
   } catch (error) {
 
 
-    res.status(500).json({ error: 'Error al cargar porcentajes' });
+    res.status(500).json({ error: 'Error loading percentages' });
   }
 });
 // Obtener solo proyectos que ya tienen compras registradas
@@ -2585,8 +2642,8 @@ app.get('/api/dead-inventory', async (req, res) => {
       totalQuantity: totalQuantity
     });
   } catch (error) {
-    console.error('Error al obtener inventario muerto:', error);
-    res.status(500).json({ error: 'Error al cargar inventario muerto' });
+    console.error('Error fetching dead inventory:', error);
+    res.status(500).json({ error: 'Error loading dead inventory' });
   }
 });
 
@@ -2619,7 +2676,7 @@ app.get('/api/vendors', async (req, res) => {
     const result = await pool.query('SELECT id_vendor, name_vendor, email, telephone FROM vendor ORDER BY name_vendor');
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener vendors', detail: String(err) });
+    res.status(500).json({ error: 'Error fetching vendors', detail: String(err) });
   }
 });
 
@@ -2632,7 +2689,7 @@ app.get('/api/vendors/:id', async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Vendor not found' });
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Error al obtener vendor', detail: String(err) });
+    res.status(500).json({ error: 'Error fetching vendor', detail: String(err) });
   }
 });
 
@@ -2663,7 +2720,7 @@ app.get('/api/vendors/search', async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: 'Error al buscar vendors', detail: String(err) });
+    res.status(500).json({ error: 'Error searching vendors', detail: String(err) });
   }
 });
 
@@ -2847,7 +2904,7 @@ app.post("/api/inbound", async (req, res) => {
     if (!qr_code || qr_code.trim() === "") {
       return res.status(400).json({
         ok: false,
-        message: "QR vacío"
+        message: "Empty QR"
       });
     }
 
@@ -3269,7 +3326,7 @@ app.get('/api/movements/last', async (req, res) => {
 
     const movQ = `SELECT id_movement, date_movement, type_movement, id_stock, pid FROM movements WHERE id_stock = $1 ORDER BY date_movement DESC LIMIT 1`;
     const movR = await pool.query(movQ, [stock.id_stock]);
-    if (movR.rows.length === 0) return res.status(404).json({ message: 'Sin movimientos previos' });
+    if (movR.rows.length === 0) return res.status(404).json({ message: 'No previous movements' });
 
     return res.json({ movement: movR.rows[0], stock });
   } catch (err) {
@@ -3531,7 +3588,7 @@ app.get('/api/movements/history', async (req, res) => {
 
     res.status(500).json({ 
       success: false, 
-      error: 'Error al obtener historial de movimientos', 
+      error: 'Error fetching movement history', 
       message: String(err) 
     });
   }
@@ -3555,7 +3612,7 @@ app.patch('/api/bom-project/update-status', async (req, res) => {
     if (status !== 'Delivered' && status !== 'Pending Delivery' && status !== 'PO') {
       return res.status(400).json({ 
         ok: false, 
-        message: 'Status debe ser: Delivered, Pending Delivery o PO' 
+        message: 'Status must be: Delivered, Pending Delivery, or PO' 
       });
     }
 
@@ -3571,7 +3628,7 @@ app.patch('/api/bom-project/update-status', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ 
         ok: false, 
-        message: 'No se encontró el item en bom_project para actualizar' 
+        message: 'The item was not found in bom_project to update' 
       });
     }
 
@@ -3585,7 +3642,7 @@ app.patch('/api/bom-project/update-status', async (req, res) => {
 
     res.status(500).json({ 
       ok: false, 
-      message: 'Error al actualizar el status', 
+      message: 'Error updating status', 
       error: String(error) 
     });
   }
