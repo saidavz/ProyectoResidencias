@@ -11,9 +11,60 @@
   <script src="auth.js"></script>
   <script>
     PurchaseAuth.requireAuth({
-      allowedRoles: ['Administrador', 'Compras'],
-      deniedMessage: 'Only Administrators and Purchases have access to this section.'
+      allowedRoles: ['Administrador', 'Compras', 'Manager'],
+      deniedMessage: 'Only Administrators, Purchases and Manager have access to this section.'
     });
+
+    // Función para obtener el rol del usuario
+    function getUserRole(user) {
+      if (!user || typeof user !== 'object') return null;
+      return String(user.rol || user.role || '').trim().toLowerCase();
+    }
+
+    // Función para aplicar visibilidad según rol
+    function applyRoleVisibility() {
+      const user = PurchaseAuth.getUser();
+      const userRole = getUserRole(user);
+      
+      // Manager solo ve Purchase Tracking y Reports
+      if (userRole === 'manager') {
+        document.querySelectorAll('.requires-full-access').forEach((element) => {
+          element.style.display = 'none';
+        });
+      }
+    }
+
+    // Aplicar visibilidad cuando la página cargue
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        applyRoleVisibility();
+        disableStatusEditForManager();
+      });
+    } else {
+      applyRoleVisibility();
+      disableStatusEditForManager();
+    }
+
+    // Función para deshabilitar edición de status para Manager
+    function disableStatusEditForManager() {
+      const user = PurchaseAuth.getUser();
+      const userRole = user ? String(user.rol || user.role || '').trim().toLowerCase() : '';
+      
+      if (userRole === 'manager') {
+        // Agregar estilos CSS dinámicos para cambiar el cursor
+        const style = document.createElement('style');
+        style.innerHTML = `
+          .status-cell {
+            cursor: not-allowed !important;
+            opacity: 0.7;
+          }
+          .status-cell:hover {
+            background-color: rgba(255, 0, 0, 0.05) !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    }
   </script>
   <style>
     #collapse .kpi-card {
@@ -229,7 +280,7 @@
       <div class="collapse navbar-collapse" id="navbarMenu">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
-          <li class="nav-item dropdown">
+          <li class="nav-item dropdown requires-full-access">
             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               BOM
             </a>
@@ -241,25 +292,25 @@
               <li><a class="dropdown-item" href="bomView.html">View BOM</a></li>
             </ul>
           </li>
-          <li class="nav-item"><a class="nav-link" href="recordPurchase.html">Register
+          <li class="nav-item requires-full-access"><a class="nav-link" href="recordPurchase.html">Register
               Purchase</a></li>
           <li class="nav-item"><a class="nav-link active" href="#">Purchase Tracking</a></li>
-          <li class="nav-item"><a class="nav-link" href="requisition.html">Requisition</a></li>
-          <li class="nav-item dropdown">
+          <li class="nav-item requires-full-access"><a class="nav-link" href="requisition.html">Requisition</a></li>
+          <li class="nav-item dropdown requires-full-access">
             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               Inventory
             </a>
             <ul class="dropdown-menu text-center" aria-labelledby="dropdownBom">
-              <li><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
-              <li>
+              <li class="requires-full-access"><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
+              <li class="requires-full-access">
                 <hr class="dropdown-divider">
               </li>
               <li><a class="dropdown-item" href="io.html">Register Inbound And Outbound</a></li>
-              <li>
-              <li>
+              <li class="requires-full-access">
+              <li class="requires-full-access">
                 <hr class="dropdown-divider">
               </li>
-              <li><a class="dropdown-item" href="stock.html">View Inventory</a></li>
+              <li class="requires-full-access"><a class="dropdown-item" href="stock.html">View Inventory</a></li>
               <li>
             </ul>
           </li>
@@ -756,6 +807,10 @@
       }
 
       function openStatusEditor(cell, purchase, allData) {
+        // Verificar si el usuario es Manager
+        const user = PurchaseAuth.getUser();
+        const userRole = user ? String(user.rol || user.role || '').trim().toLowerCase() : '';
+
         const currentStatus = purchase.status;
 
         // Solo permitir editar si el status es PR, PO o Shopping cart

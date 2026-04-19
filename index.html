@@ -110,11 +110,11 @@
                     </li>
                     <li class="nav-item requires-full-access"><a class="nav-link" href="recordPurchase.html">Register
                             Purchase</a></li>
-                    <li class="nav-item requires-full-access"><a class="nav-link" href="purchaseTracking.html">Purchase
+                    <li class="nav-item requires-full-access" data-requires-manager><a class="nav-link" href="purchaseTracking.html">Purchase
                             Tracking</a></li>
                     <li class="nav-item requires-full-access"><a class="nav-link"
                             href="requisition.html">Requisition</a></li>
-                    <li class="nav-item dropdown">
+                    <li class="nav-item dropdown requires-full-access">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
                             Inventory
@@ -136,7 +136,7 @@
                             </li>
                         </ul>
                     </li>
-                    <li class="nav-item requires-full-access"><a class="nav-link" href="reports.html">Reports</a></li>
+                    <li class="nav-item requires-full-access" data-requires-manager><a class="nav-link" href="reports.html">Reports</a></li>
                 </ul>
                 <div class="d-flex align-items-center ms-auto">
                     <i class="bi bi-house-fill fs-4 me-2 text-white"></i>
@@ -173,7 +173,7 @@
                 <div class="btn-title">Register Purchase</div>
                 <div class="btn-description">Record new purchases and manage purchase orders</div>
             </a>
-            <a href="purchaseTracking.html" class="home-btn requires-full-access">
+            <a href="purchaseTracking.html" class="home-btn requires-full-access" data-requires-manager>
                 <i class="bi bi-binoculars-fill btn-icon"></i>
                 <div class="btn-title">Purchase Tracking</div>
                 <div class="btn-description">Purchase tracking and monitoring</div>
@@ -183,12 +183,12 @@
                 <div class="btn-title">Requisition</div>
                 <div class="btn-description">Record of requests for additional materials</div>
             </a>
-            <a href="reports.html" class="home-btn requires-full-access">
+            <a href="reports.html" class="home-btn requires-full-access" data-requires-manager>
                 <i class="bi bi-bar-chart-fill btn-icon"></i>
                 <div class="btn-title">Reports</div>
                 <div class="btn-description">Report consultation and download</div>
             </a>
-            <div class="dropdown home-btn-dropdown">
+            <div class="dropdown home-btn-dropdown requires-full-access">
                 <button class="home-btn dropdown-toggle" type="button" id="dropdownBom" data-bs-toggle="dropdown"
                     aria-expanded="false">
                     <i class="bi bi-box-seam-fill btn-icon"></i>
@@ -266,11 +266,41 @@
             return PurchaseAuth.hasAnyRole(user, ['Administrador', 'Compras']);
         }
 
+        function getUserRole(user) {
+            if (!user || typeof user !== 'object') return null;
+            return String(user.rol || user.role || '').trim().toLowerCase();
+        }
+
         function applyHomeRoleVisibility(user) {
-            const hasFullAccess = userHasFullAccess(user);
-            document.querySelectorAll('.requires-full-access').forEach((element) => {
-                element.style.display = hasFullAccess ? '' : 'none';
-            });
+            const userRole = getUserRole(user);
+            
+            // Full access for Administrador and Compras
+            if (userRole === 'administrador' || userRole === 'compras') {
+                document.querySelectorAll('.requires-full-access').forEach((element) => {
+                    element.style.display = '';
+                });
+                document.querySelectorAll('[data-requires-manager]').forEach((element) => {
+                    element.style.display = '';
+                });
+            }
+            // Manager access: only Purchase Tracking and Reports
+            else if (userRole === 'manager') {
+                document.querySelectorAll('.requires-full-access').forEach((element) => {
+                    element.style.display = 'none';
+                });
+                document.querySelectorAll('[data-requires-manager]').forEach((element) => {
+                    element.style.display = '';
+                });
+            }
+            // Other roles: no access to requires-full-access
+            else {
+                document.querySelectorAll('.requires-full-access').forEach((element) => {
+                    element.style.display = 'none';
+                });
+                document.querySelectorAll('[data-requires-manager]').forEach((element) => {
+                    element.style.display = 'none';
+                });
+            }
         }
 
         function showHomeLoginAlert(message, type = 'danger') {
@@ -392,7 +422,9 @@
         function renderHomeSession(user, options = {}) {
             homeCurrentUser = user;
 
-            if (!userHasFullAccess(user)) {
+            const userRole = getUserRole(user);
+            // Redirigir a io.html solo si no tiene acceso full y no es Manager
+            if (!userHasFullAccess(user) && userRole !== 'manager') {
                 window.location.replace('io.html');
                 return;
             }

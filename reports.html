@@ -12,9 +12,35 @@
   <script src="auth.js"></script>
   <script>
     PurchaseAuth.requireAuth({
-      allowedRoles: ['Administrador', 'Compras'],
-      deniedMessage: 'Only Administrator and Purchases have access to Reports.'
+      allowedRoles: ['Administrador', 'Compras', 'Manager'],
+      deniedMessage: 'Only Administrator, Purchases and Manager have access to Reports.'
     });
+
+    // Función para obtener el rol del usuario
+    function getUserRole(user) {
+      if (!user || typeof user !== 'object') return null;
+      return String(user.rol || user.role || '').trim().toLowerCase();
+    }
+
+    // Función para aplicar visibilidad según rol
+    function applyRoleVisibility() {
+      const user = PurchaseAuth.getUser();
+      const userRole = getUserRole(user);
+      
+      // Manager solo ve Purchase Tracking y Reports
+      if (userRole === 'manager') {
+        document.querySelectorAll('.requires-full-access').forEach((element) => {
+          element.style.display = 'none';
+        });
+      }
+    }
+
+    // Aplicar visibilidad cuando la página cargue
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', applyRoleVisibility);
+    } else {
+      applyRoleVisibility();
+    }
   </script>
 </head>
 
@@ -31,7 +57,7 @@
       <div class="collapse navbar-collapse" id="navbarMenu">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
-          <li class="nav-item dropdown">
+          <li class="nav-item dropdown requires-full-access">
             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">BOM</a>
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="bom.html">Upload BOM</a></li>
@@ -39,17 +65,17 @@
               <li><a class="dropdown-item" href="bomView.html">View BOM</a></li>
             </ul>
           </li>
-          <li class="nav-item"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
+          <li class="nav-item requires-full-access"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
           <li class="nav-item"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
-          <li class="nav-item"><a class="nav-link" href="requisition.html">Requisition</a></li>
-          <li class="nav-item dropdown">
+          <li class="nav-item requires-full-access"><a class="nav-link" href="requisition.html">Requisition</a></li>
+          <li class="nav-item dropdown requires-full-access">
             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Inventory</a>
             <ul class="dropdown-menu text-center">
-              <li><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
-              <li><hr class="dropdown-divider"></li>
+              <li class="requires-full-access"><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
+              <li class="requires-full-access"><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="io.html">Register Inbound And Outbound</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="stock.html">View Inventory</a></li>
+              <li class="requires-full-access"><hr class="dropdown-divider"></li>
+              <li class="requires-full-access"><a class="dropdown-item" href="stock.html">View Inventory</a></li>
             </ul>
           </li>
           <li class="nav-item"><a class="nav-link active" href="reports.html">Reports</a></li>

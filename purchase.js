@@ -23,8 +23,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: '150403kim', //verifica bien al cambiarlo
   port: 5432,
 });
 
@@ -203,6 +203,7 @@ app.post('/api/auth/validate-qr', async (req, res) => {
           ${roleColumn} ILIKE 'Administrador'
           OR ${roleColumn} ILIKE 'Compras'
           OR ${roleColumn} ILIKE 'Tecnico'
+          OR ${roleColumn} ILIKE 'Manager'
         )
       LIMIT 1
     `;
@@ -322,7 +323,7 @@ app.post('/api/auth/validate-credentials', async (req, res) => {
 
     // Validar que el usuario tenga un rol permitido
     const userRole = String(user.rol || '').toLowerCase().trim();
-    const allowedRoles = ['administrador', 'compras', 'tecnico'];
+    const allowedRoles = ['administrador', 'compras', 'tecnico', 'manager'];
     
     console.log('User role check:', { role: userRole, isAllowed: allowedRoles.includes(userRole) });
 
