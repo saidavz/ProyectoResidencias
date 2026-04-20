@@ -211,20 +211,22 @@
     }
 
     #collapse .network-balance-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
       gap: 10px;
       max-width: 980px;
       margin: 0 auto;
     }
 
     #collapse .network-mini-card {
+      flex: 0 0 12rem;
       border: 1px solid rgba(96, 165, 250, 0.45);
       border-radius: 12px;
       background: linear-gradient(155deg, rgba(15, 23, 42, 0.55) 0%, rgba(30, 64, 175, 0.42) 100%);
       box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
       padding: 10px 12px;
-      min-height: 92px;
+      min-height: 98px;
     }
 
     #collapse .network-mini-title {
@@ -237,12 +239,20 @@
     }
 
     #collapse .network-mini-balance {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 600;
       color: #ffffff;
       line-height: 1.2;
       text-align: center;
       margin-bottom: 2px;
+    }
+
+    #collapse .network-mini-currency {
+      font-size: 11px;
+      color: rgba(191, 219, 254, 0.95);
+      text-align: center;
+      margin-bottom: 2px;
+      letter-spacing: 0.2px;
     }
 
     #collapse .network-mini-name {
@@ -412,7 +422,15 @@
         <option value="">Filter by...</option>
         <option value="status">Status</option>
         <option value="supplier">Supplier</option>
+        <option value="nopr">NoPR</option>
       </select>
+      <input
+        type="text"
+        id="filterPrInput"
+        class="form-control"
+        style="width: 250px; display: none;"
+        placeholder="Search PR number..."
+      >
       <button id="btnClearFilters" class="btn clear-btn-bluegray" style="white-space: nowrap; display: none;">
         <i class="bi bi-x-circle"></i> Clear
       </button>
@@ -564,9 +582,10 @@
         if (cards.length === 0) {
           sectionEl.style.display = '';
           gridEl.innerHTML = `
-            <article class="network-mini-card">
+            <article class="network-mini-card" style="flex: 0 0 12rem;">
               <div class="network-mini-title">Network Balance</div>
               <div class="network-mini-balance">$0</div>
+              <div class="network-mini-currency">Currency: -</div>
               <div class="network-mini-name">No linked network</div>
             </article>
           `;
@@ -575,13 +594,13 @@
 
         gridEl.innerHTML = cards.map((card) => {
           const networkName = String(card.network || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const currency = String(card.currency || 'USD').trim().toUpperCase() || 'USD';
           return `
             <article class="network-mini-card" title="${networkName}">
               <div class="network-mini-title">Network Balance</div>
               <div class="network-mini-balance">$${formatKpiCurrency(card.balance)}</div>
-              <div class="network-mini-name"> ${networkName}</div>
-
-              
+              <div class="network-mini-currency">Currency: ${currency}</div>
+              <div class="network-mini-name">Network: ${networkName}</div>
             </article>
           `;
         }).join('');
@@ -609,7 +628,7 @@
         if (!term) {
           projectSuggestions.style.display = 'none';
           loadPurchasesData(); // Mostrar todas las compras si no hay búsqueda
-          loadPercentages(""); // Mostrar todos los porcentajes
+          refreshFinancialCardsByActiveFilter(); // Mostrar porcentajes y cards segun filtro activo
           return;
         }
 
@@ -649,7 +668,7 @@
             projectSuggestions.style.display = 'none';
             // Cargar datos filtrados por proyecto
             loadPurchasesDataByProject(project.no_project);
-            loadPercentages(project.no_project);
+            refreshFinancialCardsByActiveFilter();
           });
           div.addEventListener('mouseover', () => {
             div.style.backgroundColor = '#f0f0f0';
@@ -694,10 +713,21 @@
       }
 
       // Funciones existentes
-      async function loadPercentages(projectId) {
+      async function loadPercentages(projectId, prFilter = '') {
         try {
           // Fetch para los porcentajes
-          const res = await fetch(`http://localhost:3000/api/trackingCards?projectId=${encodeURIComponent(projectId)}`);
+          const queryParams = new URLSearchParams();
+          if (projectId) {
+            queryParams.set('projectId', projectId);
+          }
+          const cleanPr = String(prFilter || '').trim();
+          if (cleanPr) {
+            queryParams.set('prNumber', cleanPr);
+          }
+          const url = queryParams.toString()
+            ? `http://localhost:3000/api/trackingCards?${queryParams.toString()}`
+            : 'http://localhost:3000/api/trackingCards';
+          const res = await fetch(url);
           const data = await res.json();
 
           // Formato a los porcentajes
@@ -718,7 +748,8 @@
             if (projectId && networkCards.length === 0 && data.network_name) {
               networkCards = [{
                 network: data.network_name,
-                balance: Number(data.balance_actual || 0)
+                balance: Number(data.balance_actual || 0),
+                currency: data.network_currency || 'USD'
               }];
             }
             renderNetworkBalanceCards(projectId, networkCards);
@@ -988,6 +1019,36 @@
       let currentFilterType = '';
       let currentFilterValue = '';
 
+      function setPrFilterMode(isEnabled) {
+        const filterSelect = document.getElementById('filterSelect');
+        const filterPrInput = document.getElementById('filterPrInput');
+        if (!filterSelect || !filterPrInput) {
+          return;
+        }
+
+        filterSelect.style.display = isEnabled ? 'none' : '';
+        filterPrInput.style.display = isEnabled ? '' : 'none';
+        if (!isEnabled) {
+          filterPrInput.value = '';
+        }
+      }
+
+      function getCurrentProjectIdForCards() {
+        return (projectSearchInput && projectSearchInput.dataset.noProject)
+          ? String(projectSearchInput.dataset.noProject).trim()
+          : '';
+      }
+
+      async function refreshFinancialCardsByActiveFilter() {
+        const projectId = getCurrentProjectIdForCards();
+        if (currentFilterType === 'nopr') {
+          await loadPercentages(projectId, currentFilterValue || '');
+          return;
+        }
+
+        await loadPercentages(projectId, '');
+      }
+
       // Actualizar el dropdown según la selección
       function updateFilterDropdown() {
         const filterSelect = document.getElementById('filterSelect');
@@ -996,6 +1057,7 @@
 
         // Si seleccionó "status", cambiar a opciones de status
         if (selectedValue === 'status') {
+          setPrFilterMode(false);
           currentFilterValue = '';
           currentFilterType = 'status';
           btnClearFilters.style.display = 'block';
@@ -1010,9 +1072,11 @@
           `;
           filterSelect.value = '';
           applyFilters();
+          refreshFinancialCardsByActiveFilter();
         }
         // Si seleccionó "supplier", cambiar a opciones de proveedores
         else if (selectedValue === 'supplier') {
+          setPrFilterMode(false);
           currentFilterValue = '';
           currentFilterType = 'supplier';
           btnClearFilters.style.display = 'block';
@@ -1023,6 +1087,20 @@
           filterSelect.innerHTML = options;
           filterSelect.value = '';
           applyFilters();
+          refreshFinancialCardsByActiveFilter();
+        }
+        // Si seleccionó "NoPR", activar búsqueda por número PR en el mismo bloque de filtros
+        else if (selectedValue === 'nopr') {
+          currentFilterValue = '';
+          currentFilterType = 'nopr';
+          btnClearFilters.style.display = 'block';
+          setPrFilterMode(true);
+          const filterPrInput = document.getElementById('filterPrInput');
+          if (filterPrInput) {
+            filterPrInput.focus();
+          }
+          applyFilters();
+          refreshFinancialCardsByActiveFilter();
         }
         // Si seleccionó "back", volver al menú principal
         else if (selectedValue === 'back') {
@@ -1032,11 +1110,13 @@
         else if (currentFilterType && selectedValue) {
           currentFilterValue = selectedValue;
           applyFilters();
+          refreshFinancialCardsByActiveFilter();
         }
         // Si seleccionó "" (All Status o All Suppliers), limpiar filtro
         else if (currentFilterType && selectedValue === '') {
           currentFilterValue = '';
           applyFilters();
+          refreshFinancialCardsByActiveFilter();
         }
       }
 
@@ -1044,15 +1124,18 @@
       function resetFilterDropdown() {
         const filterSelect = document.getElementById('filterSelect');
         const btnClearFilters = document.getElementById('btnClearFilters');
+        setPrFilterMode(false);
         filterSelect.innerHTML = `
           <option value="">Filter by...</option>
           <option value="status">Status</option>
           <option value="supplier">Supplier</option>
+          <option value="nopr">NoPR</option>
         `;
         btnClearFilters.style.display = 'none';
         currentFilterType = '';
         currentFilterValue = '';
         applyFilters();
+        refreshFinancialCardsByActiveFilter();
       }
 
       // Aplicar filtross
@@ -1069,6 +1152,12 @@
             filteredData = filteredData.filter(purchase => {
               return purchase.vendor_name && purchase.vendor_name.trim() === currentFilterValue;
             });
+          } else if (currentFilterType === 'nopr') {
+            const searchedPr = normalizeText(String(currentFilterValue || '').trim());
+            filteredData = filteredData.filter(purchase => {
+              const prValue = normalizeText(String(purchase.pr || '').trim());
+              return prValue.includes(searchedPr);
+            });
           }
         }
 
@@ -1078,6 +1167,15 @@
 
       // Event listeners para filtros
       document.getElementById('filterSelect').addEventListener('change', updateFilterDropdown);
+
+      document.getElementById('filterPrInput').addEventListener('input', (event) => {
+        if (currentFilterType !== 'nopr') {
+          return;
+        }
+        currentFilterValue = event.target.value || '';
+        applyFilters();
+        refreshFinancialCardsByActiveFilter();
+      });
 
       document.getElementById('btnClearFilters').addEventListener('click', () => {
         resetFilterDropdown();
@@ -1154,10 +1252,10 @@
           // Refrescar la tabla manteniendo el proyecto seleccionado (si existe)
           if (projectSearchInput && projectSearchInput.dataset.noProject) {
             await loadPurchasesDataByProject(projectSearchInput.dataset.noProject);
-            await loadPercentages(projectSearchInput.dataset.noProject);
+            await refreshFinancialCardsByActiveFilter();
           } else {
             await loadPurchasesData();
-            await loadPercentages("");
+            await refreshFinancialCardsByActiveFilter();
           }
           alert('Status successfully updated');
           // Cerrar offcanvas
@@ -1171,7 +1269,7 @@
       // Inicializar
       loadAllProjects();
       loadPurchasesData();
-      loadPercentages("");
+      refreshFinancialCardsByActiveFilter();
     });
   </script>
 

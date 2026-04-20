@@ -23,8 +23,8 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
-  password: '150403kim', //verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
+  password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
 
@@ -1217,6 +1217,7 @@ app.get('/api/purchases', async (req, res) => {
         COALESCE(pd.price_unit, 0) AS price_unit,
         COALESCE(pd.total_amount, 0) AS total_amount,
         pd.network,
+        pd.pr,
         pd.id_purchase,
         pd.po,
         pd.shopping
@@ -1231,6 +1232,7 @@ app.get('/api/purchases', async (req, res) => {
           (pd.quantity * pd.price_unit) AS total_amount,
           v.name_vendor AS vendor_name,
           pu.network,
+          pu.pr,
           pu.id_purchase,
           pu.po AS po,
           pu.shopping AS shopping
@@ -2385,15 +2387,20 @@ app.get('/', (req, res) => {
 
 app.get('/api/trackingCards', async (req, res) => {
   try {
-    const { projectId } = req.query;
+    const { projectId, prNumber } = req.query;
 
     const normalizedProjectId = String(projectId || '').trim() || null;
+    const normalizedPrNumber = String(prNumber || '').trim() || null;
 
     const sql = `
       WITH filtered_purchases AS (
         SELECT pu.id_purchase, pu.no_project, pu.network
         FROM purchase pu
         WHERE ($1::text IS NULL OR pu.no_project::text = $1)
+          AND (
+            $2::text IS NULL
+            OR LOWER(BTRIM(CAST(pu.pr AS TEXT))) LIKE LOWER('%' || $2 || '%')
+          )
       ),
       spent_data AS (
         SELECT COALESCE(SUM(pd.quantity * pd.price_unit), 0) AS total_gastado
@@ -2410,13 +2417,15 @@ app.get('/api/trackingCards', async (req, res) => {
         SELECT
           n.network,
           n.balance,
-          n.initial_balance
+          n.initial_balance,
+          n.currency
         FROM linked_networks ln
         LEFT JOIN LATERAL (
           SELECT
             net.network,
             net.balance,
-            net.initial_balance
+            net.initial_balance,
+            net.currency
           FROM network net
           WHERE LOWER(REGEXP_REPLACE(BTRIM(CAST(net.network AS TEXT)), '\\s+', ' ', 'g')) = ln.network_key
           ORDER BY net.network
@@ -2430,12 +2439,19 @@ app.get('/api/trackingCards', async (req, res) => {
             JSON_BUILD_OBJECT(
               'network', ne.network,
               'balance', COALESCE(ne.balance, 0),
-              'initial_balance', COALESCE(ne.initial_balance, 0)
+              'initial_balance', COALESCE(ne.initial_balance, 0),
+              'currency', COALESCE(ne.currency, 'USD')
             )
             ORDER BY ne.network
           ),
           '[]'::json
         ) AS network_cards
+        FROM network_entries ne
+      ),
+      project_network_totals AS (
+        SELECT
+          COALESCE(SUM(ne.balance), 0) AS balance_total,
+          COALESCE(SUM(ne.initial_balance), 0) AS saldo_inicial_total
         FROM network_entries ne
       ),
       selected_network AS (
@@ -2450,14 +2466,16 @@ app.get('/api/trackingCards', async (req, res) => {
         SELECT
           COALESCE(n.balance, 0) AS balance_actual,
           COALESCE(n.initial_balance, 0) AS saldo_inicial_estimado, 
-          COALESCE(n.network, '') AS network_name
+          COALESCE(n.network, '') AS network_name,
+          COALESCE(n.currency, 'USD') AS network_currency
         FROM (SELECT 1 AS anchor) a
         LEFT JOIN selected_network sn ON TRUE
         LEFT JOIN LATERAL (
           SELECT
             n.network,
             n.balance,
-            n.initial_balance
+            n.initial_balance,
+            n.currency
           FROM network n
           WHERE LOWER(REGEXP_REPLACE(BTRIM(CAST(n.network AS TEXT)), '\\s+', ' ', 'g'))
               = LOWER(REGEXP_REPLACE(BTRIM(CAST(sn.purchase_network AS TEXT)), '\\s+', ' ', 'g'))
@@ -2469,10 +2487,15 @@ app.get('/api/trackingCards', async (req, res) => {
         SELECT
           sd.total_gastado,
           nd.balance_actual,
-          nd.saldo_inicial_estimado,
-          nd.network_name
+          CASE
+            WHEN pnt.saldo_inicial_total > 0 THEN pnt.saldo_inicial_total
+            ELSE nd.saldo_inicial_estimado
+          END AS saldo_inicial_estimado,
+          nd.network_name,
+          nd.network_currency
         FROM spent_data sd
         CROSS JOIN network_data nd
+        CROSS JOIN project_network_totals pnt
       ),
       status_data AS (
         SELECT
@@ -2502,13 +2525,14 @@ app.get('/api/trackingCards', async (req, res) => {
         fd.balance_actual,
         fd.saldo_inicial_estimado,
         fd.network_name,
+        fd.network_currency,
         ncd.network_cards
       FROM status_data sd
       CROSS JOIN finance_data fd
       CROSS JOIN network_cards_data ncd
     `;
 
-    const result = await pool.query(sql, [normalizedProjectId]);
+    const result = await pool.query(sql, [normalizedProjectId, normalizedPrNumber]);
     res.json(result.rows[0] || {});
   } catch (error) {
 
