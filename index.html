@@ -536,7 +536,7 @@
 
             const existingUser = PurchaseAuth.getUser();
 
-            if (existingUser && !userHasFullAccess(existingUser)) {
+            if (existingUser && !userHasFullAccess(existingUser) && getUserRole(existingUser) !== 'manager' && getUserRole(existingUser) !== 'manager') {
                 window.location.replace('io.html');
                 return;
             }
