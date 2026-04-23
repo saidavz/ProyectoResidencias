@@ -23,7 +23,7 @@ const upload = multer({ dest: "uploads/" });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
   password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
@@ -378,8 +378,8 @@ app.post('/api/users', async (req, res) => {
     return res.status(400).json({ success: false, error: 'All fields are required.' });
   }
 
-  if (!['Administrador', 'Tecnico'].includes(normalizedRole)) {
-    return res.status(400).json({ success: false, error: 'Invalid role. Only Administrator or Technician is allowed.' });
+  if (!['Administrador', 'Tecnico', 'Manager'].includes(normalizedRole)) {
+    return res.status(400).json({ success: false, error: 'Invalid role. Only Administrator, Technician, or Manager is allowed.' });
   }
 
   try {

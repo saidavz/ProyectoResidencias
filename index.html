@@ -586,6 +586,10 @@
                 networkOffcanvas.addEventListener('show.bs.offcanvas', function () {
                     loadNetworks();
                 });
+
+                networkOffcanvas.addEventListener('hidden.bs.offcanvas', function () {
+                    resetNetworkForm();
+                });
             }
 
             if (networkNameInput) {
@@ -615,6 +619,7 @@
             const deactivateProjectForm = document.getElementById('deactivateProjectForm');
             const deactivateProjectInput = document.getElementById('deactivateProjectInput');
             const deactivateBtn = document.getElementById('deactivateBtn');
+            const userOffcanvas = document.getElementById('userOffcanvas');
             const userForm = document.getElementById('userForm');
             const deleteUserForm = document.getElementById('deleteUserForm');
             const deleteUserNameInput = document.getElementById('deleteUserName');
@@ -625,6 +630,25 @@
             if (projectOffcanvas) {
                 projectOffcanvas.addEventListener('show.bs.offcanvas', function () {
                     loadActiveProjects();
+                });
+
+                projectOffcanvas.addEventListener('hidden.bs.offcanvas', function () {
+                    if (activateProjectForm) {
+                        activateProjectForm.reset();
+                    }
+                    if (deactivateProjectForm) {
+                        deactivateProjectForm.reset();
+                    }
+                    selectedProjectForDeactivate = null;
+                    if (deactivateBtn) {
+                        deactivateBtn.disabled = true;
+                    }
+                });
+            }
+
+            if (userOffcanvas) {
+                userOffcanvas.addEventListener('hidden.bs.offcanvas', function () {
+                    resetUserManagementForms();
                 });
             }
 
@@ -1072,7 +1096,7 @@
                 return;
             }
 
-            if (!['Administrador', 'Tecnico'].includes(rol)) {
+            if (!['Administrador', 'Tecnico', 'Manager'].includes(rol)) {
                 alert('Please select a valid role');
                 return;
             }
@@ -1137,6 +1161,46 @@
             deleteUserContainer.classList.add('d-none');
             addUserContainer.classList.remove('d-none');
             document.getElementById('deleteUserForm').reset();
+        }
+
+        function resetUserManagementForms() {
+            const addUserContainer = document.getElementById('addUserContainer');
+            const deleteUserContainer = document.getElementById('deleteUserContainer');
+            const userForm = document.getElementById('userForm');
+            const deleteUserForm = document.getElementById('deleteUserForm');
+            const passwordInput = document.getElementById('userPassword');
+            const toggleIcon = document.getElementById('toggleUserPasswordIcon');
+            const suggestions = document.getElementById('deleteUserNameSuggestions');
+
+            if (userForm) {
+                userForm.reset();
+            }
+
+            if (deleteUserForm) {
+                deleteUserForm.reset();
+            }
+
+            if (deleteUserContainer) {
+                deleteUserContainer.classList.add('d-none');
+            }
+
+            if (addUserContainer) {
+                addUserContainer.classList.remove('d-none');
+            }
+
+            if (passwordInput) {
+                passwordInput.type = 'password';
+            }
+
+            if (toggleIcon) {
+                toggleIcon.className = 'bi bi-eye';
+            }
+
+            if (suggestions) {
+                suggestions.innerHTML = '';
+            }
+
+            deleteUserSuggestionsCache = [];
         }
 
         let deleteUserSuggestionsCache = [];
@@ -1376,8 +1440,9 @@
                         <label for="userRol" class="form-label">Role</label>
                         <select class="form-select" id="userRol" required>
                             <option value="">Select a role</option>
-                            <option value="Administrador">Administrador</option>
-                            <option value="Tecnico">Tecnico</option>
+                            <option value="Administrador">Administrator</option>
+                            <option value="Tecnico">Technician</option>
+                            <option value="Manager">Manager</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -1605,6 +1670,23 @@
                         // load and show all
                         const vendors = await loadVendors();
                         renderResults(vendors);
+                    });
+
+                    vendorOffcanvas.addEventListener('hidden.bs.offcanvas', function () {
+                        const searchField = document.getElementById('searchFieldVendor');
+                        const searchQuery = document.getElementById('searchQueryVendor');
+
+                        if (vendorForm) {
+                            vendorForm.reset();
+                        }
+
+                        if (searchField) {
+                            searchField.value = 'all';
+                        }
+
+                        if (searchQuery) {
+                            searchQuery.value = '';
+                        }
                     });
                 }
 
