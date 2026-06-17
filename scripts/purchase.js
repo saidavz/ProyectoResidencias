@@ -12,19 +12,39 @@ import xlsx from 'xlsx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const projectRoot = path.join(__dirname, '..');
 
 const app = express();
 const PORT = 3000;
 app.use(cors());
 app.use(express.json());
-app.use(express.static('.'));
-const upload = multer({ dest: "uploads/" });
+app.get('/', (req, res) => {
+  res.sendFile(path.join(projectRoot, 'views', 'index.html'));
+});
+app.get('/index.html', (req, res) => {
+  res.sendFile(path.join(projectRoot, 'views', 'index.html'));
+});
+// Ruta para todas las páginas HTML
+app.get('/:page.html', (req, res) => {
+  const filePath = path.join(projectRoot, 'views', `${req.params.page}.html`);
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      res.status(404).send('Página no encontrada');
+    }
+  });
+});
+app.use(express.static(projectRoot));
+app.use('/views', express.static(path.join(projectRoot, 'views')));
+app.use('/styles', express.static(path.join(projectRoot, 'styles')));
+app.use('/scripts', express.static(path.join(projectRoot, 'scripts')));
+app.use('/assets', express.static(path.join(projectRoot, 'assets')));
+const upload = multer({ dest: path.join(projectRoot, "uploads") });
 
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: '150403kim', //verifica bien al cambiarlo
   port: 5432,
 });
 
@@ -2011,6 +2031,163 @@ app.post("/api/stock/entry", async (req, res) => {
   }
 });
 
+// Endpoint para ingreso MASIVO de inventario
+app.post("/api/stock/bulk-entry", async (req, res) => {
+  const { items, no_project } = req.body;
+
+  const normalizedProject = String(no_project || 'AUT-STOCK').trim();
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Se requiere un array de items' 
+    });
+  }
+
+  try {
+    const results = [];
+    const errors = [];
+
+    for (let idx = 0; idx < items.length; idx++) {
+      const item = items[idx];
+      
+      try {
+        const rack = String(item.rack || `RACK-${idx + 1}`).trim();
+        const no_part = String(item.no_part || item.part_number || item.numero_parte || `AUTO-${Date.now()}-${idx}`).trim();
+        const quantity = parseInt(item.quantity || item.cantidad || 1) || 1;
+        const brand = String(item.brand || item.marca || '').trim();
+        const description = String(item.description || item.descripcion || '').trim();
+        const unit = String(item.unit || item.unidad || 'UN').trim();
+        const type_p = String(item.type_p || item.tipo || 'COMPONENTE').trim();
+        const available = parseInt(item.available || item.disponible || quantity) || quantity;
+
+        // PRIMERO: Crear/actualizar el producto en la tabla product
+        // Esto es CRÍTICO porque stock tiene FK a product
+        const checkProductQuery = `SELECT no_part FROM product WHERE LOWER(BTRIM(no_part)) = LOWER($1) LIMIT 1`;
+        const existingProduct = await pool.query(checkProductQuery, [no_part]);
+
+        if (existingProduct.rows.length === 0) {
+          // Crear nuevo producto
+          await pool.query(
+            `INSERT INTO product (no_part, brand, description, quantity, unit, type_p)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [no_part, brand, description, quantity, unit, type_p]
+          );
+        } else {
+          // Actualizar si ya existe
+          await pool.query(
+            `UPDATE product SET description = $1, unit = $2, brand = $3, type_p = $4 WHERE LOWER(BTRIM(no_part)) = LOWER($5)`,
+            [description, unit, brand, type_p, no_part]
+          );
+        }
+
+        // SEGUNDO: Verificar si ya existe en stock
+        const checkQuery = `
+          SELECT * FROM stock
+          WHERE LOWER(BTRIM(no_part)) = LOWER($1)
+            AND LOWER(BTRIM(CAST(no_project AS TEXT))) = LOWER($2)
+          LIMIT 1
+        `;
+
+        const existingResult = await pool.query(checkQuery, [no_part, normalizedProject]);
+
+        let stockId;
+        let qrCode;
+
+        if (existingResult.rows.length > 0) {
+          // Ya existe: SUMAR al available
+          stockId = existingResult.rows[0].id_stock;
+          qrCode = existingResult.rows[0].qr_code;
+          
+          const currentAvailable = existingResult.rows[0].available || 0;
+          const newAvailable = currentAvailable + available;
+          
+          // Actualizar disponible
+          await pool.query(
+            `UPDATE stock SET available = $1 WHERE id_stock = $2`,
+            [newAvailable, stockId]
+          );
+        } else {
+          // No existe: CREAR nuevo
+          // Generar QR
+          const lastQrQuery = `
+            SELECT qr_code FROM stock 
+            WHERE qr_code LIKE $1
+            ORDER BY id_stock DESC 
+            LIMIT 1
+          `;
+
+          const pattern = `I%-${normalizedProject}`;
+          const lastQrResult = await pool.query(lastQrQuery, [pattern]);
+
+          let nextNumber = 1;
+          if (lastQrResult.rows.length > 0 && lastQrResult.rows[0].qr_code) {
+            const lastCode = lastQrResult.rows[0].qr_code;
+            const match = lastCode.match(/^I(\d+)-/);
+            if (match && match[1]) {
+              const lastNumber = parseInt(match[1]);
+              if (!isNaN(lastNumber)) {
+                nextNumber = lastNumber + 1;
+              }
+            }
+          }
+
+          const consecutivo = String(nextNumber).padStart(4, '0');
+          qrCode = `I${consecutivo}-${normalizedProject}`;
+
+          // Insertar en stock (product ya existe gracias al paso anterior)
+          const insertQuery = `
+            INSERT INTO stock (rack, no_part, no_project, qr_code, available)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id_stock
+          `;
+
+          const insertResult = await pool.query(insertQuery, [rack, no_part, normalizedProject, qrCode, available]);
+          stockId = insertResult.rows[0].id_stock;
+        }
+
+        results.push({
+          row: idx + 1,
+          success: true,
+          data: {
+            id_stock: stockId,
+            rack: rack,
+            no_part: no_part,
+            no_project: normalizedProject,
+            qr_code: qrCode,
+            available: available,
+            brand: brand,
+            description: description,
+            unit: unit,
+            type_p: type_p
+          }
+        });
+
+      } catch (itemError) {
+        errors.push({
+          row: idx + 1,
+          message: itemError.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      total: items.length,
+      successful: results.length,
+      failed: errors.length,
+      results: results,
+      errors: errors
+    });
+
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: 'Error en ingreso masivo: ' + error.message 
+    });
+  }
+});
+
 // RUTAS DEL SERVIRDOR 2 
 // Funciones auxiliares para BOM
 function normalizeHeader(h) {
@@ -2673,8 +2850,7 @@ app.get('/api/dead-inventory', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-
-
+  console.log(`Server running on http://localhost:${PORT}`);
 });
 // ---------------------------
 // Vendors table + endpoints
