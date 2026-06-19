@@ -85,17 +85,25 @@
                     <div class="col-md-8">
                         <div class="card shadow-sm border-0">
                             <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0"><i class="bi bi-clipboard2-data me-2"></i>Paste Your Data</h5>
+                                <h5 class="mb-0"><i class="bi bi-clipboard2-data me-2"></i>Bulk Data Input</h5>
                             </div>
                             <div class="card-body">
                                 <div class="alert alert-info border-0 mb-3">
                                     <strong><i class="bi bi-info-circle me-2"></i>Required Format:</strong><br>
-                                    8 fields separated by <code>|</code><br>
+                                    Use only one input method at a time: Excel file or pasted text.<br>
+                                    Required columns:<br>
                                     <small><code>rack | part_number | brand | description | quantity | unit | type | available</code></small><br>
-                                    <strong class="mt-2 d-block">Example:</strong>
+                                    <strong class="mt-2 d-block">Example row:</strong>
                                     <small><code>A-01 | PN-001 | Brand1 | Resistor 10K | 50 | PCS | COMPONENT | 50</code></small>
                                 </div>
-                                <textarea id="dataInput" class="form-control mb-3" rows="10" placeholder="Paste data here..."></textarea>
+                                <div class="mb-3">
+                                    <label for="dataInput" class="form-label">Paste data from Excel</label>
+                                    <textarea id="dataInput" class="form-control" rows="8" placeholder="rack | part_number | brand | description | quantity | unit | type | available"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="fileInput" class="form-label">Excel file (.xlsx)</label>
+                                    <input type="file" id="fileInput" class="form-control" accept=".xlsx,.xls">
+                                </div>
                                 <button type="button" class="btn" id="btnProcess" style="background-color: #ff3b30; border-color: #ff3b30; color: white;">
                                     <i class="bi bi-check2-circle me-2"></i>Process Data
                                 </button>
@@ -195,6 +203,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="../scripts/inventory-bulk.js"></script>
 </body>
 
