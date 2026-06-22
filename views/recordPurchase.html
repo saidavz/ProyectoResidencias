@@ -11,8 +11,8 @@
   <script src="../scripts/auth.js"></script>
   <script>
     PurchaseAuth.requireAuth({
-      allowedRoles: ['Administrador', 'Compras'],
-      deniedMessage: 'Only Administrator and Purchases have access to this section.'
+      allowedRoles: ['administrator'],
+      deniedMessage: 'You do not have permission to access this section.'
     });
   </script>
   <style>

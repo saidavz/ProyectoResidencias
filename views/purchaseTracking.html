@@ -11,9 +11,11 @@
   <script src="../scripts/auth.js"></script>
   <script>
     PurchaseAuth.requireAuth({
-      allowedRoles: ['Administrador', 'Compras', 'Manager'],
-      deniedMessage: 'Only Administrators, Purchases and Manager have access to this section.'
+      allowedRoles: ['administrator', 'manager', 'supervisor', 'designer'],
+      deniedMessage: 'You do not have permission to access this section.'
     });
+
+    const viewOnlyRoles = ['manager', 'designer', 'supervisor'];
 
     // Función para obtener el rol del usuario
     function getUserRole(user) {
@@ -21,48 +23,134 @@
       return String(user.rol || user.role || '').trim().toLowerCase();
     }
 
-    // Función para aplicar visibilidad según rol
-    function applyRoleVisibility() {
+    function isViewOnlyUser() {
       const user = PurchaseAuth.getUser();
       const userRole = getUserRole(user);
-      
-      // Manager solo ve Purchase Tracking y Reports
-      if (userRole === 'manager') {
-        document.querySelectorAll('.requires-full-access').forEach((element) => {
-          element.style.display = 'none';
-        });
+      return viewOnlyRoles.includes(userRole);
+    }
+
+    // Función para aplicar visibilidad según rol
+    function applyRoleVisibility() {
+      if (!isViewOnlyUser()) {
+        return;
       }
+
+      const allowedHrefs = ['bomView.html', 'stock.html'];
+
+      // Hide all full-access items first
+      document.querySelectorAll('.requires-full-access').forEach((element) => {
+        element.style.display = 'none';
+      });
+
+      // Show only allowed links and their ancestors
+      document.querySelectorAll('a[href="bomView.html"], a[href="stock.html"]').forEach((link) => {
+        link.style.display = '';
+        
+        // Show parent <li> containing the link
+        const parentLi = link.closest('li');
+        if (parentLi) {
+          parentLi.style.display = '';
+        }
+        
+        // Show ancestor requires-full-access containers
+        let parent = link.closest('.requires-full-access');
+        while (parent) {
+          parent.style.display = '';
+          parent = parent.parentElement ? parent.parentElement.closest('.requires-full-access') : null;
+        }
+      });
+
+      // Remove Upload BOM items completely from dropdowns
+      document.querySelectorAll('a[href="bom.html"]').forEach((link) => {
+        const parentLi = link.closest('li');
+        if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
+          parentLi.remove();
+        }
+      });
+
+      // Hide restricted Inventory dropdown items
+      const restrictedInventoryHrefs = ['createQr.html', 'inventory-bulk.html', 'io.html'];
+      restrictedInventoryHrefs.forEach((href) => {
+        document.querySelectorAll(`a[href="${href}"]`).forEach((link) => {
+          const parentLi = link.closest('li');
+          if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
+            parentLi.style.display = 'none';
+          }
+        });
+      });
+
+      // Hide dividers in Inventory dropdown that separate hidden items
+      const inventoryDropdowns = document.querySelectorAll('.dropdown-menu');
+      inventoryDropdowns.forEach((dropdown) => {
+        const visibleItems = Array.from(dropdown.querySelectorAll('li')).filter(
+          (li) => getComputedStyle(li).display !== 'none'
+        );
+        dropdown.querySelectorAll('hr.dropdown-divider').forEach((divider) => {
+          const parentLi = divider.closest('li');
+          if (parentLi) {
+            const nextVisibleLi = Array.from(dropdown.querySelectorAll('li')).find(
+              (li) => li.compareDocumentPosition(parentLi) === Node.DOCUMENT_POSITION_FOLLOWING &&
+              getComputedStyle(li).display !== 'none'
+            );
+            if (!nextVisibleLi) {
+              parentLi.style.display = 'none';
+            }
+          }
+        });
+      });
+
+      // Remove dividers that are now orphaned (no visible items before them)
+      document.querySelectorAll('hr.dropdown-divider').forEach((divider) => {
+        const parentLi = divider.closest('li');
+        if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
+          const prevLi = parentLi.previousElementSibling;
+          // Remove if it's the first item or the previous item doesn't exist
+          if (!prevLi) {
+            parentLi.remove();
+          }
+        }
+      });
     }
 
     // Aplicar visibilidad cuando la página cargue
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
         applyRoleVisibility();
-        disableStatusEditForManager();
+        applyViewOnlyTrackingPermissions();
       });
     } else {
       applyRoleVisibility();
-      disableStatusEditForManager();
+      applyViewOnlyTrackingPermissions();
     }
 
-    // Función para deshabilitar edición de status para Manager
-    function disableStatusEditForManager() {
-      const user = PurchaseAuth.getUser();
-      const userRole = user ? String(user.rol || user.role || '').trim().toLowerCase() : '';
-      
-      if (userRole === 'manager') {
-        // Agregar estilos CSS dinámicos para cambiar el cursor
-        const style = document.createElement('style');
-        style.innerHTML = `
-          .status-cell {
-            cursor: not-allowed !important;
-            opacity: 0.7;
-          }
-          .status-cell:hover {
-            background-color: rgba(255, 0, 0, 0.05) !important;
-          }
-        `;
-        document.head.appendChild(style);
+    // Función para deshabilitar edición de status para roles de solo lectura
+    function applyViewOnlyTrackingPermissions() {
+      if (!isViewOnlyUser()) {
+        return;
+      }
+
+      const style = document.createElement('style');
+      style.innerHTML = `
+        .status-cell {
+          cursor: not-allowed !important;
+          opacity: 0.7;
+          pointer-events: none;
+        }
+        .status-cell:hover {
+          background-color: rgba(255, 0, 0, 0.05) !important;
+        }
+      `;
+      document.head.appendChild(style);
+
+      const saveButton = document.getElementById('saveStatusBtn');
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.style.display = 'none';
+      }
+
+      const statusSelect = document.getElementById('statusSelect');
+      if (statusSelect) {
+        statusSelect.disabled = true;
       }
     }
   </script>
@@ -325,7 +413,7 @@
                 <hr class="dropdown-divider">
               </li>
               <li class="requires-full-access"><a class="dropdown-item" href="stock.html">View Inventory</a></li>
-              <li>
+            </li>
             </ul>
           </li>
           <li class="nav-item"><a class="nav-link" href="reports.html">Reports</a></li>
@@ -842,9 +930,9 @@
       }
 
       function openStatusEditor(cell, purchase, allData) {
-        // Verificar si el usuario es Manager
-        const user = PurchaseAuth.getUser();
-        const userRole = user ? String(user.rol || user.role || '').trim().toLowerCase() : '';
+        if (isViewOnlyUser()) {
+          return;
+        }
 
         const currentStatus = purchase.status;
 

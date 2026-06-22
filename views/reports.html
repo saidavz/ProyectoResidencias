@@ -12,9 +12,11 @@
   <script src="../scripts/auth.js"></script>
   <script>
     PurchaseAuth.requireAuth({
-      allowedRoles: ['Administrador', 'Compras', 'Manager'],
-      deniedMessage: 'Only Administrator, Purchases and Manager have access to Reports.'
+      allowedRoles: ['administrator', 'manager', 'supervisor', 'designer'],
+      deniedMessage: 'You do not have permission to access this section.'
     });
+
+    const viewOnlyRoles = ['manager', 'designer', 'supervisor'];
 
     // Función para obtener el rol del usuario
     function getUserRole(user) {
@@ -22,17 +24,89 @@
       return String(user.rol || user.role || '').trim().toLowerCase();
     }
 
+    function isViewOnlyUser() {
+      const user = PurchaseAuth.getUser();
+      return viewOnlyRoles.includes(getUserRole(user));
+    }
+
     // Función para aplicar visibilidad según rol
     function applyRoleVisibility() {
-      const user = PurchaseAuth.getUser();
-      const userRole = getUserRole(user);
-      
-      // Manager solo ve Purchase Tracking y Reports
-      if (userRole === 'manager') {
-        document.querySelectorAll('.requires-full-access').forEach((element) => {
-          element.style.display = 'none';
-        });
+      if (!isViewOnlyUser()) {
+        return;
       }
+
+      const allowedHrefs = ['bomView.html', 'stock.html'];
+
+      // Hide all full-access items first
+      document.querySelectorAll('.requires-full-access').forEach((element) => {
+        element.style.display = 'none';
+      });
+
+      // Show only allowed links and their ancestors
+      document.querySelectorAll('a[href="bomView.html"], a[href="stock.html"]').forEach((link) => {
+        link.style.display = '';
+        
+        // Show parent <li> containing the link
+        const parentLi = link.closest('li');
+        if (parentLi) {
+          parentLi.style.display = '';
+        }
+        
+        // Show ancestor requires-full-access containers
+        let parent = link.closest('.requires-full-access');
+        while (parent) {
+          parent.style.display = '';
+          parent = parent.parentElement ? parent.parentElement.closest('.requires-full-access') : null;
+        }
+      });
+
+      // Remove Upload BOM items completely from dropdowns
+      document.querySelectorAll('a[href="bom.html"]').forEach((link) => {
+        const parentLi = link.closest('li');
+        if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
+          parentLi.remove();
+        }
+      });
+
+      // Hide restricted Inventory dropdown items
+      const restrictedInventoryHrefs = ['createQr.html', 'inventory-bulk.html', 'io.html'];
+      restrictedInventoryHrefs.forEach((href) => {
+        document.querySelectorAll(`a[href="${href}"]`).forEach((link) => {
+          const parentLi = link.closest('li');
+          if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
+            parentLi.style.display = 'none';
+          }
+        });
+      });
+
+      // Hide dividers in Inventory dropdown that separate hidden items
+      const inventoryDropdowns = document.querySelectorAll('.dropdown-menu');
+      inventoryDropdowns.forEach((dropdown) => {
+        dropdown.querySelectorAll('hr.dropdown-divider').forEach((divider) => {
+          const parentLi = divider.closest('li');
+          if (parentLi) {
+            const nextVisibleLi = Array.from(dropdown.querySelectorAll('li')).find(
+              (li) => li.compareDocumentPosition(parentLi) === Node.DOCUMENT_POSITION_FOLLOWING &&
+              getComputedStyle(li).display !== 'none'
+            );
+            if (!nextVisibleLi) {
+              parentLi.style.display = 'none';
+            }
+          }
+        });
+      });
+
+      // Remove dividers that are now orphaned (no visible items before them)
+      document.querySelectorAll('hr.dropdown-divider').forEach((divider) => {
+        const parentLi = divider.closest('li');
+        if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
+          const prevLi = parentLi.previousElementSibling;
+          // Remove if it's the first item or the previous item doesn't exist
+          if (!prevLi) {
+            parentLi.remove();
+          }
+        }
+      });
     }
 
     // Aplicar visibilidad cuando la página cargue
@@ -122,7 +196,6 @@
               type="text"
               id="pendingProjectSearch"
               class="form-control reports-search-input"
-              placeholder="Search by project number, name or network..."
               autocomplete="off"
             >
             <div id="pendingProjectSuggestions" class="reports-project-suggestions" style="display:none;"></div>
@@ -219,7 +292,7 @@
                   <i class="bi bi-sliders2-vertical"></i>
                 </button>
                 <div id="popoverQis" class="th-filter-popover" hidden>
-                  <input id="filterQis" type="text" class="form-control form-control-sm" placeholder="Search QIS">
+                  <input id="filterQis" type="text" class="form-control form-control-sm">
                 </div>
               </th>
               <th class="th-filterable">
@@ -228,7 +301,7 @@
                   <i class="bi bi-sliders2-vertical"></i>
                 </button>
                 <div id="popoverPart" class="th-filter-popover" hidden>
-                  <input id="filterPart" type="text" class="form-control form-control-sm" placeholder="Search part">
+                  <input id="filterPart" type="text" class="form-control form-control-sm">
                 </div>
               </th>
               <th class="th-filterable">

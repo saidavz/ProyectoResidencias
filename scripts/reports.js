@@ -2046,6 +2046,16 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateReportView() {
     const selectedReport = reportTypeMenu.value;
 
+    // Clear project search and filters when changing report type
+    if (projectSearchInput) {
+      projectSearchInput.value = '';
+      delete projectSearchInput.dataset.noProject;
+      delete projectSearchInput.dataset.network;
+    }
+    if (projectSuggestions) {
+      projectSuggestions.style.display = 'none';
+    }
+
     if (selectedReport === 'spending' || selectedReport === 'pending-purchases' || selectedReport === 'po-pending-delivery' || selectedReport === 'po-closed') {
       activeReportType = selectedReport;
       applyReportModeUI();

@@ -110,7 +110,8 @@
                     </li>
                     <li class="nav-item requires-full-access"><a class="nav-link" href="recordPurchase.html">Register
                             Purchase</a></li>
-                    <li class="nav-item requires-full-access" data-requires-manager><a class="nav-link" href="purchaseTracking.html">Purchase
+                    <li class="nav-item requires-full-access" data-requires-manager><a class="nav-link"
+                            href="purchaseTracking.html">Purchase
                             Tracking</a></li>
                     <li class="nav-item requires-full-access"><a class="nav-link"
                             href="requisition.html">Requisition</a></li>
@@ -125,7 +126,8 @@
                             <li class="requires-full-access">
                                 <hr class="dropdown-divider">
                             </li>
-                            <li class="requires-full-access"><a class="dropdown-item" href="inventory-bulk.html">Bulk Import</a></li>
+                            <li class="requires-full-access"><a class="dropdown-item" href="inventory-bulk.html">Bulk
+                                    Import</a></li>
                             <li class="requires-full-access">
                                 <hr class="dropdown-divider">
                             </li>
@@ -140,7 +142,8 @@
                             </li>
                         </ul>
                     </li>
-                    <li class="nav-item requires-full-access" data-requires-manager><a class="nav-link" href="reports.html">Reports</a></li>
+                    <li class="nav-item requires-full-access" data-requires-manager><a class="nav-link"
+                            href="reports.html">Reports</a></li>
                 </ul>
                 <div class="d-flex align-items-center ms-auto">
                     <i class="bi bi-house-fill fs-4 me-2 text-white"></i>
@@ -265,9 +268,11 @@
         const homeCredentialsMode = () => document.getElementById('credentialsMode');
         const homeLoginSubtitle = () => document.getElementById('loginSubtitle');
         const homeUserInfoBar = () => document.getElementById('userInfoBar');
+        const managerRoles = ['manager', 'designer', 'supervisor'];
+
 
         function userHasFullAccess(user) {
-            return PurchaseAuth.hasAnyRole(user, ['Administrador', 'Compras']);
+            return PurchaseAuth.hasAnyRole(user, ['administrator']);
         }
 
         function getUserRole(user) {
@@ -275,37 +280,134 @@
             return String(user.rol || user.role || '').trim().toLowerCase();
         }
 
+
         function applyHomeRoleVisibility(user) {
             const userRole = getUserRole(user);
-            
-            // Full access for Administrador and Compras
-            if (userRole === 'administrador' || userRole === 'compras') {
-                document.querySelectorAll('.requires-full-access').forEach((element) => {
-                    element.style.display = '';
-                });
-                document.querySelectorAll('[data-requires-manager]').forEach((element) => {
-                    element.style.display = '';
+
+            //  ADMIN → ve todo
+            if (userRole === 'administrator') {
+                document.querySelectorAll('*').forEach(el => {
+                    el.style.display = '';
                 });
             }
-            // Manager access: only Purchase Tracking and Reports
-            else if (userRole === 'manager') {
-                document.querySelectorAll('.requires-full-access').forEach((element) => {
-                    element.style.display = 'none';
+
+            // GERENTE, DISEÑADOR, SUPERVISOR
+            else if (managerRoles.includes(userRole)) {
+
+                // Oculta todo primero
+                document.querySelectorAll('.requires-full-access').forEach(el => {
+                    el.style.display = 'none';
                 });
-                document.querySelectorAll('[data-requires-manager]').forEach((element) => {
-                    element.style.display = '';
-                });
+
+                // Muestra lo permitido
+                showElements([
+                    'purchaseTracking.html',
+                    'reports.html',
+                    'bomView.html',
+                    'stock.html'
+                ]);
+
+                // Remove Upload BOM for view-only roles
+                removeUploadBOMFromDropdowns();
+                
+                // Hide restricted Inventory dropdown items
+                hideRestrictedInventoryItems();
             }
-            // Other roles: no access to requires-full-access
+
+            // TECNICO
+            else if (userRole === 'technician') {
+
+                document.querySelectorAll('.requires-full-access').forEach(el => {
+                    el.style.display = 'none';
+                });
+
+                showElements([
+                    'io.html',
+                    'bomView.html',
+                    'stock.html'
+                ]);
+            }
+
+            // OTROS
             else {
-                document.querySelectorAll('.requires-full-access').forEach((element) => {
-                    element.style.display = 'none';
-                });
-                document.querySelectorAll('[data-requires-manager]').forEach((element) => {
-                    element.style.display = 'none';
+                document.querySelectorAll('.requires-full-access').forEach(el => {
+                    el.style.display = 'none';
                 });
             }
         }
+
+        function removeUploadBOMFromDropdowns() {
+            // Remove Upload BOM items completely from dropdowns
+            document.querySelectorAll('a[href="bom.html"]').forEach((link) => {
+                const parentLi = link.closest('li');
+                if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
+                    parentLi.remove();
+                }
+            });
+
+            // Remove dividers that are now orphaned (no visible items before them)
+            document.querySelectorAll('hr.dropdown-divider').forEach((divider) => {
+                const parentLi = divider.closest('li');
+                if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
+                    const prevLi = parentLi.previousElementSibling;
+                    // Remove if it's the first item or the previous item doesn't exist
+                    if (!prevLi) {
+                        parentLi.remove();
+                    }
+                }
+            });
+        }
+
+        function hideRestrictedInventoryItems() {
+            // Hide restricted Inventory dropdown items
+            const restrictedInventoryHrefs = ['createQr.html', 'inventory-bulk.html', 'io.html'];
+            restrictedInventoryHrefs.forEach((href) => {
+                document.querySelectorAll(`a[href="${href}"]`).forEach((link) => {
+                    const parentLi = link.closest('li');
+                    if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
+                        parentLi.style.display = 'none';
+                    }
+                });
+            });
+
+            // Hide dividers in Inventory dropdown that separate hidden items
+            const inventoryDropdowns = document.querySelectorAll('.dropdown-menu');
+            inventoryDropdowns.forEach((dropdown) => {
+                dropdown.querySelectorAll('hr.dropdown-divider').forEach((divider) => {
+                    const parentLi = divider.closest('li');
+                    if (parentLi) {
+                        const nextVisibleLi = Array.from(dropdown.querySelectorAll('li')).find(
+                            (li) => li.compareDocumentPosition(parentLi) === Node.DOCUMENT_POSITION_FOLLOWING &&
+                            getComputedStyle(li).display !== 'none'
+                        );
+                        if (!nextVisibleLi) {
+                            parentLi.style.display = 'none';
+                        }
+                    }
+                });
+            });
+        }
+
+
+        function showElements(hrefs) {
+            document.querySelectorAll('a').forEach(link => {
+                const href = link.getAttribute('href');
+                if (hrefs.includes(href)) {
+                    link.style.display = '';
+
+                    // also show all ancestor containers that require full access
+                    let current = link;
+                    while (current) {
+                        const parent = current.closest('.requires-full-access');
+                        if (!parent) break;
+                        parent.style.display = '';
+                        current = parent.parentElement;
+                    }
+                }
+            });
+        }
+
+
 
         function showHomeLoginAlert(message, type = 'danger') {
             const alertBox = homeLoginAlert();
@@ -1100,7 +1202,7 @@
                 return;
             }
 
-            if (!['Administrador', 'Tecnico', 'Manager'].includes(rol)) {
+            if (!['administrator', 'technician', 'manager', 'designer', 'supervisor'].includes(rol)) {
                 alert('Please select a valid role');
                 return;
             }
@@ -1324,7 +1426,7 @@
                 <form id="networkForm">
                     <input type="hidden" id="originalNetworkName" value="">
                     <div class="mb-3">
-                        <label for="networkName" class="form-label">Network-Number</label>
+                        <label for="networkName" class="form-label">Network Number</label>
                         <input type="text" class="form-control" id="networkName" list="networkNameSuggestions"
                             placeholder="Type to create or search network" required>
                         <datalist id="networkNameSuggestions"></datalist>
@@ -1444,9 +1546,11 @@
                         <label for="userRol" class="form-label">Role</label>
                         <select class="form-select" id="userRol" required>
                             <option value="">Select a role</option>
-                            <option value="Administrador">Administrator</option>
-                            <option value="Tecnico">Technician</option>
-                            <option value="Manager">Manager</option>
+                            <option value="administrator">Administrator</option>
+                            <option value="technician">Technician</option>
+                            <option value="manager">Manager</option>
+                            <option value="designer">Designer</option>
+                            <option value="supervisor">Supervisor</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -1560,7 +1664,7 @@
                     </div>
                     <div class="col-2 d-grid">
                         <button id="btnSearchVendor" type="button" class="btn btn-primary btn-sm p-1"
-                            aria-label="Buscar" title="Buscar"
+                            aria-label="Search" title="Search"
                             style="width:50px;height:50px;display:flex;align-items:center;justify-content:center">
                             <i class="bi bi-search" style="line-height:1"></i>
                         </button>

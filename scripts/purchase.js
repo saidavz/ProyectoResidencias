@@ -48,6 +48,36 @@ const pool = new pg.Pool({
   port: 5432,
 });
 
+function normalizeRole(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function canonicalizeRole(role) {
+  const normalized = normalizeRole(role);
+  const roleMap = {
+    administrador: 'administrator',
+    administrator: 'administrator',
+    tecnico: 'technician',
+    technician: 'technician',
+    gerente: 'manager',
+    manager: 'manager',
+    disenador: 'designer',
+    diseñador: 'designer',
+    designer: 'designer',
+    supervisor: 'supervisor'
+  };
+  return roleMap[normalized] || normalized;
+}
+
+function isValidRole(role) {
+  const canonical = canonicalizeRole(role);
+  return ['administrator', 'technician', 'manager', 'designer', 'supervisor'].includes(canonical);
+}
+
 function sanitizePid(rawPid) {
   if (rawPid == null) return '';
   return String(rawPid)
@@ -209,8 +239,8 @@ app.post('/api/auth/validate-qr', async (req, res) => {
 
     const roleColumn = roleColumnResult.rows[0].column_name;
 
-    // Buscar usuario por PID y verificar que tenga rol permitido.
-    // Normalizamos tambien el PID guardado en BD por si se registro con sufijos del escaner.
+    // Buscar usuario por PID sin filtrar el rol en SQL.
+    // El rol se valida en código para poder aceptar tanto valores antiguos en español como nuevos en inglés.
     const query = `
       SELECT
         pid,
@@ -219,12 +249,6 @@ app.post('/api/auth/validate-qr', async (req, res) => {
         COALESCE(last_name, '') AS last_name
       FROM user_
       WHERE LOWER(REGEXP_REPLACE(BTRIM(CAST(pid AS TEXT)), '[;[:space:]]+$', '')) = LOWER($1)
-        AND (
-          ${roleColumn} ILIKE 'Administrador'
-          OR ${roleColumn} ILIKE 'Compras'
-          OR ${roleColumn} ILIKE 'Tecnico'
-          OR ${roleColumn} ILIKE 'Manager'
-        )
       LIMIT 1
     `;
 
@@ -232,12 +256,20 @@ app.post('/api/auth/validate-qr', async (req, res) => {
 
     if (result.rows.length > 0) {
       const user = result.rows[0];
+      const canonicalRole = canonicalizeRole(user.rol);
+      if (!isValidRole(canonicalRole)) {
+        return res.status(401).json({
+          success: false,
+          error: 'Access denied. User lacks sufficient permissions.'
+        });
+      }
+
       res.json({
         success: true,
         user: {
           pid: user.pid,
-          rol: user.rol,
-          role: user.rol,
+          rol: canonicalRole,
+          role: canonicalRole,
           user_name: user.user_name,
           last_name: user.last_name
         }
@@ -342,12 +374,10 @@ app.post('/api/auth/validate-credentials', async (req, res) => {
     }
 
     // Validar que el usuario tenga un rol permitido
-    const userRole = String(user.rol || '').toLowerCase().trim();
-    const allowedRoles = ['administrador', 'compras', 'tecnico', 'manager'];
-    
-    console.log('User role check:', { role: userRole, isAllowed: allowedRoles.includes(userRole) });
+    const userRole = canonicalizeRole(user.rol || '');
+    console.log('User role check:', { role: userRole, isAllowed: isValidRole(userRole) });
 
-    if (!allowedRoles.includes(userRole)) {
+    if (!isValidRole(userRole)) {
       return res.status(401).json({
         success: false,
         error: 'Access denied. User lacks sufficient permissions.'
@@ -361,8 +391,8 @@ app.post('/api/auth/validate-credentials', async (req, res) => {
       success: true,
       user: {
         pid: user.pid,
-        rol: user.rol,
-        role: user.rol,
+        rol: userRole,
+        role: userRole,
         user_name: user.user_name,
         last_name: user.last_name
       }
@@ -398,8 +428,9 @@ app.post('/api/users', async (req, res) => {
     return res.status(400).json({ success: false, error: 'All fields are required.' });
   }
 
-  if (!['Administrador', 'Tecnico', 'Manager'].includes(normalizedRole)) {
-    return res.status(400).json({ success: false, error: 'Invalid role. Only Administrator, Technician, or Manager is allowed.' });
+  const canonicalRole = canonicalizeRole(normalizedRole);
+  if (!isValidRole(canonicalRole)) {
+    return res.status(400).json({ success: false, error: 'Invalid role. Only Administrator, Technician, Manager, Designer, or Supervisor is allowed.' });
   }
 
   try {
@@ -429,7 +460,7 @@ app.post('/api/users', async (req, res) => {
         normalizedUserName,
         normalizedLastName,
         normalizedSecondLastName,
-        normalizedRole,
+        canonicalRole,
         normalizedPassword
       ]
     );

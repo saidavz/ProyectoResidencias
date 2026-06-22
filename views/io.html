@@ -11,7 +11,7 @@
   <script src="../scripts/auth.js"></script>
   <script>
     const ioAuthUser = PurchaseAuth.requireAuth({
-      allowedRoles: ['Tecnico', 'Administrador', 'Compras'],
+      allowedRoles: ['technician', 'administrator'],
       deniedMessage: 'You do not have permission to access Inbound and Outbound.'
     });
   </script>
@@ -55,8 +55,10 @@
               <li><a class="dropdown-item" href="bomView.html">View BOM</a></li>
             </ul>
           </li>
-          <li class="nav-item requires-full-access"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
-          <li class="nav-item requires-full-access"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
+          <li class="nav-item requires-full-access"><a class="nav-link" href="recordPurchase.html">Register Purchase</a>
+          </li>
+          <li class="nav-item requires-full-access"><a class="nav-link" href="purchaseTracking.html">Purchase
+              Tracking</a></li>
           <li class="nav-item requires-full-access"><a class="nav-link" href="requisition.html">Requisition</a></li>
           <li class="nav-item dropdown">
             <a class="nav-link active dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
@@ -96,15 +98,16 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div class="btn-group" role="group" aria-label="Basic radio toggle button group">
         <input type="radio" class="btn-check" name="btnradio" id="btnradio1" autocomplete="off" checked>
-        <label class="btn btn-outline-danger" for="btnradio1">          
+        <label class="btn btn-outline-danger" for="btnradio1">
           <i class="bi bi-box fs-4 me-2 text-white"></i>
-            <i class="bi bi-arrow-right fs-4 me-2 text-white"></i>Inbound</label>
+          <i class="bi bi-arrow-right fs-4 me-2 text-white"></i>Inbound</label>
         <input type="radio" class="btn-check" name="btnradio" id="btnradio2" autocomplete="off">
         <label class="btn btn-outline-danger" for="btnradio2">
-            <i class="bi bi-arrow-left fs-4 me-2 text-white"></i>
-              <i class="bi bi-box fs-4 me-2 text-white"></i>Outbound</label>
+          <i class="bi bi-arrow-left fs-4 me-2 text-white"></i>
+          <i class="bi bi-box fs-4 me-2 text-white"></i>Outbound</label>
       </div>
-      <button class="btn btn-outline-light requires-full-access" type="button" data-bs-toggle="offcanvas" data-bs-target="#historyOffcanvas" aria-controls="historyOffcanvas">
+      <button class="btn btn-outline-light requires-full-access" type="button" data-bs-toggle="offcanvas"
+        data-bs-target="#historyOffcanvas" aria-controls="historyOffcanvas">
         <i class="bi bi-clock-history me-2"></i>Movement History
       </button>
     </div>
@@ -115,59 +118,88 @@
     </div>
 
     <div id="toast" class="alert d-none" role="alert"></div>
-    
+
     <!-- Modal para cambiar rack de proyecto inactivo -->
     <div class="modal fade" id="rackSelectionModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="background: linear-gradient(135deg, #1a1a1c 0%, #2a2a2e 100%); border: 2px solid #ff3b30; box-shadow: 0 0 30px rgba(255, 59, 48, 0.3);">
+        <div class="modal-content"
+          style="background: linear-gradient(135deg, #1a1a1c 0%, #2a2a2e 100%); border: 2px solid #ff3b30; box-shadow: 0 0 30px rgba(255, 59, 48, 0.3);">
           <div class="modal-header" style="border-bottom: 2px solid #ff3b30; padding: 1.5rem;">
             <div>
               <h5 class="modal-title" style="color: #ff3b30; font-weight: 700; font-size: 1.3rem;">
                 <i class="bi bi-rack-network me-2"></i>Inactive Project - Rack Selection
               </h5>
             </div>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(1.2);"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"
+              style="filter: brightness(1.2);"></button>
           </div>
           <div class="modal-body" style="padding: 2rem;">
             <!-- Estado 1: Mostrar rack actual y opciones -->
             <div id="rackSelectionStep1">
-              <div style="background: rgba(255, 59, 48, 0.1); border-left: 4px solid #ff3b30; padding: 1.2rem; border-radius: 8px; margin-bottom: 1.5rem;">
+              <div
+                style="background: rgba(255, 59, 48, 0.1); border-left: 4px solid #ff3b30; padding: 1.2rem; border-radius: 8px; margin-bottom: 1.5rem;">
                 <div style="margin-bottom: 0.8rem;">
-                  <span style="color: #b2bec3; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Part Number</span>
-                  <div style="color: #00ff88; font-family: 'Courier New', monospace; font-weight: 700; font-size: 1.1rem; margin-top: 0.3rem;" id="partNumberDisplay"></div>
+                  <span style="color: #b2bec3; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Part
+                    Number</span>
+                  <div
+                    style="color: #00ff88; font-family: 'Courier New', monospace; font-weight: 700; font-size: 1.1rem; margin-top: 0.3rem;"
+                    id="partNumberDisplay"></div>
                 </div>
                 <div>
-                  <span style="color: #b2bec3; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Current Rack</span>
-                  <div style="color: #ff3b30; font-family: 'Courier New', monospace; font-weight: 700; font-size: 1.2rem; margin-top: 0.3rem;" id="currentRackDisplay"></div>
+                  <span
+                    style="color: #b2bec3; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Current
+                    Rack</span>
+                  <div
+                    style="color: #ff3b30; font-family: 'Courier New', monospace; font-weight: 700; font-size: 1.2rem; margin-top: 0.3rem;"
+                    id="currentRackDisplay"></div>
                 </div>
               </div>
-              <p style="color: #dfe6e9; margin-bottom: 1rem; font-size: 0.95rem;">This part is being added from an <strong>inactive project</strong>.</p>
-              <p style="color: #909497; font-size: 0.85rem; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 1rem;">This rack will be assigned to all matching part numbers in inactive projects and AUT-STOCK locations.</p>
+              <p style="color: #dfe6e9; margin-bottom: 1rem; font-size: 0.95rem;">This part is being added from an
+                <strong>inactive project</strong>.</p>
+              <p
+                style="color: #909497; font-size: 0.85rem; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 1rem;">
+                This rack will be assigned to all matching part numbers in inactive projects and AUT-STOCK locations.
+              </p>
             </div>
             <!-- Estado 2: Mostrar input para nuevo rack (oculto inicialmente) -->
             <div id="rackSelectionStep2" style="display:none;">
-              <label class="form-label fw-bold" style="color: #ff3b30; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; margin-bottom: 0.8rem;">Enter New Rack Location</label>
-              <input type="text" id="newRackInput" class="form-control" style="background: #1a1a1c; border: 2px solid #ff3b30; color: #00ff88; padding: 0.8rem; font-weight: 500; font-family: 'Courier New', monospace;" placeholder="Enter rack number or location..." autofocus />
-              <small style="color: #909497; margin-top: 1rem; display: block; font-size: 0.8rem;">This new rack location will replace the current one for all matching part numbers.</small>
+              <label class="form-label fw-bold"
+                style="color: #ff3b30; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; margin-bottom: 0.8rem;">Enter
+                New Rack Location</label>
+              <input type="text" id="newRackInput" class="form-control"
+                style="background: #1a1a1c; border: 2px solid #ff3b30; color: #00ff88; padding: 0.8rem; font-weight: 500; font-family: 'Courier New', monospace;"
+                placeholder="Enter rack number or location..." autofocus />
+              <small style="color: #909497; margin-top: 1rem; display: block; font-size: 0.8rem;">This new rack location
+                will replace the current one for all matching part numbers.</small>
             </div>
           </div>
           <div class="modal-footer" style="border-top: 2px solid #ff3b30; padding: 1.5rem; gap: 0.5rem;">
             <!-- Botones para paso 1 -->
             <div id="step1Buttons" style="width: 100%; display: flex; gap: 0.5rem;">
-              <button type="button" class="btn" style="background: transparent; border: 2px solid #909497; color: #dfe6e9; flex: 1;" data-bs-dismiss="modal">Cancel</button>
-              <button type="button" class="btn" style="background: transparent; border: 2px solid #00ff88; color: #00ff88; flex: 1;" id="useCurrentRackBtn">Use This Rack</button>
-              <button type="button" class="btn" style="background: #ff3b30; border: 2px solid #ff3b30; color: #000; font-weight: 700; flex: 1;" id="changeRackBtn">Change Rack</button>
+              <button type="button" class="btn"
+                style="background: transparent; border: 2px solid #909497; color: #dfe6e9; flex: 1;"
+                data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn"
+                style="background: transparent; border: 2px solid #00ff88; color: #00ff88; flex: 1;"
+                id="useCurrentRackBtn">Use This Rack</button>
+              <button type="button" class="btn"
+                style="background: #ff3b30; border: 2px solid #ff3b30; color: #000; font-weight: 700; flex: 1;"
+                id="changeRackBtn">Change Rack</button>
             </div>
             <!-- Botones para paso 2 (ocultos inicialmente) -->
             <div id="step2Buttons" style="display:none; width: 100%; display: flex; gap: 0.5rem;">
-              <button type="button" class="btn" style="background: transparent; border: 2px solid #909497; color: #dfe6e9; flex: 1;" id="backToStep1Btn">Back</button>
-              <button type="button" class="btn" style="background: #00ff88; border: 2px solid #00ff88; color: #000; font-weight: 700; flex: 1;" id="confirmNewRackBtn">Confirm New Rack</button>
+              <button type="button" class="btn"
+                style="background: transparent; border: 2px solid #909497; color: #dfe6e9; flex: 1;"
+                id="backToStep1Btn">Back</button>
+              <button type="button" class="btn"
+                style="background: #00ff88; border: 2px solid #00ff88; color: #000; font-weight: 700; flex: 1;"
+                id="confirmNewRackBtn">Confirm New Rack</button>
             </div>
           </div>
         </div>
       </div>
     </div>
-    
+
     <div class="enhanced-table">
       <div class="table-responsive">
         <table class="table table-striped table-hover mb-0">
@@ -191,16 +223,19 @@
   </div>
 
   <!-- Modal de inactividad para Tecnico -->
-  <div class="modal fade" id="techInactivityModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="techInactivityModalLabel" aria-hidden="true">
+  <div class="modal fade" id="techInactivityModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+    aria-labelledby="techInactivityModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content" style="background: linear-gradient(135deg, #1a1a1c 0%, #2a2a2e 100%); border: 2px solid #ff3b30; box-shadow: 0 0 30px rgba(255, 59, 48, 0.25);">
+      <div class="modal-content"
+        style="background: linear-gradient(135deg, #1a1a1c 0%, #2a2a2e 100%); border: 2px solid #ff3b30; box-shadow: 0 0 30px rgba(255, 59, 48, 0.25);">
         <div class="modal-header" style="border-bottom: 1px solid rgba(255, 59, 48, 0.45);">
           <h5 class="modal-title" id="techInactivityModalLabel" style="color: #ff3b30; font-weight: 700;">
             <i class="bi bi-hourglass-split me-2"></i>Inactivity Detected
           </h5>
         </div>
         <div class="modal-body" style="color: #dfe6e9;">
-          <p class="mb-0">Do you want to continue your session? It will close in <strong><span id="techInactivityCountdown">10</span>s</strong>.</p>
+          <p class="mb-0">Do you want to continue your session? It will close in <strong><span
+                id="techInactivityCountdown">10</span>s</strong>.</p>
         </div>
         <div class="modal-footer" style="border-top: 1px solid rgba(255, 59, 48, 0.45);">
           <button type="button" class="btn btn-outline-light" id="techCloseSessionBtn">Close</button>
@@ -211,7 +246,8 @@
   </div>
 
   <!-- Offcanvas para Historial de Movimientos -->
-  <div class="offcanvas offcanvas-end bg-dark text-white requires-full-access" data-bs-backdrop="static" tabindex="-1" id="historyOffcanvas" aria-labelledby="historyOffcanvasLabel" style="width: 70%;">
+  <div class="offcanvas offcanvas-end bg-dark text-white requires-full-access" data-bs-backdrop="static" tabindex="-1"
+    id="historyOffcanvas" aria-labelledby="historyOffcanvasLabel" style="width: 70%;">
     <div class="offcanvas-header border-bottom border-secondary">
       <h5 class="offcanvas-title" id="historyOffcanvasLabel">
         <i class="bi bi-clock-history me-2"></i>Movement History
@@ -225,7 +261,8 @@
           <h6 class="card-title mb-3"><i class="bi bi-search me-2"></i>Search</h6>
           <div class="row">
             <div class="col-12">
-              <input type="text" class="form-control form-control-lg" id="searchMovements" placeholder="Search by project or part number...">
+              <input type="text" class="form-control form-control-lg" id="searchMovements"
+                placeholder="Search by project or part number...">
             </div>
           </div>
         </div>
@@ -256,7 +293,8 @@
       </div>
 
       <!-- Información adicional -->
-      <div id="historyStats" class="mt-3 p-4 rounded d-none" style="background: linear-gradient(135deg, #1a1a1c 0%, #2a2a2e 100%); border: 2px solid #c8102e;">
+      <div id="historyStats" class="mt-3 p-4 rounded d-none"
+        style="background: linear-gradient(135deg, #1a1a1c 0%, #2a2a2e 100%); border: 2px solid #c8102e;">
         <h6 class="text-white mb-3"><i class="bi bi-graph-up me-2"></i>Statistics</h6>
         <div class="row text-center">
           <div class="col-md-4">
@@ -268,13 +306,15 @@
           <div class="col-md-4">
             <div class="stat-card">
               <div class="stat-label text-white">Inbound</div>
-              <div class="stat-value" id="statInbound" style="color: #28a745; font-size: 2rem; font-weight: bold;">0</div>
+              <div class="stat-value" id="statInbound" style="color: #28a745; font-size: 2rem; font-weight: bold;">0
+              </div>
             </div>
           </div>
           <div class="col-md-4">
             <div class="stat-card">
               <div class="stat-label text-white">Outbound</div>
-              <div class="stat-value" id="statOutbound" style="color: #c8102e; font-size: 2rem; font-weight: bold;">0</div>
+              <div class="stat-value" id="statOutbound" style="color: #c8102e; font-size: 2rem; font-weight: bold;">0
+              </div>
             </div>
           </div>
         </div>
@@ -313,7 +353,7 @@
     let techAudioContext = null;
 
     function isTechnicianSession() {
-      return PurchaseAuth.hasAnyRole(currentUser, ['Tecnico']) && !PurchaseAuth.hasAnyRole(currentUser, ['Administrador', 'Compras']);
+      return PurchaseAuth.hasAnyRole(currentUser, ['technician']) && !PurchaseAuth.hasAnyRole(currentUser, ['administrator']);
     }
 
     function closeTechnicianSessionNow() {
@@ -506,7 +546,7 @@
     }
 
     function applyIoRoleVisibility() {
-      const hasFullAccess = PurchaseAuth.hasAnyRole(currentUser, ['Administrador', 'Compras']);
+      const hasFullAccess = PurchaseAuth.hasAnyRole(currentUser, ['administrator']);
       document.querySelectorAll('.requires-full-access').forEach((element) => {
         element.style.display = hasFullAccess ? '' : 'none';
       });
@@ -551,7 +591,7 @@
       if (isTechnicianSession()) {
         startTechnicianIdleMonitor();
       }
-      
+
       // Cargar lista de proyectos para el modal de AUT-STOCK
       loadProjectsList();
     }
@@ -583,7 +623,7 @@
     const scanTable = document.getElementById("scanTable");
     const toast = document.getElementById("toast");
     const ioMainSection = document.getElementById('ioMainSection');
-    
+
     // Variables para manejar proyectos inactivos y AUT-STOCK
     let rackSelectionModal = null; // Lazy initialization
     let pendingRackSelection = null;
@@ -644,7 +684,7 @@
     document.body.appendChild(overEntryToast);
 
     function showOverEntry(message, details = '') {
-      try { overEntryToast.style.position = 'fixed'; overEntryToast.style.top = '80px'; overEntryToast.style.right = '20px'; overEntryToast.style.zIndex = 1060; overEntryToast.style.maxWidth = '520px'; } catch (e) {}
+      try { overEntryToast.style.position = 'fixed'; overEntryToast.style.top = '80px'; overEntryToast.style.right = '20px'; overEntryToast.style.zIndex = 1060; overEntryToast.style.maxWidth = '520px'; } catch (e) { }
       overEntryToast.classList.remove('d-none');
       overEntryToast.classList.remove('alert-success', 'alert-danger', 'alert-info', 'alert-warning');
       overEntryToast.classList.add('alert', 'alert-warning');
@@ -686,9 +726,9 @@
             const autstRes = await fetch(`${API_BASE}/api/stock/available-austocked/${encodeURIComponent(availData.no_part)}`);
             if (autstRes.ok) {
               const autstData = await autstRes.json();
-              return { 
-                available: autstData.total_available, 
-                no_part: autstData.no_part, 
+              return {
+                available: autstData.total_available,
+                no_part: autstData.no_part,
                 no_project: availData.no_project,
                 rack: availData.rack,
                 isAustockTotal: true
@@ -712,7 +752,7 @@
         if (!rackSelectionModal) {
           rackSelectionModal = new bootstrap.Modal(document.getElementById('rackSelectionModal'));
         }
-        
+
         const partNumberDisplay = document.getElementById('partNumberDisplay');
         const currentRackDisplay = document.getElementById('currentRackDisplay');
         const newRackInput = document.getElementById('newRackInput');
@@ -724,7 +764,7 @@
         const changeRackBtn = document.getElementById('changeRackBtn');
         const backToStep1Btn = document.getElementById('backToStep1Btn');
         const confirmNewRackBtn = document.getElementById('confirmNewRackBtn');
-        
+
         // Obtener rack actual
         let currentRack = '';
         try {
@@ -736,30 +776,30 @@
         } catch (err) {
           currentRack = 'Not assigned';
         }
-        
+
         // Mostrar información en el modal
         partNumberDisplay.textContent = no_part;
         currentRackDisplay.textContent = currentRack || 'Not assigned';
         newRackInput.value = '';
-        
+
         // Reset a paso 1
         step1.style.display = 'block';
         step2.style.display = 'none';
         step1Buttons.style.display = 'flex';
         step2Buttons.style.display = 'none';
-        
+
         // Limpiar listeners previos
         useCurrentRackBtn.onclick = null;
         changeRackBtn.onclick = null;
         backToStep1Btn.onclick = null;
         confirmNewRackBtn.onclick = null;
-        
+
         // Listener para "Usar este rack"
         useCurrentRackBtn.onclick = () => {
           rackSelectionModal.hide();
           resolve(currentRack);
         };
-        
+
         // Listener para "Cambiar rack"
         changeRackBtn.onclick = () => {
           step1.style.display = 'none';
@@ -768,7 +808,7 @@
           step2Buttons.style.display = 'flex';
           newRackInput.focus();
         };
-        
+
         // Listener para "Atrás"
         backToStep1Btn.onclick = () => {
           step1.style.display = 'block';
@@ -776,7 +816,7 @@
           step1Buttons.style.display = 'flex';
           step2Buttons.style.display = 'none';
         };
-        
+
         // Listener para "Confirmar nuevo rack"
         confirmNewRackBtn.onclick = () => {
           const selectedRack = newRackInput.value.trim();
@@ -787,12 +827,12 @@
           rackSelectionModal.hide();
           resolve(selectedRack);
         };
-        
+
         // Permitir Enter en el input del nuevo rack
         newRackInput.onkeydown = (e) => {
           if (e.key === 'Enter') confirmNewRackBtn.onclick();
         };
-        
+
         // Mostrar modal
         rackSelectionModal.show();
       });
@@ -821,13 +861,13 @@
       // Ahora acepta cantidad y original_project
       let cantidad = arguments.length > 2 ? arguments[2] : 1;
       let original_project = arguments.length > 3 ? arguments[3] : null;
-      const payload = { 
-        qr_code, 
-        type: movementType, 
+      const payload = {
+        qr_code,
+        type: movementType,
         cantidad,
         pid: currentUser ? currentUser.pid : null
       };
-      
+
       if (original_project) {
         payload.original_project = original_project;
       }
@@ -851,12 +891,12 @@
       // For INBOUND, always use /api/inbound to check for rack selection requirement
       if (movementType === 'INBOUND') {
         try {
-          const legacyPayload = { 
+          const legacyPayload = {
             qr_code,
             cantidad,
-            pid: currentUser ? currentUser.pid : null 
+            pid: currentUser ? currentUser.pid : null
           };
-          
+
           // Send to /api/inbound and check for needsRackSelection
           const response = await tryPost(`${API_BASE}/api/inbound`, legacyPayload);
 
@@ -870,9 +910,9 @@
               const packs = oe.packages_required || Math.ceil(oe.quantity_calculated || 0);
               const details = `Required packages: ${packs}\nAvailable quantity (before): ${oe.available}\nIncoming quantity: ${oe.entering}`;
               showOverEntry(msg, details);
-            } catch (e) {}
+            } catch (e) { }
           }
-          
+
           // Check if this is an inactive project requiring rack selection
           if (response.needsRackSelection === true) {
             // Show modal for rack selection
@@ -880,7 +920,7 @@
               response.stock?.no_project || 'Unknown Project',
               response.stock?.no_part || 'Unknown Part'
             );
-            
+
             // Call the inbound-with-rack endpoint to complete the inbound
             const rackPayload = {
               qr_code,
@@ -900,13 +940,13 @@
                 const packs = oe.packages_required || Math.ceil(oe.quantity_calculated || 0);
                 const details = `Required packages: ${packs}\nAvailable quantity (before): ${oe.available}\nIncoming quantity: ${oe.entering}`;
                 showOverEntry(msg, details);
-              } catch (e) {}
+              } catch (e) { }
             }
 
             showToast(`Inbound completed with rack: ${selectedRack}`, 'success');
             return finalResponse;
           }
-          
+
           return response;
         } catch (err) {
           throw err;
@@ -914,7 +954,7 @@
       }
 
       // For OUTBOUND (and generic), try /api/movements first and check overEntry
-        try {
+      try {
         const resp = await tryPost(`${API_BASE}/api/movements`, payload);
         if (resp && resp.overEntry) {
           try {
@@ -925,16 +965,16 @@
             const packs = oe.packages_required || Math.ceil(oe.quantity_calculated || 0);
             const details = `Required packages: ${packs}\nAvailable quantity (before): ${oe.available}\nIncoming quantity: ${oe.entering}`;
             showOverEntry(msg, details);
-          } catch (e) {}
+          } catch (e) { }
         }
         return resp;
-      } catch (err) {}
+      } catch (err) { }
 
       // Fallback for OUTBOUND
       try {
-        const legacyPayload = { 
-          qr_code, 
-          pid: currentUser ? currentUser.pid : null 
+        const legacyPayload = {
+          qr_code,
+          pid: currentUser ? currentUser.pid : null
         };
         if (movementType === 'OUTBOUND') return await tryPost(`${API_BASE}/api/outbound`, legacyPayload);
       } catch (err) {
@@ -994,102 +1034,102 @@
       // Event listener para cambios en la cantidad al presionar Enter
       if (cantidadInput) {
         cantidadInput.addEventListener('keydown', async (e) => {
-        if (e.key !== 'Enter') return;
-        e.preventDefault();
+          if (e.key !== 'Enter') return;
+          e.preventDefault();
 
-        const newValue = parseInt(e.target.value, 10);
-        if (isNaN(newValue) || newValue < 0) {
-          showToast('Invalid quantity', 'danger');
-          e.target.value = previousValue;
-          return;
-        }
-
-        // calcular diferencia respecto al valor previo
-        const delta = newValue - previousValue;
-        if (delta === 0) {
-          previousValue = newValue;
-          return;
-        }
-
-        // Esperar a que rowPartNumber esté disponible
-        let waitCount = 0;
-        while (!rowPartNumber && waitCount < 20) {
-          await new Promise(r => setTimeout(r, 50));
-          waitCount++;
-        }
-
-        if (!rowPartNumber) {
-          showToast('Still loading data, please wait...', 'warning');
-          e.target.value = previousValue;
-          return;
-        }
-
-        try {
-          // determinar tipo de movimiento según signo de delta y selección actual
-          const inboundChecked = document.getElementById('btnradio1').checked;
-          let movementType = inboundChecked ? 'INBOUND' : 'OUTBOUND';
-          if (delta < 0) {
-            // si disminuye, invertimos el tipo
-            movementType = (movementType === 'INBOUND') ? 'OUTBOUND' : 'INBOUND';
+          const newValue = parseInt(e.target.value, 10);
+          if (isNaN(newValue) || newValue < 0) {
+            showToast('Invalid quantity', 'danger');
+            e.target.value = previousValue;
+            return;
           }
-          const addedQr = row.cells[1].textContent;
-          const units = Math.abs(delta);
 
-          // Obtener disponible general ANTES de cualquier movimiento
-          let initialAvailable = 0;
+          // calcular diferencia respecto al valor previo
+          const delta = newValue - previousValue;
+          if (delta === 0) {
+            previousValue = newValue;
+            return;
+          }
+
+          // Esperar a que rowPartNumber esté disponible
+          let waitCount = 0;
+          while (!rowPartNumber && waitCount < 20) {
+            await new Promise(r => setTimeout(r, 50));
+            waitCount++;
+          }
+
+          if (!rowPartNumber) {
+            showToast('Still loading data, please wait...', 'warning');
+            e.target.value = previousValue;
+            return;
+          }
+
           try {
-            const no_part = rowPartNumber;
-            if (no_part && no_part !== '...') {
-              const availData = await getAvailableQuantity(addedQr, no_part, null);
-              initialAvailable = availData.available || 0;
+            // determinar tipo de movimiento según signo de delta y selección actual
+            const inboundChecked = document.getElementById('btnradio1').checked;
+            let movementType = inboundChecked ? 'INBOUND' : 'OUTBOUND';
+            if (delta < 0) {
+              // si disminuye, invertimos el tipo
+              movementType = (movementType === 'INBOUND') ? 'OUTBOUND' : 'INBOUND';
             }
-          } catch (err) {
-            initialAvailable = 0;
-          }
+            const addedQr = row.cells[1].textContent;
+            const units = Math.abs(delta);
 
-          // Registrar el movimiento con la cantidad TOTAL, no en loop
-          // Esto asegura que el BOM se actualiza correctamente con la cantidad final
-          let result = null;
-          result = await registerMovement(addedQr, movementType, units);
-          const firstOverEntry = (result && result.overEntry) ? result.overEntry : null;
-
-          // If server signals an over-entry, show alert with details (still allow entry)
-          const overEntryToShow = firstOverEntry || (result && result.overEntry);
-          if (overEntryToShow) {
-            try {
-              const oe = overEntryToShow;
-              const part = result.stock && result.stock.no_part ? result.stock.no_part : '';
-              const proj = result.stock && result.stock.no_project ? result.stock.no_project : '';
-              const msg = `For part number ${part} in project ${proj}, ${oe.quantity_project} units were requested; the incoming quantity exceeds the amount ordered.`;
-              const packs = oe.packages_required || Math.ceil(oe.quantity_calculated || 0);
-              const details = `Required packages: ${packs}\nAvailable quantity (before): ${initialAvailable}\nIncoming quantity: ${newValue}`;
-              showOverEntry(msg, details);
-            } catch (e) {}
-          }
-
-          showToast(`Movement recorded`, 'success');
-          markTechnicianMovementActivity();
-
-          // Actualizar cantidad disponible
-          // For inactive projects with rack selection, use totalAvailAfter from response
-          if (result && result.totalAvailAfter !== undefined) {
-            row.cells[8].textContent = result.totalAvailAfter || 0;
-          } else {
+            // Obtener disponible general ANTES de cualquier movimiento
+            let initialAvailable = 0;
             try {
               const no_part = rowPartNumber;
               if (no_part && no_part !== '...') {
                 const availData = await getAvailableQuantity(addedQr, no_part, null);
-                row.cells[8].textContent = availData.available || 0;
+                initialAvailable = availData.available || 0;
               }
             } catch (err) {
+              initialAvailable = 0;
             }
-          }
 
-          previousValue = newValue;
-        } catch (err) {
-          showToast('Error registering movement', 'danger');
-          e.target.value = previousValue;
-        }
+            // Registrar el movimiento con la cantidad TOTAL, no en loop
+            // Esto asegura que el BOM se actualiza correctamente con la cantidad final
+            let result = null;
+            result = await registerMovement(addedQr, movementType, units);
+            const firstOverEntry = (result && result.overEntry) ? result.overEntry : null;
+
+            // If server signals an over-entry, show alert with details (still allow entry)
+            const overEntryToShow = firstOverEntry || (result && result.overEntry);
+            if (overEntryToShow) {
+              try {
+                const oe = overEntryToShow;
+                const part = result.stock && result.stock.no_part ? result.stock.no_part : '';
+                const proj = result.stock && result.stock.no_project ? result.stock.no_project : '';
+                const msg = `For part number ${part} in project ${proj}, ${oe.quantity_project} units were requested; the incoming quantity exceeds the amount ordered.`;
+                const packs = oe.packages_required || Math.ceil(oe.quantity_calculated || 0);
+                const details = `Required packages: ${packs}\nAvailable quantity (before): ${initialAvailable}\nIncoming quantity: ${newValue}`;
+                showOverEntry(msg, details);
+              } catch (e) { }
+            }
+
+            showToast(`Movement recorded`, 'success');
+            markTechnicianMovementActivity();
+
+            // Actualizar cantidad disponible
+            // For inactive projects with rack selection, use totalAvailAfter from response
+            if (result && result.totalAvailAfter !== undefined) {
+              row.cells[8].textContent = result.totalAvailAfter || 0;
+            } else {
+              try {
+                const no_part = rowPartNumber;
+                if (no_part && no_part !== '...') {
+                  const availData = await getAvailableQuantity(addedQr, no_part, null);
+                  row.cells[8].textContent = availData.available || 0;
+                }
+              } catch (err) {
+              }
+            }
+
+            previousValue = newValue;
+          } catch (err) {
+            showToast('Error registering movement', 'danger');
+            e.target.value = previousValue;
+          }
         });
       }
 
@@ -1119,13 +1159,13 @@
         // Registrar el movimiento
         try {
           const result = await registerMovement(qr, movementType, cantidad, null);
-          
+
           // Actualizar celdas con la información del stock
           if (!stockData) {
             try {
               const availData = await getAvailableQuantity(qr, null, null);
               stockData = availData;
-            } catch (err) {}
+            } catch (err) { }
           }
 
           row.cells[2].textContent = no_part || 'N/A';
@@ -1181,7 +1221,7 @@
     };
 
     // ============== HISTORIAL DE MOVIMIENTOS ==============
-    
+
     // Cargar historial de movimientos con buscador único
     async function loadMovementHistory(searchTerm = '') {
       const tbody = document.getElementById('historyTableBody');
@@ -1198,7 +1238,7 @@
         if (!response.ok) throw new Error('Error loading history');
 
         const data = await response.json();
-        
+
         if (!data.movements || data.movements.length === 0) {
           tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">No movements found</td></tr>';
           document.getElementById('historyStats').classList.add('d-none');
@@ -1212,11 +1252,11 @@
 
         data.movements.forEach(mov => {
           const row = tbody.insertRow();
-          
+
           // date_movement
           const dateCell = row.insertCell();
           dateCell.textContent = mov.date_movement ? new Date(mov.date_movement).toLocaleString() : '-';
-          
+
           // type_movement
           const typeCell = row.insertCell();
           typeCell.textContent = mov.type_movement || '-';
@@ -1227,30 +1267,30 @@
             typeCell.className = 'text-danger fw-bold';
             outboundCount++;
           }
-          
+
           // id_stock
           const idStockCell = row.insertCell();
           idStockCell.textContent = mov.id_stock || '-';
           idStockCell.className = 'cell-gray';
-          
-            row.insertCell().textContent = mov.no_part || '-';
-          
+
+          row.insertCell().textContent = mov.no_part || '-';
+
           // no_project (de tabla stock)
           row.insertCell().textContent = mov.no_project || '-';
-          
+
           // name_project (de tabla project)
           const nameProjectCell = row.insertCell();
           nameProjectCell.textContent = mov.name_project || '-';
           nameProjectCell.className = 'cell-project';
-          
+
           // pid (de tabla movements)
           const pidCell = row.insertCell();
           pidCell.textContent = mov.pid || '-';
           pidCell.className = 'cell-pid';
-          
+
           // user_name (de tabla user_)
           row.insertCell().textContent = mov.user_name || '-';
-          
+
           // last_name (de tabla user_)
           row.insertCell().textContent = mov.last_name || '-';
         });
@@ -1270,7 +1310,7 @@
     let searchTimer;
     const searchInput = document.getElementById('searchMovements');
     if (searchInput) {
-      searchInput.addEventListener('input', function() {
+      searchInput.addEventListener('input', function () {
         clearTimeout(searchTimer);
         const searchTerm = this.value.trim();
         searchTimer = setTimeout(() => {
@@ -1280,10 +1320,16 @@
     }
 
     // Cargar historial cuando se abre el offcanvas
-    document.getElementById('historyOffcanvas').addEventListener('show.bs.offcanvas', function () {
-      const searchTerm = searchInput ? searchInput.value.trim() : '';
-      loadMovementHistory(searchTerm);
-    });
+
+    const historyOffcanvas = document.getElementById('historyOffcanvas');
+
+    if (historyOffcanvas) {
+      historyOffcanvas.addEventListener('show.bs.offcanvas', function () {
+        const searchTerm = searchInput ? searchInput.value.trim() : '';
+        loadMovementHistory(searchTerm);
+      });
+    }
+
   </script>
 
   <footer class="text-center py-3 text-white bg-gradient mt-5">

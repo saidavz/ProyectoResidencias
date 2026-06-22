@@ -5,7 +5,20 @@
   const AUTH_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
   const AUTH_IDLE_CHECK_INTERVAL_MS = 15 * 1000;
   const AUTH_ACTIVITY_WRITE_INTERVAL_MS = 10 * 1000;
-  const TECHNICIAN_ROLE = 'tecnico';
+  const TECHNICIAN_ROLE = 'technician';
+
+  const ROLE_ALIASES = new Map([
+    ['administrador', 'administrator'],
+    ['administrator', 'administrator'],
+    ['gerente', 'manager'],
+    ['manager', 'manager'],
+    ['tecnico', 'technician'],
+    ['technician', 'technician'],
+    ['disenador', 'designer'],
+    ['diseñador', 'designer'],
+    ['designer', 'designer'],
+    ['supervisor', 'supervisor']
+  ]);
 
   let inactivityIntervalId = null;
   let activityEventsBound = false;
@@ -22,6 +35,11 @@
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function getCanonicalRole(value) {
+    const normalized = normalizeRole(value);
+    return ROLE_ALIASES.get(normalized) || normalized;
   }
 
   function getSessionItem(key) {
@@ -103,7 +121,7 @@
       return false;
     }
 
-    return normalizeRole(normalizedUser.rol) === TECHNICIAN_ROLE;
+    return getCanonicalRole(normalizedUser.rol) === TECHNICIAN_ROLE;
   }
 
   function shouldExpireByInactivity(user) {
@@ -232,6 +250,7 @@
 
     const pid = String(user.pid || '').trim();
     const rol = String(user.rol || user.role || '').trim();
+    const canonicalRole = getCanonicalRole(rol);
     const userName = String(user.user_name || user.userName || '').trim();
     const lastName = String(user.last_name || user.lastName || '').trim();
 
@@ -241,8 +260,8 @@
 
     return {
       pid,
-      rol,
-      role: rol,
+      rol: canonicalRole,
+      role: canonicalRole,
       user_name: userName,
       last_name: lastName
     };
@@ -320,8 +339,8 @@
       return false;
     }
 
-    const userRole = normalizeRole(normalizedUser.rol);
-    return roles.some((role) => normalizeRole(role) === userRole);
+    const userRole = getCanonicalRole(normalizedUser.rol);
+    return roles.some((role) => getCanonicalRole(role) === userRole);
   }
 
   function setNotice(message) {

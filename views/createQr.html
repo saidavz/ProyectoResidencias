@@ -12,8 +12,8 @@
     <script src="../scripts/auth.js"></script>
     <script>
         PurchaseAuth.requireAuth({
-            allowedRoles: ['Administrador', 'Compras'],
-            deniedMessage: 'Only Administrator and Purchases have access to this section.'
+            allowedRoles: ['administrator'],
+            deniedMessage: 'You do not have permission to access this section.'
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -65,7 +65,7 @@
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="inventory-bulk.html">Bulk Import</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="io.html">Register Inbound And Outbound</a></li><li>
+                            <li><a class="dropdown-item" href="io.html">Register Inbound And Outbound</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="stock.html">View Inventory</a></li>
                         </ul>
@@ -107,14 +107,17 @@
                                 <!-- Campo Rack Number existente -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Rack Number</label>
-                                    <select class="form-select bg-secondary text-light" name="rackNumber" required>
-                                        <option value="">Select Rack Number</option>
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                        <option value="3">3</option>
-                                        <option value="4">4</option>
-                                        <option value="5">5</option>
-                                    </select>
+                                    <input
+                                        type="text"
+                                        class="form-control bg-secondary text-light"
+                                        name="rackNumber"
+                                        id="rackNumberInput"
+                                        list="rackNumberList"
+                                        placeholder="Type or select rack number"
+                                        autocomplete="off"
+                                        required
+                                    >
+                                    <datalist id="rackNumberList"></datalist>
                                 </div>
                             </div>
                             <!-- Tabla de productos por proyecto PO -->
@@ -166,14 +169,15 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Rack Number</label>
-                        <select class="form-select bg-secondary text-light" id="modalRackSelect">
-                            <option value="">Select Rack Number</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                            <option value="5">5</option>
-                        </select>
+                        <input
+                            type="text"
+                            class="form-control bg-secondary text-light"
+                            id="modalRackInput"
+                            list="modalRackNumberList"
+                            placeholder="Type or select rack number"
+                            autocomplete="off"
+                        >
+                        <datalist id="modalRackNumberList"></datalist>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -217,9 +221,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             const currentPage = window.location.pathname.split('/').pop() || 'index.html';
 
-            if (currentPage === 'entry.html' || currentPage === '') {
-                // Resaltar Inventory cuando estamos en entry.html
-                const inventoryLinks = document.querySelectorAll('a[href="entry.html"]');
+            if (currentPage === 'createQr.html' || currentPage === '') {
+                // Resaltar Inventory c
+                const inventoryLinks = document.querySelectorAll('a[href="createQr.html"]');
                 inventoryLinks.forEach(link => {
                     link.parentElement.parentElement.querySelector('.dropdown-toggle').classList.add('active');
                 });
@@ -237,9 +241,14 @@
             const emptyState = document.getElementById('projectEmptyState');
             const confirmQRModal = new bootstrap.Modal(document.getElementById('confirmQRModal'));
             const selectRackModal = new bootstrap.Modal(document.getElementById('selectRackModal'));
+            const rackNumberInput = document.getElementById('rackNumberInput');
+            const rackNumberList = document.getElementById('rackNumberList');
+            const modalRackInput = document.getElementById('modalRackInput');
+            const modalRackNumberList = document.getElementById('modalRackNumberList');
             let currentQRAction = null; // Para guardar la acción pendiente del QR
             let pendingRackSelection = null; // Para guardar la acción pendiente de selección de rack
             let projectOptions = [];
+            const rackOptions = new Set();
 
             let allRows = [];
 
@@ -261,6 +270,36 @@
                 .catch(error => {
                     console.error('Error loading projects:', error);
                 });
+
+            function addRackOption(rack) {
+                const normalizedRack = normalizeValue(rack);
+                if (!normalizedRack || rackOptions.has(normalizedRack)) {
+                    return;
+                }
+
+                rackOptions.add(normalizedRack);
+
+                [rackNumberList, modalRackNumberList].forEach(list => {
+                    if (!list) return;
+                    const option = document.createElement('option');
+                    option.value = normalizedRack;
+                    list.appendChild(option);
+                });
+            }
+
+            function loadRackSuggestions() {
+                fetch(`${baseURL}/api/stock/distinct-filters`)
+                    .then(res => res.json())
+                    .then(data => {
+                        const racks = Array.isArray(data.racks) ? data.racks : [];
+                        racks.forEach(addRackOption);
+                    })
+                    .catch(error => {
+                        console.error('Error loading rack suggestions:', error);
+                    });
+            }
+
+            loadRackSuggestions();
 
             function refreshProjectSearchSuggestions(searchText) {
                 const search = String(searchText || '').trim().toLowerCase();
@@ -387,8 +426,10 @@
                         <td>
                             <button type="button" class="btn btn-sm text-white" 
                                     style="background-color: #000000; border-color: #000000;" 
-                                    onclick="generateQR('${safe(r.no_part)}')">
-                                <i class="bi bi-qr-code me-1"></i>Generar QR
+                                    data-part="${safe(r.no_part)}"
+                                    onclick="generateQR(this.dataset.part)">
+
+                                <i class="bi bi-qr-code me-1"></i>Generate QR
                             </button>
                         </td>
                     `;
@@ -401,7 +442,7 @@
             projectSelect.addEventListener('change', () => {
                 const pid = projectSelect.value;
                 tbody.innerHTML = '';
-                const rackSelect = document.querySelector('select[name="rackNumber"]');
+                const rackSelect = document.querySelector('[name="rackNumber"]');
 
                 if (!pid) {
                     tableWrapper.classList.add('hidden');
@@ -430,6 +471,7 @@
                             if (data.rack) {
                                 // Proyecto ya tiene QRs - rellenar y deshabilitar
                                 rackSelect.value = data.rack;
+                                addRackOption(data.rack);
                                 rackSelect.disabled = true;
                             } else {
                                 // Proyecto nuevo - permitir seleccionar
@@ -497,8 +539,7 @@
 
             // Evento para confirmar la selección de rack
             document.getElementById('confirmRackSelectBtn').addEventListener('click', () => {
-                const modalRackSelect = document.getElementById('modalRackSelect');
-                const selectedRack = modalRackSelect.value;
+                const selectedRack = normalizeValue(modalRackInput.value);
 
                 if (!selectedRack) {
                     alert('Please select a rack number');
@@ -513,7 +554,7 @@
                         pendingRackSelection.no_project
                     );
                     pendingRackSelection = null;
-                    modalRackSelect.value = '';
+                    modalRackInput.value = '';
                 }
             });
 
@@ -545,7 +586,7 @@
 
             // Función para generar QR y guardar en stock
             window.generateQR = async function (noPart) {
-                const rackSelect = document.querySelector('select[name="rackNumber"]');
+                const rackSelect = document.querySelector('[name="rackNumber"]');
                 const normalizedNoPart = normalizeValue(noPart);
                 const noProject = normalizeValue(projectSelect.value);
 
@@ -588,7 +629,7 @@
                         no_part: normalizedNoPart,
                         no_project: noProject
                     };
-                    document.getElementById('modalRackSelect').value = '';
+                    document.getElementById('modalRackInput').value = '';
                     selectRackModal.show();
                     return;
                 }
@@ -639,6 +680,7 @@
                     .then(res => res.json())
                     .then(result => {
                         if (result.success) {
+                            addRackOption(rack);
                             // Mostrar mensaje de éxito
                             alert(`QR generated successfully: ${result.data.qr_code}`);
 
