@@ -20,6 +20,9 @@
     ['supervisor', 'supervisor']
   ]);
 
+  // Grupo de roles que comparten vistas/privilegios de solo visualización (manager-like)
+  const MANAGER_GROUP = ['manager', 'designer', 'supervisor'];
+
   let inactivityIntervalId = null;
   let activityEventsBound = false;
 
@@ -341,6 +344,61 @@
 
     const userRole = getCanonicalRole(normalizedUser.rol);
     return roles.some((role) => getCanonicalRole(role) === userRole);
+  }
+
+  function isManagerLike(input) {
+    if (!input) return false;
+
+    // Si nos pasan un objeto usuario
+    if (typeof input === 'object') {
+      const normalized = normalizeUser(input);
+      if (!normalized) return false;
+      return MANAGER_GROUP.includes(getCanonicalRole(normalized.rol));
+    }
+
+    // Si nos pasan un rol en texto
+    const roleStr = String(input || '').trim().toLowerCase();
+    return MANAGER_GROUP.includes(getCanonicalRole(roleStr));
+  }
+
+  function pruneMenu(allowedHrefs) {
+    if (!Array.isArray(allowedHrefs)) allowedHrefs = [];
+    const allowedSet = new Set(allowedHrefs);
+
+    if (typeof document === 'undefined') return;
+
+    document.querySelectorAll('.dropdown-menu').forEach((dropdown) => {
+      // Remove any li that does not contain an allowed anchor
+      Array.from(dropdown.querySelectorAll('li')).forEach((li) => {
+        const a = li.querySelector('a[href]');
+        if (a) {
+          const href = a.getAttribute('href');
+          if (allowedSet.size > 0 && !allowedSet.has(href)) {
+            li.remove();
+          }
+        } else {
+          // If li only contains a divider or non-anchor, remove it for now
+          const hr = li.querySelector('hr.dropdown-divider');
+          if (hr) li.remove();
+        }
+      });
+
+      // Cleanup: remove leading/trailing dividers and consecutive dividers
+      const items = Array.from(dropdown.querySelectorAll('li'));
+      for (let i = items.length - 1; i >= 0; i--) {
+        const li = items[i];
+        const hr = li.querySelector('hr.dropdown-divider');
+        if (!hr) continue;
+
+        const prev = li.previousElementSibling;
+        const next = li.nextElementSibling;
+        const prevIsDivider = prev && prev.querySelector && prev.querySelector('hr.dropdown-divider');
+        const nextIsDivider = next && next.querySelector && next.querySelector('hr.dropdown-divider');
+        if (!prev || !next || prevIsDivider || nextIsDivider) {
+          li.remove();
+        }
+      }
+    });
   }
 
   function setNotice(message) {
@@ -704,6 +762,10 @@
     clearUser,
     getUserDisplayName,
     hasAnyRole,
+    // Expose manager-like helper and group
+    isManagerLike,
+    MANAGER_GROUP: Array.from(MANAGER_GROUP),
+    pruneMenu,
     validateQr,
     validateCredentials,
     requireAuth,

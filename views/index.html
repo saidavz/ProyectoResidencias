@@ -250,6 +250,37 @@
 
     <script src="../scripts/auth.js"></script>
     <script>
+        // Early guard: if current user is a technician, enforce strict menu pruning
+        (function earlyTechGuard() {
+            try {
+                const user = PurchaseAuth && typeof PurchaseAuth.getUser === 'function' ? PurchaseAuth.getUser() : null;
+                if (!user) return;
+                if (!PurchaseAuth.hasAnyRole(user, ['technician'])) return;
+
+                const allowed = new Set(['io.html', 'bomView.html', 'stock.html']);
+
+                // Remove/disarm non-allowed anchors quickly before other scripts run
+                Array.from(document.querySelectorAll('a[href]')).forEach(a => {
+                    const href = a.getAttribute('href');
+                    if (!href) return;
+                    if (allowed.has(href)) return;
+
+                    const li = a.closest('li');
+                    if (li && li.parentElement && li.parentElement.classList.contains('dropdown-menu')) { li.remove(); return; }
+                    const navItem = a.closest('.nav-item'); if (navItem) { navItem.style.display = 'none'; return; }
+                    const homeBtn = a.closest('.home-btn, .home-btn-dropdown'); if (homeBtn) { homeBtn.style.display = 'none'; return; }
+                    a.remove();
+                });
+
+                // hide any top-level requires-full-access containers that no longer contain allowed links
+                Array.from(document.querySelectorAll('.requires-full-access')).forEach(el => {
+                    const containsAllowed = Array.from(el.querySelectorAll('a[href]')).some(a => allowed.has(a.getAttribute('href')));
+                    if (!containsAllowed) el.style.display = 'none';
+                });
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
+    <script>
         let homeCurrentUser = null;
         let homeLoginScanTimer;
         let homeLoginMode = 'qr'; // 'qr' or 'credentials'
@@ -268,7 +299,7 @@
         const homeCredentialsMode = () => document.getElementById('credentialsMode');
         const homeLoginSubtitle = () => document.getElementById('loginSubtitle');
         const homeUserInfoBar = () => document.getElementById('userInfoBar');
-        const managerRoles = ['manager', 'designer', 'supervisor'];
+        // manager/designer/supervisor grouped via PurchaseAuth.isManagerLike
 
 
         function userHasFullAccess(user) {
@@ -292,7 +323,7 @@
             }
 
             // GERENTE, DISEÑADOR, SUPERVISOR
-            else if (managerRoles.includes(userRole)) {
+            else if (PurchaseAuth.isManagerLike(user)) {
 
                 // Oculta todo primero
                 document.querySelectorAll('.requires-full-access').forEach(el => {
@@ -309,9 +340,14 @@
 
                 // Remove Upload BOM for view-only roles
                 removeUploadBOMFromDropdowns();
-                
+
                 // Hide restricted Inventory dropdown items
                 hideRestrictedInventoryItems();
+
+                // Ensure submenu items are filtered (extra enforcement)
+                applyMenuPermissions(user);
+                // Ensure dropdown menus are pruned of orphaned items/dividers
+                PurchaseAuth.pruneMenu(['bomView.html', 'stock.html', 'purchaseTracking.html', 'reports.html']);
             }
 
             // TECNICO
@@ -326,6 +362,56 @@
                     'bomView.html',
                     'stock.html'
                 ]);
+
+                // Remove Upload BOM and hide restricted inventory entries
+                removeUploadBOMFromDropdowns();
+                hideRestrictedInventoryItems();
+
+                // Apply robust dropdown permissions and prune orphan dividers
+                applyMenuPermissions(user);
+                PurchaseAuth.pruneMenu(['io.html','bomView.html','stock.html']);
+
+                // Strong enforcement: remove any remaining anchors/containers that
+                // are not explicitly allowed for technicians. This prevents
+                // dropdown toggles from opening unexpected sections.
+                (function enforceTechOnly() {
+                    const allowed = new Set(['io.html','bomView.html','stock.html']);
+
+                    // Remove non-allowed anchors inside navbar / home buttons / dropdowns
+                    Array.from(document.querySelectorAll('a[href]')).forEach(a => {
+                        const href = a.getAttribute('href');
+                        if (!href) return;
+                        if (allowed.has(href)) return;
+
+                        // Remove li entries in dropdowns
+                        const li = a.closest('li');
+                        if (li && li.parentElement && li.parentElement.classList.contains('dropdown-menu')) {
+                            li.remove();
+                            return;
+                        }
+
+                        // Hide or remove top-level nav items / home buttons
+                        const navItem = a.closest('.nav-item');
+                        if (navItem) { navItem.style.display = 'none'; return; }
+
+                        const homeBtn = a.closest('.home-btn, .home-btn-dropdown');
+                        if (homeBtn) { homeBtn.style.display = 'none'; return; }
+
+                        // Fallback: remove the anchor itself
+                        a.remove();
+                    });
+
+                    // Remove any empty dropdown toggle parents (no anchors left)
+                    Array.from(document.querySelectorAll('.nav-item.dropdown, .home-btn-dropdown')).forEach(container => {
+                        const hasAnchor = container.querySelector('a[href], .dropdown-item');
+                        if (!hasAnchor) container.style.display = 'none';
+                    });
+
+                    // Final prune of dividers/orphan nodes
+                    if (typeof PurchaseAuth !== 'undefined' && typeof PurchaseAuth.pruneMenu === 'function') {
+                        PurchaseAuth.pruneMenu(Array.from(allowed));
+                    }
+                })();
             }
 
             // OTROS
@@ -334,6 +420,123 @@
                     el.style.display = 'none';
                 });
             }
+            if (PurchaseAuth.isManagerLike(user)) {
+
+                // ✅ Mostrar SOLO lo que sí quieres
+                const allowedLinks = ['bomView.html', 'stock.html', 'purchaseTracking.html', 'reports.html'];
+
+                allowedLinks.forEach(href => {
+                    document.querySelectorAll(`a[href="${href}"]`).forEach(link => {
+
+                        link.style.display = '';
+
+                        const li = link.closest('li');
+                        if (li) li.style.display = '';
+
+                        const nav = link.closest('.nav-item');
+                        if (nav) nav.style.display = '';
+
+                        const btn = link.closest('.home-btn, .home-btn-dropdown');
+                        if (btn) btn.style.display = '';
+                    });
+                });
+
+                // 🚫 ocultar SIEMPRE los que no quieres
+                const blocked = ['requisition.html', 'recordPurchase.html'];
+
+                blocked.forEach(href => {
+                    document.querySelectorAll(`a[href="${href}"]`).forEach(link => {
+                        const el = link.closest('li, .nav-item, .home-btn');
+                        if (el) el.style.display = 'none';
+                    });
+                });
+            }
+
+        }
+
+        // Additional robust enforcement across all dropdowns (prevents duplicates/ordering issues)
+        function applyMenuPermissions(user) {
+            const role = getUserRole(user);
+            if (!role) return;
+
+            if (role === 'administrator') return; // admins see everything
+
+            const allowedByRole = {
+                manager: new Set(['bomView.html', 'stock.html', 'purchaseTracking.html', 'reports.html']),
+                technician: new Set(['io.html', 'bomView.html', 'stock.html'])
+            };
+
+            // Determine allowed set for this user
+            let allowed = new Set();
+            if (role === 'administrator') return; // admins see everything
+            if (PurchaseAuth.hasAnyRole(user, ['technician'])) {
+                allowed = allowedByRole['technician'];
+            } else if (PurchaseAuth.isManagerLike(user)) {
+                allowed = allowedByRole['manager'];
+            } else {
+                // no allowed items for other roles
+                allowed = new Set();
+            }
+
+            // Remove disallowed dropdown items (remove nodes instead of only hiding)
+            document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                if (allowed.size === 0) {
+                    // remove entire menu items for roles with no allowed items
+                    Array.from(menu.querySelectorAll('li')).forEach(li => li.remove());
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                let anyVisible = false;
+                // iterate a static list because we may remove nodes
+                Array.from(menu.querySelectorAll('li')).forEach(li => {
+                    const a = li.querySelector('a[href]');
+                    if (!a) return;
+                    const href = a.getAttribute('href');
+                    if (!allowed.has(href)) {
+                        li.remove();
+                    } else {
+                        anyVisible = true;
+                    }
+                });
+
+                // If menu has no visible items, hide it to avoid empty dropdowns
+                if (!anyVisible) menu.style.display = 'none'; else menu.style.display = '';
+            });
+
+            // Remove or hide top-level containers / anchors that are not allowed
+            document.querySelectorAll('.requires-full-access').forEach(el => {
+                if (allowed.size === 0) {
+                    el.style.display = 'none';
+                    return;
+                }
+
+                // If the container contains any allowed anchors keep it; otherwise hide it
+                const containsAllowed = Array.from(el.querySelectorAll('a[href]')).some(a => allowed.has(a.getAttribute('href')));
+                if (!containsAllowed) {
+                    // If it's a nav-item or home-btn remove/hide it to avoid accidental opens
+                    const navItem = el.closest('.nav-item');
+                    if (navItem) { navItem.style.display = 'none'; return; }
+                    const homeBtn = el.closest('.home-btn, .home-btn-dropdown');
+                    if (homeBtn) { homeBtn.style.display = 'none'; return; }
+                    el.style.display = 'none';
+                } else {
+                    el.style.display = '';
+                }
+            });
+
+            // Always remove explicitly blocked links to prevent accidental navigation
+            document.querySelectorAll('a[href="requisition.html"], a[href="recordPurchase.html"]').forEach(link => {
+                const li = link.closest('li'); if (li) { li.remove(); return; }
+                const el = link.closest('.nav-item, .home-btn'); if (el) { el.style.display = 'none'; return; }
+                link.style.display = 'none';
+            });
+
+            // Clean up dropdown dividers and orphan nodes using central prune helper if available
+            if (typeof PurchaseAuth !== 'undefined' && typeof PurchaseAuth.pruneMenu === 'function') {
+                PurchaseAuth.pruneMenu(Array.from(allowed));
+            }
+
         }
 
         function removeUploadBOMFromDropdowns() {
@@ -378,7 +581,7 @@
                     if (parentLi) {
                         const nextVisibleLi = Array.from(dropdown.querySelectorAll('li')).find(
                             (li) => li.compareDocumentPosition(parentLi) === Node.DOCUMENT_POSITION_FOLLOWING &&
-                            getComputedStyle(li).display !== 'none'
+                                getComputedStyle(li).display !== 'none'
                         );
                         if (!nextVisibleLi) {
                             parentLi.style.display = 'none';
@@ -392,20 +595,33 @@
         function showElements(hrefs) {
             document.querySelectorAll('a').forEach(link => {
                 const href = link.getAttribute('href');
-                if (hrefs.includes(href)) {
-                    link.style.display = '';
+                if (!hrefs.includes(href)) return;
 
-                    // also show all ancestor containers that require full access
-                    let current = link;
-                    while (current) {
-                        const parent = current.closest('.requires-full-access');
-                        if (!parent) break;
-                        parent.style.display = '';
-                        current = parent.parentElement;
-                    }
+                // ✅ muestra solo el link
+                link.style.display = '';
+
+                // ✅ muestra SOLO su contenedor directo (no todo el bloque grande)
+                const li = link.closest('li');
+                if (li) li.style.display = '';
+
+                const navItem = link.closest('.nav-item');
+                if (navItem) navItem.style.display = '';
+
+                const homeBtn = link.closest('.home-btn');
+                if (homeBtn) homeBtn.style.display = '';
+
+                const homeDropdown = link.closest('.home-btn-dropdown');
+                if (homeDropdown) homeDropdown.style.display = '';
+
+                // Mostrar cualquier ancestro .requires-full-access que pueda estar oculto
+                let parent = link.closest('.requires-full-access');
+                while (parent) {
+                    parent.style.display = '';
+                    parent = parent.parentElement ? parent.parentElement.closest('.requires-full-access') : null;
                 }
             });
         }
+
 
 
 
@@ -529,8 +745,8 @@
             homeCurrentUser = user;
 
             const userRole = getUserRole(user);
-            // Redirigir a io.html solo si no tiene acceso full y no es Manager
-            if (!userHasFullAccess(user) && userRole !== 'manager') {
+            // Redirigir a io.html solo si no tiene acceso full y no es Manager/Designer/Supervisor
+            if (!userHasFullAccess(user) && !PurchaseAuth.isManagerLike(user)) {
                 window.location.replace('io.html');
                 return;
             }
@@ -642,7 +858,7 @@
 
             const existingUser = PurchaseAuth.getUser();
 
-            if (existingUser && !userHasFullAccess(existingUser) && getUserRole(existingUser) !== 'manager' && getUserRole(existingUser) !== 'manager') {
+            if (existingUser && !userHasFullAccess(existingUser) && !PurchaseAuth.isManagerLike(existingUser)) {
                 window.location.replace('io.html');
                 return;
             }

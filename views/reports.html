@@ -16,17 +16,10 @@
       deniedMessage: 'You do not have permission to access this section.'
     });
 
-    const viewOnlyRoles = ['manager', 'designer', 'supervisor'];
-
-    // Función para obtener el rol del usuario
-    function getUserRole(user) {
-      if (!user || typeof user !== 'object') return null;
-      return String(user.rol || user.role || '').trim().toLowerCase();
-    }
-
+    // Use centralized helper for manager/designer/supervisor
     function isViewOnlyUser() {
       const user = PurchaseAuth.getUser();
-      return viewOnlyRoles.includes(getUserRole(user));
+      return PurchaseAuth.isManagerLike(user) || PurchaseAuth.hasAnyRole(user, ['technician']);
     }
 
     // Función para aplicar visibilidad según rol
@@ -107,6 +100,8 @@
           }
         }
       });
+      // Limpieza final de dropdowns para eliminar dividers/espacios sobrantes
+      PurchaseAuth.pruneMenu(['bomView.html', 'stock.html', 'purchaseTracking.html', 'reports.html']);
     }
 
     // Aplicar visibilidad cuando la página cargue

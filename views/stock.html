@@ -11,6 +11,88 @@
   <link rel="stylesheet" href="../styles/style.css">
   <script src="../scripts/auth.js"></script>
   <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = PurchaseAuth.getUser();
+      const role = (user?.rol || '').toLowerCase();
+
+      if (PurchaseAuth.isManagerLike(user) || PurchaseAuth.hasAnyRole(user, ['technician'])) {
+        const isTech = PurchaseAuth.hasAnyRole(user, ['technician']);
+
+        const allowedLinks = isTech ? [
+          'index.html',
+          'bomView.html',
+          'stock.html',
+          'io.html'
+        ] : [
+          'index.html',
+          'bomView.html',
+          'stock.html',
+          'purchaseTracking.html',
+          'reports.html'
+        ];
+
+        // Oculta TODO el navbar
+        document.querySelectorAll('.nav-item').forEach(item => {
+          item.style.display = 'none';
+        });
+
+        // Muestra solo lo permitido (navbar)
+        allowedLinks.forEach(href => {
+          document.querySelectorAll(`a[href="${href}"]`).forEach(link => {
+            // muestra el enlace
+            link.style.display = '';
+
+            // mostrar contenedor <li> directo
+            const li = link.closest('li');
+            if (li) li.style.display = '';
+
+            // mostrar nav-item si existe
+            const navItem = link.closest('.nav-item');
+            if (navItem) navItem.style.display = '';
+
+            // mostrar home button/containers si aplica
+            const homeBtn = link.closest('.home-btn');
+            if (homeBtn) homeBtn.style.display = '';
+            const homeDropdown = link.closest('.home-btn-dropdown');
+            if (homeDropdown) homeDropdown.style.display = '';
+
+            // mostrar cualquier ancestro .requires-full-access
+            let parent = link.closest('.requires-full-access');
+            while (parent) {
+              parent.style.display = '';
+              parent = parent.parentElement ? parent.parentElement.closest('.requires-full-access') : null;
+            }
+          });
+        });
+
+        // 🔥 Importante: controlar dropdowns
+        document.querySelectorAll('.dropdown-menu a').forEach(link => {
+          const href = link.getAttribute('href');
+
+          if (!allowedLinks.includes(href)) {
+            const li = link.closest('li');
+            if (li) li.style.display = 'none';
+          }
+        });
+        // Asegurar que en Inventory sólo queden los items no permitidos según el rol
+        const restrictedInventoryHrefs = isTech
+          ? ['createQr.html', 'inventory-bulk.html']
+          : ['createQr.html', 'inventory-bulk.html', 'io.html'];
+        restrictedInventoryHrefs.forEach(href => {
+          document.querySelectorAll(`.dropdown-menu a[href="${href}"]`).forEach(link => {
+            const li = link.closest('li');
+            if (li) li.style.display = 'none';
+          });
+        });
+        // Limpieza final de dropdowns para eliminar dividers/espacios sobrantes
+        const allowedForThisRole = isTech
+          ? ['io.html','bomView.html','stock.html']
+          : ['bomView.html', 'stock.html', 'purchaseTracking.html', 'reports.html'];
+        PurchaseAuth.pruneMenu(allowedForThisRole);
+      }
+    });
+  </script>
+  <script>
     PurchaseAuth.requireAuth({
       allowedRoles: ['administrator', 'technician', 'manager', 'designer', 'supervisor'],
       deniedMessage: 'You do not have permission to access this section.'
@@ -47,7 +129,8 @@
           <li class="nav-item"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
           <li class="nav-item"><a class="nav-link" href="requisition.html">Requisition</a></li>
           <li class="nav-item dropdown">
-            <a class="nav-link active dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="nav-link active dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
+              aria-expanded="false">
               Inventory
             </a>
             <ul class="dropdown-menu text-center" aria-labelledby="dropdownBom">
@@ -92,33 +175,40 @@
       </div>
     </div>
     <div class="inventory-search d-flex align-items-center gap-2">
-      <div class="card p-3 mb-3 static-filter-card" style="position: relative; z-index: 1010; overflow: visible; width: 100%;">
+      <div class="card p-3 mb-3 static-filter-card"
+        style="position: relative; z-index: 1010; overflow: visible; width: 100%;">
         <div class="row">
           <div class="col-md-5">
-              <label for="projectSearchStock" class="form-label">Search Project</label>
-              <div style="position: relative;">
-                <div class="input-group" style="border-radius: 8px; overflow: hidden;">
-                  <span class="input-group-text" style="background-color: #000; border-color: #000; border-radius: 8px 0 0 8px;">
-                    <i class="bi bi-search text-white"></i>
-                  </span>
-                  <input type="text" id="projectSearchStock" class="form-control" style="font-size:1.1rem; height: 48px; border-radius: 0 8px 8px 0;" placeholder="Search project..." autocomplete="off">
-                </div>
-                <div id="projectSuggestionsStock" class="bg-light text-dark" style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 2000; border: 1px solid #ccc; display: none; max-height: 300px; overflow-y: auto; border-radius: 4px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); background-color: white;"></div>
+            <label for="projectSearchStock" class="form-label">Search Project</label>
+            <div style="position: relative;">
+              <div class="input-group" style="border-radius: 8px; overflow: hidden;">
+                <span class="input-group-text"
+                  style="background-color: #000; border-color: #000; border-radius: 8px 0 0 8px;">
+                  <i class="bi bi-search text-white"></i>
+                </span>
+                <input type="text" id="projectSearchStock" class="form-control"
+                  style="font-size:1.1rem; height: 48px; border-radius: 0 8px 8px 0;" placeholder="Search project..."
+                  autocomplete="off">
               </div>
+              <div id="projectSuggestionsStock" class="bg-light text-dark"
+                style="position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 2000; border: 1px solid #ccc; display: none; max-height: 300px; overflow-y: auto; border-radius: 4px; box-shadow: 0 8px 16px rgba(0,0,0,0.3); background-color: white;">
+              </div>
+            </div>
           </div>
         </div>
-        
+
         <!-- Filtros adicionales (ocultos por defecto, visibles al seleccionar proyecto) -->
         <div id="additionalFilters" class="row mt-3" style="display: none;">
           <div class="col-md-5">
             <label for="filterProjectData" class="form-label">Filter</label>
             <div class="input-group" style="border-radius: 8px; overflow: hidden;">
-              <span class="input-group-text" style="background-color: #000; border-color: #000; border-radius: 8px 0 0 8px;">
+              <span class="input-group-text"
+                style="background-color: #000; border-color: #000; border-radius: 8px 0 0 8px;">
                 <i class="bi bi-funnel-fill text-white"></i>
               </span>
-              <input type="text" id="filterProjectData" class="form-control" 
-                     style="font-size:1rem; height: 48px; background-color: #e9ecef; border: 1px solid #ced4da; border-radius: 0 8px 8px 0;" 
-                     placeholder="Search part number or product type..." autocomplete="off">
+              <input type="text" id="filterProjectData" class="form-control"
+                style="font-size:1rem; height: 48px; background-color: #e9ecef; border: 1px solid #ced4da; border-radius: 0 8px 8px 0;"
+                placeholder="Search part number or product type..." autocomplete="off">
             </div>
           </div>
         </div>
@@ -158,91 +248,8 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    // Función para obtener el rol del usuario
-    function getUserRole(user) {
-      if (!user || typeof user !== 'object') return null;
-      return String(user.rol || user.role || '').trim().toLowerCase();
-    }
-
-    const viewOnlyRoles = ['manager', 'designer', 'supervisor'];
-
-    function isViewOnlyUser() {
-      const user = PurchaseAuth.getUser();
-      const userRole = getUserRole(user);
-      return viewOnlyRoles.includes(userRole);
-    }
-
-    // Función para aplicar visibilidad según rol
-    function applyRoleVisibility() {
-      if (!isViewOnlyUser()) {
-        return;
-      }
-
-      // Hide all full-access items first
-      document.querySelectorAll('.requires-full-access').forEach((element) => {
-        element.style.display = 'none';
-      });
-
-      // Remove Upload BOM items completely from dropdowns
-      document.querySelectorAll('a[href="bom.html"]').forEach((link) => {
-        const parentLi = link.closest('li');
-        if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
-          parentLi.remove();
-        }
-      });
-
-      // Hide restricted Inventory dropdown items
-      const restrictedInventoryHrefs = ['createQr.html', 'inventory-bulk.html', 'io.html'];
-      restrictedInventoryHrefs.forEach((href) => {
-        document.querySelectorAll(`a[href="${href}"]`).forEach((link) => {
-          const parentLi = link.closest('li');
-          if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
-            parentLi.style.display = 'none';
-          }
-        });
-      });
-
-      // Hide dividers in Inventory dropdown that separate hidden items
-      const inventoryDropdowns = document.querySelectorAll('.dropdown-menu');
-      inventoryDropdowns.forEach((dropdown) => {
-        dropdown.querySelectorAll('hr.dropdown-divider').forEach((divider) => {
-          const parentLi = divider.closest('li');
-          if (parentLi) {
-            const nextVisibleLi = Array.from(dropdown.querySelectorAll('li')).find(
-              (li) => li.compareDocumentPosition(parentLi) === Node.DOCUMENT_POSITION_FOLLOWING &&
-              getComputedStyle(li).display !== 'none'
-            );
-            if (!nextVisibleLi) {
-              parentLi.style.display = 'none';
-            }
-          }
-        });
-      });
-
-      // Remove dividers that are now orphaned (no visible items before them)
-      document.querySelectorAll('hr.dropdown-divider').forEach((divider) => {
-        const parentLi = divider.closest('li');
-        if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
-          const prevLi = parentLi.previousElementSibling;
-          // Remove if it's the first item or the previous item doesn't exist
-          if (!prevLi) {
-            parentLi.remove();
-          }
-        }
-      });
-    }
-
-    // Aplicar visibilidad cuando la página cargue
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        applyRoleVisibility();
-      });
-    } else {
-      applyRoleVisibility();
-    }
-  </script>
-<script src="scripts/script.js"></script>
+ 
+  <script src="../scripts/script.js"></script>
 
 </body>
 

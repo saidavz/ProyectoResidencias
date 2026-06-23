@@ -546,27 +546,37 @@
     }
 
     function applyIoRoleVisibility() {
-      const hasFullAccess = PurchaseAuth.hasAnyRole(currentUser, ['administrator']);
+      const hasAdmin = PurchaseAuth.hasAnyRole(currentUser, ['administrator']);
+      const isTech = isTechnicianSession();
+
+      // Administrators see everything. Technicians are allowed to use this page
+      // so reveal .requires-full-access elements here for technicians as well.
       document.querySelectorAll('.requires-full-access').forEach((element) => {
-        element.style.display = hasFullAccess ? '' : 'none';
+        if (hasAdmin) element.style.display = '';
+        else if (isTech) element.style.display = '';
+        else element.style.display = 'none';
       });
 
-      if (!hasFullAccess) {
-        const navbarMenu = document.getElementById('navbarMenu');
-        const navbarToggler = mainNavbar ? mainNavbar.querySelector('.navbar-toggler') : null;
-        const logoLink = mainNavbar ? mainNavbar.querySelector('a[href="index.html"]') : null;
+      const navbarMenu = document.getElementById('navbarMenu');
+      const navbarToggler = mainNavbar ? mainNavbar.querySelector('.navbar-toggler') : null;
+      const logoLink = mainNavbar ? mainNavbar.querySelector('a[href="index.html"]') : null;
 
-        if (navbarMenu) {
-          navbarMenu.style.display = 'none';
-        }
-
-        if (navbarToggler) {
-          navbarToggler.style.display = 'none';
-        }
-
+      // If user is neither admin nor technician, keep the navbar minimized and
+      // route the logo to the IO page. Technicians should still see the navbar so
+      // they can navigate limited options.
+      if (!hasAdmin && !isTech) {
+        if (navbarMenu) navbarMenu.style.display = 'none';
+        if (navbarToggler) navbarToggler.style.display = 'none';
         if (logoLink) {
           logoLink.setAttribute('href', 'io.html');
           logoLink.setAttribute('title', 'Inbound And Outbound');
+        }
+      } else {
+        if (navbarMenu) navbarMenu.style.display = '';
+        if (navbarToggler) navbarToggler.style.display = '';
+        if (logoLink) {
+          logoLink.setAttribute('href', 'index.html');
+          logoLink.setAttribute('title', 'Go to Home Page');
         }
       }
     }
@@ -617,6 +627,36 @@
     }
 
     initializeIoSession();
+
+    // Extra safeguard: ensure technician-visible nav items are actually visible
+    // Some pages run other visibility passes that may re-hide ancestors; run
+    // a short-timeout check to force-reveal the allowed anchors for technicians.
+    function ensureTechNavVisible() {
+      try {
+        const allowed = ['io.html', 'bomView.html', 'stock.html'];
+        allowed.forEach(href => {
+          document.querySelectorAll(`a[href="${href}"]`).forEach(a => {
+            // clear inline hiding on the anchor
+            a.style.display = '';
+            // reveal closest li, nav-item, home-btn, and any .requires-full-access ancestors
+            const li = a.closest('li'); if (li) li.style.display = '';
+            const nav = a.closest('.nav-item'); if (nav) nav.style.display = '';
+            const homeBtn = a.closest('.home-btn'); if (homeBtn) homeBtn.style.display = '';
+            const homeDropdown = a.closest('.home-btn-dropdown'); if (homeDropdown) homeDropdown.style.display = '';
+
+            let parent = a.closest('.requires-full-access');
+            while (parent) {
+              parent.style.display = '';
+              parent = parent.parentElement ? parent.parentElement.closest('.requires-full-access') : null;
+            }
+          });
+        });
+      } catch (e) { /* swallow */ }
+    }
+
+    // Run immediately and again after microtask to counter other scripts
+    ensureTechNavVisible();
+    setTimeout(ensureTechNavVisible, 50);
 
     // ===== ORIGINAL INBOUND/OUTBOUND LOGIC =====
     const qrInput = document.getElementById("qrInput");

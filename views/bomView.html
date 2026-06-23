@@ -10,6 +10,79 @@
     <link rel="stylesheet" href="../styles/style.css">
     <script src="../scripts/auth.js"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = PurchaseAuth.getUser();
+            const role = (user?.rol || '').toLowerCase();
+
+            if (PurchaseAuth.isManagerLike(user) || PurchaseAuth.hasAnyRole(user, ['technician'])) {
+                const isTech = PurchaseAuth.hasAnyRole(user, ['technician']);
+
+                const allowedLinks = isTech ? [
+                    'index.html',
+                    'bomView.html',
+                    'stock.html',
+                    'io.html'
+                ] : [
+                    'index.html',
+                    'bomView.html',
+                    'stock.html',
+                    'purchaseTracking.html',
+                    'reports.html'
+                ];
+
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.style.display = 'none';
+                });
+
+                allowedLinks.forEach(href => {
+                    document.querySelectorAll(`a[href="${href}"]`).forEach(link => {
+                        // mostrar enlace
+                        link.style.display = '';
+
+                        // mostrar contenedor <li>
+                        const li = link.closest('li');
+                        if (li) li.style.display = '';
+
+                        // mostrar nav-item si aplica
+                        const navItem = link.closest('.nav-item');
+                        if (navItem) navItem.style.display = '';
+
+                        // mostrar home button/containers si aplica
+                        const homeBtn = link.closest('.home-btn');
+                        if (homeBtn) homeBtn.style.display = '';
+                        const homeDropdown = link.closest('.home-btn-dropdown');
+                        if (homeDropdown) homeDropdown.style.display = '';
+
+                        // mostrar cualquier ancestro .requires-full-access
+                        let parent = link.closest('.requires-full-access');
+                        while (parent) {
+                            parent.style.display = '';
+                            parent = parent.parentElement ? parent.parentElement.closest('.requires-full-access') : null;
+                        }
+                    });
+                });
+                // Asegurar que en Inventory solo se oculten los items no permitidos según el rol
+                const restrictedInventoryHrefs = isTech
+                    ? ['createQr.html', 'inventory-bulk.html']
+                    : ['createQr.html', 'inventory-bulk.html', 'io.html'];
+                restrictedInventoryHrefs.forEach(href => {
+                    document.querySelectorAll(`.dropdown-menu a[href="${href}"]`).forEach(link => {
+                        const li = link.closest('li');
+                        if (li) li.style.display = 'none';
+                    });
+                });
+
+                const allowedForThisRole = isTech
+                    ? ['io.html','bomView.html','stock.html']
+                    : ['bomView.html', 'stock.html', 'purchaseTracking.html', 'reports.html'];
+                PurchaseAuth.pruneMenu(allowedForThisRole);
+            
+                
+            }
+        });
+    </script>
+
+    <script>
         PurchaseAuth.requireAuth({
             allowedRoles: ['administrator', 'technician', 'manager', 'designer', 'supervisor'],
             deniedMessage: 'You do not have permission to access this section.'
@@ -47,18 +120,24 @@
                     <li class="nav-item"><a class="nav-link" href="recordPurchase.html">Register Purchase</a></li>
                     <li class="nav-item"><a class="nav-link" href="purchaseTracking.html">Purchase Tracking</a></li>
                     <li class="nav-item"><a class="nav-link" href="requisition.html">Requisition</a></li>
-                                        <li class="nav-item dropdown">
+                    <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
                             aria-expanded="false">
                             Inventory
                         </a>
                         <ul class="dropdown-menu text-center" aria-labelledby="dropdownBom">
                             <li><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item" href="inventory-bulk.html">Bulk Import</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item" href="io.html">Register Inbound And Outbound</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item" href="stock.html">View Inventory</a></li>
                         </ul>
                     </li>
@@ -97,18 +176,22 @@
                     <option value="qisNumber">QIS Number</option>
                 </select>
             </div>
-            
+
             <!-- Contenedor para opciones de filtro -->
-            <div id="filterOptionsContainer" class="filter-dropdown-box" style="display: none; position: absolute; top: 50px; right: -230px; z-index: 1000; width: 200px;">
+            <div id="filterOptionsContainer" class="filter-dropdown-box"
+                style="display: none; position: absolute; top: 50px; right: -230px; z-index: 1000; width: 200px;">
                 <div style="padding: 12px; border-bottom: 1px solid #e9ecef;">
-                    <input type="text" id="filterSearchInputBom" class="form-control form-control-sm" placeholder="Search..." autocomplete="off">
+                    <input type="text" id="filterSearchInputBom" class="form-control form-control-sm"
+                        placeholder="Search..." autocomplete="off">
                 </div>
-                <div id="filterOptionsList" style="max-height: 250px; overflow-y: auto; padding: 8px; color: #2d3436; font-size: 0.9rem;">
+                <div id="filterOptionsList"
+                    style="max-height: 250px; overflow-y: auto; padding: 8px; color: #2d3436; font-size: 0.9rem;">
                     <div style="padding: 8px; text-align: center; color: #b2bec3;">Select an option</div>
                 </div>
             </div>
-            
-            <button id="btnClearFiltersBom" class="btn clear-btn-bluegray" style="width: 100px; height: 50px; white-space: nowrap; display: none;">
+
+            <button id="btnClearFiltersBom" class="btn clear-btn-bluegray"
+                style="width: 100px; height: 50px; white-space: nowrap; display: none;">
                 <i class="bi bi-x-circle"></i> Clear
             </button>
         </div>
@@ -147,88 +230,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Función para obtener el rol del usuario
-        function getUserRole(user) {
-          if (!user || typeof user !== 'object') return null;
-          return String(user.rol || user.role || '').trim().toLowerCase();
-        }
+        
 
-        const viewOnlyRoles = ['manager', 'designer', 'supervisor'];
-
-        function isViewOnlyUser() {
-          const user = PurchaseAuth.getUser();
-          const userRole = getUserRole(user);
-          return viewOnlyRoles.includes(userRole);
-        }
-
-        // Función para aplicar visibilidad según rol
-        function applyRoleVisibility() {
-          if (!isViewOnlyUser()) {
-            return;
-          }
-
-          // Hide all full-access items first
-          document.querySelectorAll('.requires-full-access').forEach((element) => {
-            element.style.display = 'none';
-          });
-
-          // Remove Upload BOM items completely from dropdowns
-          document.querySelectorAll('a[href="bom.html"]').forEach((link) => {
-            const parentLi = link.closest('li');
-            if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
-              parentLi.remove();
-            }
-          });
-
-          // Hide restricted Inventory dropdown items
-          const restrictedInventoryHrefs = ['createQr.html', 'inventory-bulk.html', 'io.html'];
-          restrictedInventoryHrefs.forEach((href) => {
-            document.querySelectorAll(`a[href="${href}"]`).forEach((link) => {
-              const parentLi = link.closest('li');
-              if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
-                parentLi.style.display = 'none';
-              }
-            });
-          });
-
-          // Hide dividers in Inventory dropdown that separate hidden items
-          const inventoryDropdowns = document.querySelectorAll('.dropdown-menu');
-          inventoryDropdowns.forEach((dropdown) => {
-            dropdown.querySelectorAll('hr.dropdown-divider').forEach((divider) => {
-              const parentLi = divider.closest('li');
-              if (parentLi) {
-                const nextVisibleLi = Array.from(dropdown.querySelectorAll('li')).find(
-                  (li) => li.compareDocumentPosition(parentLi) === Node.DOCUMENT_POSITION_FOLLOWING &&
-                  getComputedStyle(li).display !== 'none'
-                );
-                if (!nextVisibleLi) {
-                  parentLi.style.display = 'none';
-                }
-              }
-            });
-          });
-
-          // Remove dividers that are now orphaned (no visible items before them)
-          document.querySelectorAll('hr.dropdown-divider').forEach((divider) => {
-            const parentLi = divider.closest('li');
-            if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
-              const prevLi = parentLi.previousElementSibling;
-              // Remove if it's the first item or the previous item doesn't exist
-              if (!prevLi) {
-                parentLi.remove();
-              }
-            }
-          });
-        }
-
-        // Aplicar visibilidad cuando la página cargue
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', () => {
-            applyRoleVisibility();
-          });
-        } else {
-          applyRoleVisibility();
-        }
 
         document.addEventListener('DOMContentLoaded', function () {
             const BASE = 'http://localhost:3000/api';
@@ -239,11 +242,11 @@
             const filterSearchInputBom = document.getElementById('filterSearchInputBom');
             const filterOptionsList = document.getElementById('filterOptionsList');
             const btnClearFiltersBom = document.getElementById('btnClearFiltersBom');
-            
+
             let allProjects = [];
             let allBOMData = []; // Almacenar todos los datos del BOM para filtrar
             let currentFilterType = ''; // Para guardar el tipo de filtro seleccionado
-            
+
             // Función para normalizar acentos y convertir a minúsculas
             function normalizeText(text) {
                 return text
@@ -251,7 +254,7 @@
                     .normalize('NFD')
                     .replace(/[\u0300-\u036f]/g, ''); // Elimina marcas diacríticas
             }
-            
+
             // Cargar todos los proyectos al iniciar
             async function loadAllProjects() {
                 try {
@@ -262,7 +265,7 @@
 
                 }
             }
-            
+
             // Buscador de proyectos
             projectSearchInput.addEventListener('input', () => {
                 const term = normalizeText(projectSearchInput.value.trim());
@@ -317,14 +320,14 @@
                 });
                 projectSuggestions.style.display = filteredProjects.length ? 'block' : 'none';
             });
-            
+
             // Ocultar sugerencias al hacer click fuera
             document.addEventListener('click', (e) => {
                 if (e.target !== projectSearchInput && !projectSuggestions.contains(e.target)) {
                     projectSuggestions.style.display = 'none';
                 }
             });
-            
+
             // Cargar BOM filtrado por proyecto
             async function loadBOMDataByProject(noProject) {
                 let url = `${BASE}/bomView`;
@@ -352,7 +355,7 @@
                         '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
                 }
             }
-            
+
             // Cargar todos los BOM al inicio
             async function loadAllBOMData() {
                 let url = `${BASE}/bomView`;
@@ -373,7 +376,7 @@
                         '<tr><td colspan="10" class="text-center text-danger">Error loading data</td></tr>';
                 }
             }
-            
+
             function displayBOMData(data) {
                 const tbody = document.getElementById('bomTableBody');
 
@@ -420,17 +423,17 @@
 
                 tbody.innerHTML = rows;
             }
-            
+
             // Aplicar filtros al BOM
             function applyBOMFilters() {
                 const filterType = currentFilterType;
                 const filterValue = filterSearchInputBom.value.trim().toLowerCase();
-                
+
                 let filteredData = allBOMData;
-                
+
                 if (filterType && filterValue) {
                     filteredData = allBOMData.filter(item => {
-                        switch(filterType) {
+                        switch (filterType) {
                             case 'type':
                                 return (item.type_p || '').toLowerCase().includes(filterValue);
                             case 'brand':
@@ -442,10 +445,10 @@
                         }
                     });
                 }
-                
+
                 displayBOMData(filteredData);
             }
-            
+
             // Función para obtener valores únicos de una columna
             function getUniqueValues(fieldName) {
                 const uniqueSet = new Set();
@@ -457,7 +460,7 @@
                 });
                 return Array.from(uniqueSet).sort();
             }
-            
+
             // Función para mostrar opciones en la lista
             function displayFilterOptions() {
                 const fieldMap = {
@@ -465,51 +468,51 @@
                     'brand': 'brand',
                     'qisNumber': 'no_qis'
                 };
-                
+
                 if (!currentFilterType || !fieldMap[currentFilterType]) {
                     filterOptionsList.innerHTML = '<div style="padding: 10px; text-align: center; color: #b2bec3;">Select an option</div>';
                     return;
                 }
-                
+
                 const fieldName = fieldMap[currentFilterType];
                 const uniqueValues = getUniqueValues(fieldName);
                 const searchTerm = filterSearchInputBom.value.trim().toLowerCase();
-                
+
                 // Filtrar valores según el término de búsqueda
-                const filteredValues = uniqueValues.filter(value => 
+                const filteredValues = uniqueValues.filter(value =>
                     value.toLowerCase().includes(searchTerm)
                 );
-                
+
                 if (filteredValues.length === 0) {
                     filterOptionsList.innerHTML = '<div style="padding: 10px; text-align: center; color: #b2bec3;">No results found</div>';
                     return;
                 }
-                
+
                 filterOptionsList.innerHTML = filteredValues.map(value => `
                     <div class="filter-option-item" style="padding: 10px; cursor: pointer; border-radius: 4px; transition: background-color 0.2s ease;" 
                          onclick="selectFilterOption('${value.replace(/'/g, "\\'")}')">
                         ${value}
                     </div>
                 `).join('');
-                
+
                 // Agregar hover effect
                 document.querySelectorAll('.filter-option-item').forEach(item => {
                     item.addEventListener('mouseover', () => item.style.backgroundColor = '#e9ecef');
                     item.addEventListener('mouseout', () => item.style.backgroundColor = 'transparent');
                 });
             }
-            
+
             // Función para seleccionar una opción
-            window.selectFilterOption = function(value) {
+            window.selectFilterOption = function (value) {
                 filterSearchInputBom.value = value;
                 applyBOMFilters();
             }
-            
+
             // Event listener para el select de filtro
             filterSelectBom.addEventListener('change', (e) => {
                 currentFilterType = e.target.value;
                 filterSearchInputBom.value = '';
-                
+
                 if (currentFilterType) {
                     filterOptionsContainer.style.display = 'block';
                     btnClearFiltersBom.style.display = 'block';
@@ -521,13 +524,13 @@
                     applyBOMFilters();
                 }
             });
-            
+
             // Event listener para el input de búsqueda dentro del dropdown
             filterSearchInputBom.addEventListener('input', () => {
                 displayFilterOptions();
                 applyBOMFilters();
             });
-            
+
             // Event listener para limpiar filtros
             btnClearFiltersBom.addEventListener('click', () => {
                 filterSelectBom.value = '';
@@ -537,7 +540,7 @@
                 currentFilterType = '';
                 applyBOMFilters();
             });
-            
+
             // Cargar proyectos y BOMs al iniciar
             loadAllProjects();
             loadAllBOMData();
