@@ -196,7 +196,7 @@
                 <div class="btn-description">Report consultation and download</div>
             </a>
             <div class="dropdown home-btn-dropdown requires-full-access">
-                <button class="home-btn dropdown-toggle" type="button" id="dropdownBom" data-bs-toggle="dropdown"
+                <button class="home-btn dropdown-toggle" type="button" id="dropdownInventory" data-bs-toggle="dropdown"
                     aria-expanded="false">
                     <i class="bi bi-box-seam-fill btn-icon"></i>
                     <div class="btn-title">Inventory</div>
@@ -250,37 +250,6 @@
 
     <script src="../scripts/auth.js"></script>
     <script>
-        // Early guard: if current user is a technician, enforce strict menu pruning
-        (function earlyTechGuard() {
-            try {
-                const user = PurchaseAuth && typeof PurchaseAuth.getUser === 'function' ? PurchaseAuth.getUser() : null;
-                if (!user) return;
-                if (!PurchaseAuth.hasAnyRole(user, ['technician'])) return;
-
-                const allowed = new Set(['io.html', 'bomView.html', 'stock.html']);
-
-                // Remove/disarm non-allowed anchors quickly before other scripts run
-                Array.from(document.querySelectorAll('a[href]')).forEach(a => {
-                    const href = a.getAttribute('href');
-                    if (!href) return;
-                    if (allowed.has(href)) return;
-
-                    const li = a.closest('li');
-                    if (li && li.parentElement && li.parentElement.classList.contains('dropdown-menu')) { li.remove(); return; }
-                    const navItem = a.closest('.nav-item'); if (navItem) { navItem.style.display = 'none'; return; }
-                    const homeBtn = a.closest('.home-btn, .home-btn-dropdown'); if (homeBtn) { homeBtn.style.display = 'none'; return; }
-                    a.remove();
-                });
-
-                // hide any top-level requires-full-access containers that no longer contain allowed links
-                Array.from(document.querySelectorAll('.requires-full-access')).forEach(el => {
-                    const containsAllowed = Array.from(el.querySelectorAll('a[href]')).some(a => allowed.has(a.getAttribute('href')));
-                    if (!containsAllowed) el.style.display = 'none';
-                });
-            } catch (e) { /* ignore */ }
-        })();
-    </script>
-    <script>
         let homeCurrentUser = null;
         let homeLoginScanTimer;
         let homeLoginMode = 'qr'; // 'qr' or 'credentials'
@@ -311,13 +280,104 @@
             return String(user.rol || user.role || '').trim().toLowerCase();
         }
 
+        // Helper: Hide elements suavemente sin saltos bruscos de layout
+        function hideElementSmoothly(el) {
+            if (!el) return;
+            el.style.opacity = '0';
+            el.style.visibility = 'hidden';
+            el.style.pointerEvents = 'none';
+        }
+
+        // Helper: Show elements suavemente
+        function showElementSmoothly(el) {
+            if (!el) return;
+            el.style.opacity = '1';
+            el.style.visibility = 'visible';
+            el.style.pointerEvents = 'auto';
+        }
+
+        // Helper: clean a dropdown menu leaving only allowed hrefs and sensible dividers
+        function cleanDropdownMenu(menu, allowedSet) {
+            if (!menu) return;
+            const allowed = allowedSet instanceof Set ? allowedSet : new Set(Array.isArray(allowedSet) ? allowedSet : []);
+
+            // Remove non-allowed li entries
+            Array.from(menu.querySelectorAll('li')).forEach(li => {
+                const a = li.querySelector('a[href]');
+                if (a) {
+                    const href = String(a.getAttribute('href') || '').trim();
+
+                    if (allowed.size > 0 && !allowed.has(href)) {
+                        li.style.display = 'none';
+                    }
+
+                } else {
+                    // remove isolated dividers for now
+                    const hr = li.querySelector('hr.dropdown-divider');
+                    if (hr) li.style.display = 'none';
+                }
+            });
+
+            // Cleanup: remove leading/trailing dividers and consecutive dividers
+            const items = Array.from(menu.querySelectorAll('li'));
+            for (let i = items.length - 1; i >= 0; i--) {
+                const li = items[i];
+                const hr = li.querySelector('hr.dropdown-divider');
+                if (!hr) continue;
+                const prev = li.previousElementSibling;
+                const next = li.nextElementSibling;
+                const prevIsDivider = prev && prev.querySelector && prev.querySelector('hr.dropdown-divider');
+                const nextIsDivider = next && next.querySelector && next.querySelector('hr.dropdown-divider');
+
+                if (!prev || !next || prevIsDivider || nextIsDivider) {
+                    li.style.display = 'none';
+                }
+
+            }
+        }
+
+        // Convert dropdowns that only have one visible/allowed option into a simple link/button
+        function convertSingleOptionDropdowns() {
+            document.querySelectorAll('.home-btn-dropdown').forEach(dropdown => {
+                const menu = dropdown.querySelector('.dropdown-menu');
+                if (!menu) return;
+                const visibleLinks = Array.from(menu.querySelectorAll('a[href]')).filter(l => getComputedStyle(l).display !== 'none');
+                if (visibleLinks.length !== 1) return;
+                const visibleLink = visibleLinks[0];
+                const button = dropdown.querySelector('.home-btn');
+                if (!button) return;
+                const anchor = document.createElement('a');
+                anchor.className = button.className.replace(/\bdropdown-toggle\b/g, '').trim() || 'home-btn';
+                anchor.href = visibleLink.getAttribute('href');
+                anchor.innerHTML = button.innerHTML;
+                dropdown.replaceWith(anchor);
+            });
+
+            document.querySelectorAll('.nav-item.dropdown').forEach(dropdown => {
+                const menu = dropdown.querySelector('.dropdown-menu');
+                const toggle = dropdown.querySelector('.dropdown-toggle');
+                if (!menu || !toggle) return;
+                const visibleLinks = Array.from(menu.querySelectorAll('a[href]')).filter(l => getComputedStyle(l).display !== 'none');
+                if (visibleLinks.length !== 1) return;
+                const visibleLink = visibleLinks[0];
+                const navItem = document.createElement('li');
+                navItem.className = 'nav-item';
+                const anchor = document.createElement('a');
+                anchor.className = String(toggle.className).replace(/\bdropdown-toggle\b/g, '').trim() || 'nav-link';
+                anchor.href = visibleLink.getAttribute('href');
+                anchor.innerHTML = toggle.innerHTML;
+                navItem.appendChild(anchor);
+                dropdown.replaceWith(navItem);
+            });
+        }
+
 
         function applyHomeRoleVisibility(user) {
             const userRole = getUserRole(user);
 
             //  ADMIN → ve todo
             if (userRole === 'administrator') {
-                document.querySelectorAll('*').forEach(el => {
+                document.querySelectorAll('.requires-full-access, .nav-item, .home-btn, .home-btn-dropdown').forEach(el => {
                     el.style.display = '';
                 });
             }
@@ -345,74 +405,131 @@
                 hideRestrictedInventoryItems();
 
                 // Ensure submenu items are filtered (extra enforcement)
-                applyMenuPermissions(user);
                 // Ensure dropdown menus are pruned of orphaned items/dividers
                 PurchaseAuth.pruneMenu(['bomView.html', 'stock.html', 'purchaseTracking.html', 'reports.html']);
             }
 
             // TECNICO
             else if (userRole === 'technician') {
+                const allowed = ['index.html', 'bomView.html', 'stock.html', 'io.html'];
+                const allowedSet = new Set(allowed);
 
-                document.querySelectorAll('.requires-full-access').forEach(el => {
+                // Hide all potential restricted containers first
+                document.querySelectorAll('.requires-full-access, .floating-manage-container').forEach(el => {
                     el.style.display = 'none';
                 });
 
-                showElements([
-                    'io.html',
-                    'bomView.html',
-                    'stock.html'
-                ]);
+                // Remove any disallowed link or dropdown item entirely.
+                document.querySelectorAll('a[href]').forEach(link => {
+                    const href = String(link.getAttribute('href') || '').trim();
+                    const parentContainer = link.closest('.nav-item, .home-btn, .home-btn-dropdown');
+                    const containerHasAllowed = parentContainer
+                        ? Array.from(parentContainer.querySelectorAll('a[href]')).some(a => allowedSet.has(String(a.getAttribute('href') || '').trim()))
+                        : false;
 
-                // Remove Upload BOM and hide restricted inventory entries
-                removeUploadBOMFromDropdowns();
-                hideRestrictedInventoryItems();
-
-                // Apply robust dropdown permissions and prune orphan dividers
-                applyMenuPermissions(user);
-                PurchaseAuth.pruneMenu(['io.html','bomView.html','stock.html']);
-
-                // Strong enforcement: remove any remaining anchors/containers that
-                // are not explicitly allowed for technicians. This prevents
-                // dropdown toggles from opening unexpected sections.
-                (function enforceTechOnly() {
-                    const allowed = new Set(['io.html','bomView.html','stock.html']);
-
-                    // Remove non-allowed anchors inside navbar / home buttons / dropdowns
-                    Array.from(document.querySelectorAll('a[href]')).forEach(a => {
-                        const href = a.getAttribute('href');
-                        if (!href) return;
-                        if (allowed.has(href)) return;
-
-                        // Remove li entries in dropdowns
-                        const li = a.closest('li');
-                        if (li && li.parentElement && li.parentElement.classList.contains('dropdown-menu')) {
-                            li.remove();
-                            return;
-                        }
-
-                        // Hide or remove top-level nav items / home buttons
-                        const navItem = a.closest('.nav-item');
-                        if (navItem) { navItem.style.display = 'none'; return; }
-
-                        const homeBtn = a.closest('.home-btn, .home-btn-dropdown');
-                        if (homeBtn) { homeBtn.style.display = 'none'; return; }
-
-                        // Fallback: remove the anchor itself
-                        a.remove();
-                    });
-
-                    // Remove any empty dropdown toggle parents (no anchors left)
-                    Array.from(document.querySelectorAll('.nav-item.dropdown, .home-btn-dropdown')).forEach(container => {
-                        const hasAnchor = container.querySelector('a[href], .dropdown-item');
-                        if (!hasAnchor) container.style.display = 'none';
-                    });
-
-                    // Final prune of dividers/orphan nodes
-                    if (typeof PurchaseAuth !== 'undefined' && typeof PurchaseAuth.pruneMenu === 'function') {
-                        PurchaseAuth.pruneMenu(Array.from(allowed));
+                    // Keep dropdown toggles if the dropdown still contains allowed items.
+                    if (href === '#' && containerHasAllowed && link.classList.contains('dropdown-toggle')) {
+                        return;
                     }
-                })();
+
+                    // Keep allowed targets.
+                    if (allowedSet.has(href)) {
+                        return;
+                    }
+
+
+                    const li = link.closest('li');
+                    if (li && li.closest('.dropdown-menu')) {
+                        li.style.display = 'none';
+                        return;
+                    }
+
+
+
+                    if (parentContainer && !containerHasAllowed) {
+                        parentContainer.style.display = 'none';
+                        return;
+                    }
+
+                    link.style.display = 'none';
+
+                });
+
+                document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                    cleanDropdownMenu(menu, allowedSet);
+                });
+
+                // Remove any nav-item or home button container that no longer contains allowed links.
+
+
+                // Ensure allowed anchors and their parents are visible before converting dropdowns.
+                showElements(allowed);
+
+                // Extra enforcement: explicitly reveal allowed anchors and common ancestor containers
+                allowed.forEach(href => {
+                    try {
+                        document.querySelectorAll(`a[href="${href}"]`).forEach(a => {
+                            a.style.display = '';
+                            const li = a.closest('li'); if (li) li.style.display = '';
+                            const nav = a.closest('.nav-item'); if (nav) nav.style.display = '';
+                            const homeBtn = a.closest('.home-btn'); if (homeBtn) homeBtn.style.display = '';
+                            const homeDropdown = a.closest('.home-btn-dropdown'); if (homeDropdown) homeDropdown.style.display = '';
+                            const dropdownMenu = a.closest('.dropdown-menu'); if (dropdownMenu) dropdownMenu.style.display = '';
+                            let parent = a.closest('.requires-full-access');
+                            while (parent) { parent.style.display = ''; parent = parent.parentElement ? parent.parentElement.closest('.requires-full-access') : null; }
+                        });
+                    } catch (e) { /* swallow */ }
+                });
+
+                // Convert any dropdowns that now contain only one allowed target into direct links.
+                convertSingleOptionDropdowns();
+
+                disableEmptyDropdownToggles();
+
+                // Extra safety: ensure the main home buttons for BOM and Inventory
+                // remain visible for technicians if they contain allowed targets.
+                try {
+                    document.querySelectorAll('.home-btn-dropdown, .home-btn').forEach(container => {
+                        const allowedChild = Array.from(container.querySelectorAll ? container.querySelectorAll('a[href]') : []).some(a => {
+                            const href = String(a.getAttribute('href') || '').trim();
+                            return allowedSet.has(href);
+                        });
+                        if (allowedChild) {
+                            container.style.display = '';
+                            const btn = container.querySelector ? container.querySelector('.home-btn') : null;
+                            if (btn) btn.style.display = '';
+                            if (container.classList.contains('dropdown-menu')) {
+                                container.style.display = '';
+                            }
+                        }
+                    });
+                    const homeButtonsContainer = document.querySelector('.home-buttons-container');
+                    if (homeButtonsContainer) homeButtonsContainer.style.display = '';
+                } catch (e) { /* swallow */ }
+
+                ['bomView.html', 'stock.html', 'io.html'].forEach(href => {
+                    document.querySelectorAll(`a[href="${href}"]`).forEach(a => {
+
+                        // Mostrar el link
+                        a.style.display = '';
+
+                        const li = a.closest('li');
+                        if (li) li.style.display = '';
+
+                        const dropdownMenu = a.closest('.dropdown-menu');
+                        if (dropdownMenu) dropdownMenu.style.display = '';
+
+                        const dropdown = a.closest('.home-btn-dropdown');
+                        if (dropdown) dropdown.style.display = '';
+
+                        const btn = dropdown ? dropdown.querySelector('.home-btn') : null;
+                        if (btn) btn.style.display = '';
+
+                    });
+                });
+
             }
+
 
             // OTROS
             else {
@@ -420,131 +537,27 @@
                     el.style.display = 'none';
                 });
             }
-            if (PurchaseAuth.isManagerLike(user)) {
 
-                // ✅ Mostrar SOLO lo que sí quieres
-                const allowedLinks = ['bomView.html', 'stock.html', 'purchaseTracking.html', 'reports.html'];
+            setTimeout(() => {
+                disableEmptyDropdownToggles();
+            }, 0);
 
-                allowedLinks.forEach(href => {
-                    document.querySelectorAll(`a[href="${href}"]`).forEach(link => {
-
-                        link.style.display = '';
-
-                        const li = link.closest('li');
-                        if (li) li.style.display = '';
-
-                        const nav = link.closest('.nav-item');
-                        if (nav) nav.style.display = '';
-
-                        const btn = link.closest('.home-btn, .home-btn-dropdown');
-                        if (btn) btn.style.display = '';
-                    });
-                });
-
-                // 🚫 ocultar SIEMPRE los que no quieres
-                const blocked = ['requisition.html', 'recordPurchase.html'];
-
-                blocked.forEach(href => {
-                    document.querySelectorAll(`a[href="${href}"]`).forEach(link => {
-                        const el = link.closest('li, .nav-item, .home-btn');
-                        if (el) el.style.display = 'none';
-                    });
-                });
-            }
 
         }
+
+
+
+
 
         // Additional robust enforcement across all dropdowns (prevents duplicates/ordering issues)
-        function applyMenuPermissions(user) {
-            const role = getUserRole(user);
-            if (!role) return;
 
-            if (role === 'administrator') return; // admins see everything
-
-            const allowedByRole = {
-                manager: new Set(['bomView.html', 'stock.html', 'purchaseTracking.html', 'reports.html']),
-                technician: new Set(['io.html', 'bomView.html', 'stock.html'])
-            };
-
-            // Determine allowed set for this user
-            let allowed = new Set();
-            if (role === 'administrator') return; // admins see everything
-            if (PurchaseAuth.hasAnyRole(user, ['technician'])) {
-                allowed = allowedByRole['technician'];
-            } else if (PurchaseAuth.isManagerLike(user)) {
-                allowed = allowedByRole['manager'];
-            } else {
-                // no allowed items for other roles
-                allowed = new Set();
-            }
-
-            // Remove disallowed dropdown items (remove nodes instead of only hiding)
-            document.querySelectorAll('.dropdown-menu').forEach(menu => {
-                if (allowed.size === 0) {
-                    // remove entire menu items for roles with no allowed items
-                    Array.from(menu.querySelectorAll('li')).forEach(li => li.remove());
-                    menu.style.display = 'none';
-                    return;
-                }
-
-                let anyVisible = false;
-                // iterate a static list because we may remove nodes
-                Array.from(menu.querySelectorAll('li')).forEach(li => {
-                    const a = li.querySelector('a[href]');
-                    if (!a) return;
-                    const href = a.getAttribute('href');
-                    if (!allowed.has(href)) {
-                        li.remove();
-                    } else {
-                        anyVisible = true;
-                    }
-                });
-
-                // If menu has no visible items, hide it to avoid empty dropdowns
-                if (!anyVisible) menu.style.display = 'none'; else menu.style.display = '';
-            });
-
-            // Remove or hide top-level containers / anchors that are not allowed
-            document.querySelectorAll('.requires-full-access').forEach(el => {
-                if (allowed.size === 0) {
-                    el.style.display = 'none';
-                    return;
-                }
-
-                // If the container contains any allowed anchors keep it; otherwise hide it
-                const containsAllowed = Array.from(el.querySelectorAll('a[href]')).some(a => allowed.has(a.getAttribute('href')));
-                if (!containsAllowed) {
-                    // If it's a nav-item or home-btn remove/hide it to avoid accidental opens
-                    const navItem = el.closest('.nav-item');
-                    if (navItem) { navItem.style.display = 'none'; return; }
-                    const homeBtn = el.closest('.home-btn, .home-btn-dropdown');
-                    if (homeBtn) { homeBtn.style.display = 'none'; return; }
-                    el.style.display = 'none';
-                } else {
-                    el.style.display = '';
-                }
-            });
-
-            // Always remove explicitly blocked links to prevent accidental navigation
-            document.querySelectorAll('a[href="requisition.html"], a[href="recordPurchase.html"]').forEach(link => {
-                const li = link.closest('li'); if (li) { li.remove(); return; }
-                const el = link.closest('.nav-item, .home-btn'); if (el) { el.style.display = 'none'; return; }
-                link.style.display = 'none';
-            });
-
-            // Clean up dropdown dividers and orphan nodes using central prune helper if available
-            if (typeof PurchaseAuth !== 'undefined' && typeof PurchaseAuth.pruneMenu === 'function') {
-                PurchaseAuth.pruneMenu(Array.from(allowed));
-            }
-
-        }
 
         function removeUploadBOMFromDropdowns() {
             // Remove Upload BOM items completely from dropdowns
             document.querySelectorAll('a[href="bom.html"]').forEach((link) => {
                 const parentLi = link.closest('li');
                 if (parentLi && parentLi.parentElement && parentLi.parentElement.classList.contains('dropdown-menu')) {
-                    parentLi.remove();
+                    parentLi.style.display = 'none';
                 }
             });
 
@@ -555,7 +568,7 @@
                     const prevLi = parentLi.previousElementSibling;
                     // Remove if it's the first item or the previous item doesn't exist
                     if (!prevLi) {
-                        parentLi.remove();
+                        parentLi.style.display = 'none';
                     }
                 }
             });
@@ -591,16 +604,48 @@
             });
         }
 
+        // Deshabilita toggles de dropdowns que quedaron vacíos para evitar
+        // que Bootstrap los abra mostrando elementos que deberían estar ocultos.
+        function disableEmptyDropdownToggles() {
+            // botones/links con la clase dropdown-toggle
+            document.querySelectorAll('.dropdown-toggle').forEach(toggle => {
+                // buscar el menú asociado (siguientes .dropdown-menu dentro del mismo padre)
+                const parent = toggle.closest('.nav-item, .home-btn-dropdown');
+                if (!parent) return;
+                const menu = parent.querySelector('.dropdown-menu');
+                if (!menu) return;
+
+                // si no hay enlaces visibles dentro del menú, deshabilitar el toggle
+                const anyVisible = Array.from(menu.querySelectorAll('a[href]')).some(a => getComputedStyle(a).display !== 'none');
+                if (!anyVisible) {
+                    // evitar comportamiento de bootstrap: quitar atributo data-bs-toggle
+                    try { toggle.removeAttribute('data-bs-toggle'); } catch (e) { }
+                    // marcar visualmente y bloquear interacciones
+                    toggle.classList.add('disabled');
+                    toggle.setAttribute('aria-disabled', 'true');
+                    toggle.style.pointerEvents = 'none';
+                } else {
+                    // restaurar si corresponde
+                    if (!toggle.getAttribute('data-bs-toggle')) {
+                        // no intentamos adivinar el valor original, solo restauramos la interacción
+                        toggle.style.pointerEvents = '';
+                        toggle.classList.remove('disabled');
+                        toggle.removeAttribute('aria-disabled');
+                    }
+                }
+            });
+        }
+
 
         function showElements(hrefs) {
-            document.querySelectorAll('a').forEach(link => {
-                const href = link.getAttribute('href');
-                if (!hrefs.includes(href)) return;
+            const hrefSet = new Set((Array.isArray(hrefs) ? hrefs : []).map(href => String(href || '').trim()));
 
-                // ✅ muestra solo el link
+            document.querySelectorAll('a[href]').forEach(link => {
+                const href = String(link.getAttribute('href') || '').trim();
+                if (!hrefSet.has(href)) return;
+
                 link.style.display = '';
 
-                // ✅ muestra SOLO su contenedor directo (no todo el bloque grande)
                 const li = link.closest('li');
                 if (li) li.style.display = '';
 
@@ -613,7 +658,15 @@
                 const homeDropdown = link.closest('.home-btn-dropdown');
                 if (homeDropdown) homeDropdown.style.display = '';
 
-                // Mostrar cualquier ancestro .requires-full-access que pueda estar oculto
+                const dropdown = link.closest('.dropdown');
+                if (dropdown) dropdown.style.display = '';
+
+                const dropdownMenu = link.closest('.dropdown-menu');
+                if (dropdownMenu) dropdownMenu.style.display = '';
+
+                const dropdownToggle = link.closest('.dropdown-toggle');
+                if (dropdownToggle) dropdownToggle.style.display = '';
+
                 let parent = link.closest('.requires-full-access');
                 while (parent) {
                     parent.style.display = '';
@@ -636,7 +689,10 @@
             setTimeout(() => {
                 alertBox.classList.add('d-none');
             }, 4000);
+
+
         }
+
 
         function switchLoginMode(newMode) {
             homeLoginMode = newMode;
@@ -744,9 +800,9 @@
         function renderHomeSession(user, options = {}) {
             homeCurrentUser = user;
 
-            const userRole = getUserRole(user);
-            // Redirigir a io.html solo si no tiene acceso full y no es Manager/Designer/Supervisor
-            if (!userHasFullAccess(user) && !PurchaseAuth.isManagerLike(user)) {
+            const role = getUserRole(user);
+
+            if (role !== 'technician' && !userHasFullAccess(user) && !PurchaseAuth.isManagerLike(user)) {
                 window.location.replace('io.html');
                 return;
             }
@@ -773,7 +829,18 @@
             const userBar = homeUserInfoBar();
             if (userBar) userBar.style.display = 'flex';
 
-            applyHomeRoleVisibility(user);
+            // Transición suave del contenido principal
+            const main = document.querySelector('main');
+            if (main) {
+                main.style.opacity = '0.95';
+                setTimeout(() => {
+                    applyHomeRoleVisibility(user);
+                    main.style.transition = 'opacity 0.3s ease-in-out';
+                    main.style.opacity = '1';
+                }, 10);
+            } else {
+                applyHomeRoleVisibility(user);
+            }
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -856,13 +923,34 @@
                 });
             }
 
+            // Prevent technicians from navigating to or revealing disallowed links.
+            document.addEventListener('click', function (event) {
+                const link = event.target && event.target.closest ? event.target.closest('a[href]') : null;
+                if (!link) return;
+                if (!homeCurrentUser) return;
+                try {
+                    const role = getUserRole(homeCurrentUser);
+                    if (role !== 'technician') return;
+
+                    const rawHref = String(link.getAttribute('href') || '').trim();
+                    const allowed = new Set(['index.html', 'bomView.html', 'stock.html', 'io.html']);
+
+                    // Block any click on disallowed hrefs entirely
+                    if (!allowed.has(rawHref)) {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                        return;
+                    }
+
+                    // For allowed links, reapply technician visibility immediately to counter UI reveals
+                    setTimeout(() => {
+                        try { applyHomeRoleVisibility(homeCurrentUser); } catch (e) { }
+                    }, 0);
+                } catch (e) { /* swallow */ }
+            }, true);
+
+
             const existingUser = PurchaseAuth.getUser();
-
-            if (existingUser && !userHasFullAccess(existingUser) && !PurchaseAuth.isManagerLike(existingUser)) {
-                window.location.replace('io.html');
-                return;
-            }
-
             const notice = PurchaseAuth.consumeNotice();
 
             if (existingUser) {
@@ -877,6 +965,8 @@
                 }
 
                 applyHomeRoleVisibility(null);
+
+                try { disableEmptyDropdownToggles(); } catch (e) { }
 
                 if (notice) {
                     showHomeLoginAlert(notice, 'warning');

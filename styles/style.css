@@ -2,6 +2,52 @@
 #tablaInventario tbody tr:hover {
   background: #e0e0e0 !important;
 }
+
+/* Animaciones suaves para transiciones */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    visibility: visible;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    visibility: hidden;
+  }
+  to {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
 :root {
   --primary-red: #ff3b30;
   --dark-red: #b51313;
@@ -15,6 +61,7 @@
   --shadow-medium: 0 12px 40px rgba(0, 0, 0, 0.15);
   --shadow-strong: 0 20px 60px rgba(0, 0, 0, 0.25);
   --transition: all 0.3s ease;
+  --smooth-visibility: opacity 0.25s ease-in-out;
   --page-transition-duration-ms: 170;
   --section-spacing-y: 2rem;
   --nav-font-size: 15px;
@@ -110,7 +157,110 @@ body.page-transition-exit {
   }
 }
 
-/* Mantiene una altura consistente del area principal en todas las secciones */
+/* ===== SMOOTH VISIBILITY TRANSITIONS ===== */
+/* Clases para ocultar/mostrar elementos suavemente sin saltos */
+.fade-out {
+  opacity: 0;
+  visibility: hidden;
+  transition: var(--smooth-visibility);
+  pointer-events: none;
+}
+
+.fade-in {
+  opacity: 1;
+  visibility: visible;
+  transition: var(--smooth-visibility);
+  pointer-events: auto;
+}
+
+/* Para elementos que siempre deben estar invisibles sin transición inicial */
+.hidden-no-transition {
+  display: none;
+}
+
+/* Utility para bloquear temporalmente eventos durante transición */
+.transitioning {
+  pointer-events: none;
+}
+
+/* Asegurar que los cambios de display sean suaves usando min-height y overflow */
+.nav-item,
+.home-btn,
+.home-btn-dropdown,
+a[href],
+li {
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Evitar cambios abruptos de tamaño de fuente al cambiar visibilidad */
+.navbar-nav .nav-link,
+.navbar-nav .dropdown-item,
+.home-btn,
+.btn-title,
+.btn-description {
+  font-size: inherit;
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+/* Mantener consistencia de tamaño cuando elementos aparecen/desaparecen */
+body {
+  font-size: 16px;
+  letter-spacing: 0;
+  transition: background-color 0.25s ease;
+}
+
+.navbar {
+  min-height: 70px;
+  transition: background-color 0.2s ease;
+}
+
+main.container,
+#ioMainSection,
+.inventory-container,
+.container.mt-4 {
+  min-height: calc(100vh - 200px);
+  transition: opacity 0.3s ease-in-out, background-color 0.2s ease;
+}
+
+/* Prevenir que el tamaño de fuente cambie al cambiar visibilidad */
+.navbar-nav,
+.home-buttons-container,
+.navbar-nav .nav-link,
+.navbar-nav .dropdown-item,
+.home-btn,
+.btn-title,
+.btn-description {
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out, background-color 0.2s ease;
+}
+
+/* Asegurar que display: none no cause saltos visuales */
+[style*="display: none"] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+/* Cuando se restaura display, recuperar el layout normal */
+[style*="display: "] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  height: auto;
+  overflow: visible;
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+
+/* Suavizar scrollbar cuando aparecen/desaparecen elementos */
+html {
+  scroll-behavior: smooth;
+}
+
 body > main,
 body > #ioMainSection,
 body > .inventory-container,

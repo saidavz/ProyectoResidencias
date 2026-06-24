@@ -549,12 +549,24 @@
       const hasAdmin = PurchaseAuth.hasAnyRole(currentUser, ['administrator']);
       const isTech = isTechnicianSession();
 
-      // Administrators see everything. Technicians are allowed to use this page
-      // so reveal .requires-full-access elements here for technicians as well.
+      // Administrators see everything. For technicians, only reveal
+      // `.requires-full-access` containers that actually contain an allowed
+      // anchor (io.html, bomView.html, stock.html). Others remain hidden.
+      const allowedAnchors = new Set(['io.html', 'bomView.html', 'stock.html']);
       document.querySelectorAll('.requires-full-access').forEach((element) => {
-        if (hasAdmin) element.style.display = '';
-        else if (isTech) element.style.display = '';
-        else element.style.display = 'none';
+        if (hasAdmin) {
+          element.style.display = '';
+          return;
+        }
+
+        if (isTech) {
+          // reveal only if this container contains at least one allowed link
+          const hasAllowed = Array.from(element.querySelectorAll('a[href]')).some(a => allowedAnchors.has(a.getAttribute('href')));
+          element.style.display = hasAllowed ? '' : 'none';
+          return;
+        }
+
+        element.style.display = 'none';
       });
 
       const navbarMenu = document.getElementById('navbarMenu');

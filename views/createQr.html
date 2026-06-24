@@ -107,17 +107,14 @@
                                 <!-- Campo Rack Number existente -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Rack Number</label>
-                                    <input
-                                        type="text"
-                                        class="form-control bg-secondary text-light"
+                                    <select
+                                        class="form-select bg-secondary text-light"
                                         name="rackNumber"
-                                        id="rackNumberInput"
-                                        list="rackNumberList"
-                                        placeholder="Type or select rack number"
-                                        autocomplete="off"
+                                        id="rackNumberSelect"
                                         required
                                     >
-                                    <datalist id="rackNumberList"></datalist>
+                                        <option value="" selected disabled hidden>Select a rack number</option>
+                                    </select>
                                 </div>
                             </div>
                             <!-- Tabla de productos por proyecto PO -->
@@ -241,14 +238,14 @@
             const emptyState = document.getElementById('projectEmptyState');
             const confirmQRModal = new bootstrap.Modal(document.getElementById('confirmQRModal'));
             const selectRackModal = new bootstrap.Modal(document.getElementById('selectRackModal'));
-            const rackNumberInput = document.getElementById('rackNumberInput');
-            const rackNumberList = document.getElementById('rackNumberList');
+            const rackNumberSelect = document.getElementById('rackNumberSelect');
             const modalRackInput = document.getElementById('modalRackInput');
             const modalRackNumberList = document.getElementById('modalRackNumberList');
             let currentQRAction = null; // Para guardar la acción pendiente del QR
             let pendingRackSelection = null; // Para guardar la acción pendiente de selección de rack
             let projectOptions = [];
             const rackOptions = new Set();
+            const maxRackOptions = 25;
 
             let allRows = [];
 
@@ -271,7 +268,12 @@
                     console.error('Error loading projects:', error);
                 });
 
-            function addRackOption(rack) {
+            function resetRackSelectOptions() {
+                if (!rackNumberSelect) return;
+                rackNumberSelect.innerHTML = '<option value="" selected disabled>Select a rack number</option>';
+            }
+
+            function addRackOption(rack, forceVisible = false) {
                 const normalizedRack = normalizeValue(rack);
                 if (!normalizedRack || rackOptions.has(normalizedRack)) {
                     return;
@@ -279,24 +281,64 @@
 
                 rackOptions.add(normalizedRack);
 
-                [rackNumberList, modalRackNumberList].forEach(list => {
-                    if (!list) return;
-                    const option = document.createElement('option');
-                    option.value = normalizedRack;
-                    list.appendChild(option);
-                });
+                if (rackNumberSelect) {
+                    const existing = Array.from(rackNumberSelect.options).some(opt => opt.value === normalizedRack);
+                    if (!existing) {
+                        const visibleOptionCount = Array.from(rackNumberSelect.options).filter(opt => opt.value !== '').length;
+                        if (visibleOptionCount >= maxRackOptions && !forceVisible) {
+                            return;
+                        }
+
+                        const option = document.createElement('option');
+                        option.value = normalizedRack;
+                        option.textContent = normalizedRack;
+                        rackNumberSelect.appendChild(option);
+                    }
+                }
+
+                if (modalRackNumberList) {
+                    const modalOption = document.createElement('option');
+                    modalOption.value = normalizedRack;
+                    modalRackNumberList.appendChild(modalOption);
+                }
             }
 
             function loadRackSuggestions() {
                 fetch(`${baseURL}/api/stock/distinct-filters`)
                     .then(res => res.json())
                     .then(data => {
-                        const racks = Array.isArray(data.racks) ? data.racks : [];
-                        racks.forEach(addRackOption);
+                        let racks = [];
+                        if (Array.isArray(data.racks)) {
+                            racks = data.racks;
+                        } else if (Array.isArray(data)) {
+                            racks = data;
+                        } else if (Array.isArray(data.results)) {
+                            racks = data.results;
+                        }
+
+                        racks = racks.slice(0, maxRackOptions);
+                        racks.forEach(rack => addRackOption(rack, false));
+                        refreshRackOptions();
                     })
                     .catch(error => {
                         console.error('Error loading rack suggestions:', error);
+                        refreshRackOptions();
                     });
+            }
+
+            function refreshRackOptions() {
+                if (!rackNumberSelect) return;
+                resetRackSelectOptions();
+                const visibleRacks = Array.from(rackOptions).slice(0, maxRackOptions);
+                visibleRacks.forEach(rack => {
+                    const existing = Array.from(rackNumberSelect.options).some(opt => opt.value === rack);
+                    if (!existing) {
+                        const option = document.createElement('option');
+                        option.value = rack;
+                        option.textContent = rack;
+                        rackNumberSelect.appendChild(option);
+                    }
+                });
             }
 
             loadRackSuggestions();
@@ -442,12 +484,14 @@
             projectSelect.addEventListener('change', () => {
                 const pid = projectSelect.value;
                 tbody.innerHTML = '';
-                const rackSelect = document.querySelector('[name="rackNumber"]');
+                const rackSelect = rackNumberSelect;
 
                 if (!pid) {
                     tableWrapper.classList.add('hidden');
                     emptyState.classList.remove('show');
                     rackSelect.disabled = false;
+                    rackSelect.value = '';
+                    refreshRackOptions();
                     return;
                 }
 
@@ -463,18 +507,20 @@
                 } else {
                     // Proyecto activo - habilitar y verificar si ya tiene QRs
                     rackSelect.disabled = false;
-                    
+                    rackSelect.value = '';
+                    refreshRackOptions();
+
                     // Obtener el rack usado por primera vez en este proyecto
                     fetch(`${baseURL}/api/stock/first-rack?no_project=${encodeURIComponent(pid)}`)
                         .then(res => res.json())
                         .then(data => {
                             if (data.rack) {
                                 // Proyecto ya tiene QRs - rellenar y deshabilitar
+                                addRackOption(data.rack, true);
                                 rackSelect.value = data.rack;
-                                addRackOption(data.rack);
                                 rackSelect.disabled = true;
                             } else {
-                                // Proyecto nuevo - permitir seleccionar
+                                // Proyecto nuevo - permitir seleccionar obligatoriamente
                                 rackSelect.disabled = false;
                                 rackSelect.value = '';
                             }
@@ -635,9 +681,13 @@
                 }
 
                 // PROYECTO ACTIVO: Usar rack del formulario principal
-                const rack = rackSelect.value;
-                if (!rack) {
+                const rack = rackNumberSelect ? normalizeValue(rackNumberSelect.value) : '';
+                const rackSelected = rackNumberSelect ? rackNumberSelect.selectedIndex > 0 && rack : '';
+                if (!rackSelected) {
                     alert('Please select a rack number');
+                    if (rackNumberSelect) {
+                        rackNumberSelect.focus();
+                    }
                     return;
                 }
 
@@ -662,11 +712,20 @@
 
             // Función para crear un nuevo QR
             function createNewQR(noPart, rack, noProject) {
+                const normalizedNoPart = normalizeValue(noPart);
+                const normalizedNoProject = normalizeValue(noProject);
+                const normalizedRack = normalizeValue(rack);
+
+                if (!normalizedNoPart || !normalizedNoProject || !normalizedRack) {
+                    alert('Please select a rack number before creating a QR');
+                    return;
+                }
+
                 // Preparar datos para enviar
                 const data = {
-                    rack: rack,
-                    no_part: noPart,
-                    no_project: noProject
+                    rack: normalizedRack,
+                    no_part: normalizedNoPart,
+                    no_project: normalizedNoProject
                 };
 
                 // Enviar al servidor
