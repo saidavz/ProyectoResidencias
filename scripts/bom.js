@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultEl = document.getElementById('result');
 
   // URL del backend
-  const BASE = 'http://localhost:3000/api';
+  const BASE = `${window.location.origin}/api`;
 
   // Cargar proyectos existentes para autocompletado
   let existingProjects = [];

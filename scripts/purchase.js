@@ -43,7 +43,7 @@ const upload = multer({ dest: path.join(projectRoot, "uploads") });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  database: 'db_purchase_system',//verifica bien al cambiarlo
   password: 'automationdb', //verifica bien al cambiarlo
   port: 5432,
 });
@@ -2881,8 +2881,9 @@ app.get('/api/dead-inventory', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
+
 // ---------------------------
 // Vendors table + endpoints
 // ---------------------------

@@ -26,11 +26,11 @@
   let inactivityIntervalId = null;
   let activityEventsBound = false;
 
+
   function getApiBase() {
-    return (location.protocol === 'file:' || location.port !== '3000')
-      ? 'http://localhost:3000'
-      : window.location.origin;
+    return `${window.location.origin}/api`;
   }
+
 
   function normalizeRole(value) {
     return String(value || '')

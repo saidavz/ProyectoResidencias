@@ -62,11 +62,17 @@
                         </a>
                         <ul class="dropdown-menu text-center" aria-labelledby="dropdownBom">
                             <li><a class="dropdown-item" href="createQr.html">Create QR Codes</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item" href="inventory-bulk.html">Bulk Import</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item" href="io.html">Register Inbound And Outbound</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item" href="stock.html">View Inventory</a></li>
                         </ul>
                     </li>
@@ -90,31 +96,50 @@
                                 <!-- Select de proyecto con productos en PO -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label" for="projectSearch">Search a project</label>
-                                    <input
-                                        type="text"
-                                        class="form-control bg-secondary text-light"
-                                        id="projectSearch"
-                                        list="projectSearchList"
-                                        placeholder="Type project number or name"
-                                        autocomplete="off"
-                                        required
-                                    >
+                                    <input type="text" class="form-control bg-secondary text-light" id="projectSearch"
+                                        list="projectSearchList" placeholder="Type project number or name"
+                                        autocomplete="off" required>
                                     <datalist id="projectSearchList"></datalist>
-                                    <select class="form-select bg-secondary text-light d-none" id="projectSelect" name="project" aria-hidden="true" tabindex="-1">
+                                    <select class="form-select bg-secondary text-light d-none" id="projectSelect"
+                                        name="project" aria-hidden="true" tabindex="-1">
                                         <option value="">Select a project</option>
                                     </select>
                                 </div>
                                 <!-- Campo Rack Number existente -->
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Rack Number</label>
-                                    <select
-                                        class="form-select bg-secondary text-light"
-                                        name="rackNumber"
-                                        id="rackNumberSelect"
-                                        required
-                                    >
+                                    <select class="form-select bg-secondary text-light" name="rackNumber"
+                                        id="rackNumberSelect" required>
                                         <option value="" selected disabled hidden>Select a rack number</option>
+
+                                        <!-- Racks fijos del 1 al 25 -->
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                        <option value="7">7</option>
+                                        <option value="8">8</option>
+                                        <option value="9">9</option>
+                                        <option value="10">10</option>
+                                        <option value="11">11</option>
+                                        <option value="12">12</option>
+                                        <option value="13">13</option>
+                                        <option value="14">14</option>
+                                        <option value="15">15</option>
+                                        <option value="16">16</option>
+                                        <option value="17">17</option>
+                                        <option value="18">18</option>
+                                        <option value="19">19</option>
+                                        <option value="20">20</option>
+                                        <option value="21">21</option>
+                                        <option value="22">22</option>
+                                        <option value="23">23</option>
+                                        <option value="24">24</option>
+                                        <option value="25">25</option>
                                     </select>
+
                                 </div>
                             </div>
                             <!-- Tabla de productos por proyecto PO -->
@@ -156,24 +181,20 @@
     </main>
 
     <!-- Modal para seleccionar Rack -->
-    <div class="modal fade" id="selectRackModal" tabindex="-1" aria-labelledby="selectRackModalLabel" aria-hidden="true">
+    <div class="modal fade" id="selectRackModal" tabindex="-1" aria-labelledby="selectRackModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content bg-dark text-white">
                 <div class="modal-header">
                     <h5 class="modal-title" id="selectRackModalLabel">Select Rack Number</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Rack Number</label>
-                        <input
-                            type="text"
-                            class="form-control bg-secondary text-light"
-                            id="modalRackInput"
-                            list="modalRackNumberList"
-                            placeholder="Type or select rack number"
-                            autocomplete="off"
-                        >
+                        <input type="text" class="form-control bg-secondary text-light" id="modalRackInput"
+                            list="modalRackNumberList" placeholder="Type or select rack number" autocomplete="off">
                         <datalist id="modalRackNumberList"></datalist>
                     </div>
                 </div>
@@ -191,11 +212,13 @@
             <div class="modal-content bg-dark text-white">
                 <div class="modal-header">
                     <h5 class="modal-title" id="confirmQRModalLabel">Regenerate QR</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <p>Do you want to regenerate the QR?</p>
-                    <p class="text-muted"><small>The QR code will remain the same, only it will be shown again for printing.</small></p>
+                    <p class="text-muted"><small>The QR code will remain the same, only it will be shown again for
+                            printing.</small></p>
                     <div id="existingQRInfo" class="alert alert-info">
                         <strong>QR Code ID </strong> <span id="existingQRId"></span>
                     </div>
@@ -229,7 +252,7 @@
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const baseURL = 'http://localhost:3000';
+            const BASE = `${window.location.origin}/api`;
             const projectSelect = document.getElementById('projectSelect');
             const projectSearch = document.getElementById('projectSearch');
             const projectSearchList = document.getElementById('projectSearchList');
@@ -244,13 +267,12 @@
             let currentQRAction = null; // Para guardar la acción pendiente del QR
             let pendingRackSelection = null; // Para guardar la acción pendiente de selección de rack
             let projectOptions = [];
-            const rackOptions = new Set();
-            const maxRackOptions = 25;
+
 
             let allRows = [];
 
             // Cargar proyectos que tienen productos en PO
-            fetch(`${baseURL}/api/projects-po`)
+            fetch(`${BASE}/projects-po`)
                 .then(res => res.json())
                 .then(data => {
                     projectOptions = Array.isArray(data) ? data : [];
@@ -267,81 +289,6 @@
                 .catch(error => {
                     console.error('Error loading projects:', error);
                 });
-
-            function resetRackSelectOptions() {
-                if (!rackNumberSelect) return;
-                rackNumberSelect.innerHTML = '<option value="" selected disabled>Select a rack number</option>';
-            }
-
-            function addRackOption(rack, forceVisible = false) {
-                const normalizedRack = normalizeValue(rack);
-                if (!normalizedRack || rackOptions.has(normalizedRack)) {
-                    return;
-                }
-
-                rackOptions.add(normalizedRack);
-
-                if (rackNumberSelect) {
-                    const existing = Array.from(rackNumberSelect.options).some(opt => opt.value === normalizedRack);
-                    if (!existing) {
-                        const visibleOptionCount = Array.from(rackNumberSelect.options).filter(opt => opt.value !== '').length;
-                        if (visibleOptionCount >= maxRackOptions && !forceVisible) {
-                            return;
-                        }
-
-                        const option = document.createElement('option');
-                        option.value = normalizedRack;
-                        option.textContent = normalizedRack;
-                        rackNumberSelect.appendChild(option);
-                    }
-                }
-
-                if (modalRackNumberList) {
-                    const modalOption = document.createElement('option');
-                    modalOption.value = normalizedRack;
-                    modalRackNumberList.appendChild(modalOption);
-                }
-            }
-
-            function loadRackSuggestions() {
-                fetch(`${baseURL}/api/stock/distinct-filters`)
-                    .then(res => res.json())
-                    .then(data => {
-                        let racks = [];
-                        if (Array.isArray(data.racks)) {
-                            racks = data.racks;
-                        } else if (Array.isArray(data)) {
-                            racks = data;
-                        } else if (Array.isArray(data.results)) {
-                            racks = data.results;
-                        }
-
-                        racks = racks.slice(0, maxRackOptions);
-                        racks.forEach(rack => addRackOption(rack, false));
-                        refreshRackOptions();
-                    })
-                    .catch(error => {
-                        console.error('Error loading rack suggestions:', error);
-                        refreshRackOptions();
-                    });
-            }
-
-            function refreshRackOptions() {
-                if (!rackNumberSelect) return;
-                resetRackSelectOptions();
-                const visibleRacks = Array.from(rackOptions).slice(0, maxRackOptions);
-                visibleRacks.forEach(rack => {
-                    const existing = Array.from(rackNumberSelect.options).some(opt => opt.value === rack);
-                    if (!existing) {
-                        const option = document.createElement('option');
-                        option.value = rack;
-                        option.textContent = rack;
-                        rackNumberSelect.appendChild(option);
-                    }
-                });
-            }
-
-            loadRackSuggestions();
 
             function refreshProjectSearchSuggestions(searchText) {
                 const search = String(searchText || '').trim().toLowerCase();
@@ -422,7 +369,7 @@
                         return null;
                     }
 
-                    const response = await fetch(`${baseURL}/api/stock/qr-code?no_part=${encodeURIComponent(normalizedNoPart)}&no_project=${encodeURIComponent(normalizedNoProject)}`);
+                    const response = await fetch(`${BASE}/stock/qr-code?no_part=${encodeURIComponent(normalizedNoPart)}&no_project=${encodeURIComponent(normalizedNoProject)}`);
                     const data = await response.json();
                     return data.qr_code || null;
                 } catch (error) {
@@ -451,7 +398,7 @@
 
                 filteredRows.forEach(r => {
                     const tr = document.createElement('tr');
-                    
+
                     // Obtener QR existente de forma asíncrona
                     getExistingQR(r.no_part, projectSelect.value).then(existingQR => {
                         const qrIdCell = tr.querySelector('td:nth-child(3)');
@@ -491,7 +438,6 @@
                     emptyState.classList.remove('show');
                     rackSelect.disabled = false;
                     rackSelect.value = '';
-                    refreshRackOptions();
                     return;
                 }
 
@@ -508,17 +454,17 @@
                     // Proyecto activo - habilitar y verificar si ya tiene QRs
                     rackSelect.disabled = false;
                     rackSelect.value = '';
-                    refreshRackOptions();
 
                     // Obtener el rack usado por primera vez en este proyecto
-                    fetch(`${baseURL}/api/stock/first-rack?no_project=${encodeURIComponent(pid)}`)
+                    fetch(`${BASE}/stock/first-rack?no_project=${encodeURIComponent(pid)}`)
                         .then(res => res.json())
                         .then(data => {
                             if (data.rack) {
                                 // Proyecto ya tiene QRs - rellenar y deshabilitar
-                                addRackOption(data.rack, true);
+
                                 rackSelect.value = data.rack;
                                 rackSelect.disabled = true;
+
                             } else {
                                 // Proyecto nuevo - permitir seleccionar obligatoriamente
                                 rackSelect.disabled = false;
@@ -530,11 +476,11 @@
                         });
                 }
 
-                fetch(`${baseURL}/api/purchases?projectId=${encodeURIComponent(pid)}`)
+                fetch(`${BASE}/purchases?projectId=${encodeURIComponent(pid)}`)
                     .then(res => res.json())
                     .then(rows => {
                         allRows = rows;
-                        
+
                         if (Array.isArray(rows) && rows.length > 0) {
                             renderRows(rows);
                         } else {
@@ -559,7 +505,7 @@
                         no_part: currentQRAction.no_part,
                         no_project: currentQRAction.no_project
                     };
-                    fetch(`${baseURL}/api/stock/entry`, {
+                    fetch(`${BASE}/stock/entry`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -607,7 +553,7 @@
             // Obtiene rack existente para no_part en AUT-STOCK.
             async function getExistingRackForAUTSTOCK(noPart) {
                 try {
-                    const res = await fetch(`${baseURL}/api/stock/by-part-austocked/${encodeURIComponent(noPart)}`);
+                    const res = await fetch(`${BASE}/stock/by-part-austocked/${encodeURIComponent(noPart)}`);
                     if (!res.ok) return null;
                     const data = await res.json();
                     return data?.rack ? String(data.rack).trim() : null;
@@ -620,7 +566,7 @@
             // Obtiene rack existente para no_part en proyectos inactivos (excluyendo AUT-STOCK)
             async function getExistingRackForInactiveProjects(noPart) {
                 try {
-                    const res = await fetch(`${baseURL}/api/stock/by-part-inactive/${encodeURIComponent(noPart)}`);
+                    const res = await fetch(`${BASE}/stock/by-part-inactive/${encodeURIComponent(noPart)}`);
                     if (!res.ok) return null;
                     const data = await res.json();
                     return data?.rack ? String(data.rack).trim() : null;
@@ -654,7 +600,7 @@
                 if (isInactive) {
                     // PROYECTO INACTIVO: Buscar rack en AUT-STOCK
                     let existingRack = await getExistingRackForAUTSTOCK(normalizedNoPart);
-                    
+
                     if (existingRack) {
                         // Si existe en AUT-STOCK, usar su rack automáticamente
                         createNewQR(normalizedNoPart, existingRack, noProject);
@@ -663,7 +609,7 @@
 
                     // Si no existe en AUT-STOCK, buscar en otros proyectos inactivos
                     existingRack = await getExistingRackForInactiveProjects(normalizedNoPart);
-                    
+
                     if (existingRack) {
                         // Si existe en otro proyecto inactivo, usar ese rack automáticamente
                         createNewQR(normalizedNoPart, existingRack, noProject);
@@ -681,15 +627,14 @@
                 }
 
                 // PROYECTO ACTIVO: Usar rack del formulario principal
-                const rack = rackNumberSelect ? normalizeValue(rackNumberSelect.value) : '';
-                const rackSelected = rackNumberSelect ? rackNumberSelect.selectedIndex > 0 && rack : '';
-                if (!rackSelected) {
+                const rack = normalizeValue(rackNumberSelect.value);
+
+                if (!rack) {
                     alert('Please select a rack number');
-                    if (rackNumberSelect) {
-                        rackNumberSelect.focus();
-                    }
+                    rackNumberSelect.focus();
                     return;
                 }
+
 
                 // Verificar si ya existe un QR previo
                 getExistingQR(normalizedNoPart, noProject).then(existingQR => {
@@ -729,17 +674,16 @@
                 };
 
                 // Enviar al servidor
-                fetch(`${baseURL}/api/stock/entry`, {
+                fetch(`${BASE}/stock/entry`), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(data)
-                })
+                }
                     .then(res => res.json())
                     .then(result => {
                         if (result.success) {
-                            addRackOption(rack);
                             // Mostrar mensaje de éxito
                             alert(`QR generated successfully: ${result.data.qr_code}`);
 

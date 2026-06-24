@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const BASE = 'http://localhost:3000/api';
+  const BASE = `${window.location.origin}/api`;
 
   const reportTypeMenu = document.getElementById('reportTypeMenu');
   const printButton = document.querySelector('.reports-print-btn');

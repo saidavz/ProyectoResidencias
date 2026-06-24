@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // cargar valores �nicos desde stock (projects, vendors, parts, brands)
   async function loadDistinctStockFilters() {
     try {
-      const res = await fetch('http://localhost:3000/api/stock/distinct-filters');
+      const res = await fetch(`${window.location.origin}/api/stock/distinct-filters`);
       const data = await res.json();
       allProjects = data.projects || [];
       // Agregar manualmente la opci�n 'Material disponible' (AUT-STOCK) si no existe
@@ -38,7 +38,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function loadGeneralData() {
     try {
-      const response = await fetch("http://localhost:3000/api/stock/summary");
+      const response = await fetch(`${window.location.origin}/api/stock/summary`);
+
       allData = await response.json();
       currentMode = 'general';
       currentProjectId = null;
@@ -64,9 +65,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function loadProjectData(noProject) {
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/stock/by-project?no_project=${encodeURIComponent(noProject)}`
-      );
+      const response = await fetch(`${window.location.origin}/api/stock/by-project?no_project=${encodeURIComponent(noProject)}`);
       allData = await response.json();
       currentProjectData = [...allData]; // Guardar copia de los datos del proyecto
       currentMode = 'project';

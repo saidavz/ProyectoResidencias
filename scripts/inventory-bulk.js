@@ -275,7 +275,7 @@ function enviarDatos() {
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Processing...';
 
-    fetch("http://localhost:3000/api/stock/bulk-entry", {
+    fetch(`${window.location.origin}/api/stock/bulk-entry`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: items, no_project: proyecto })
