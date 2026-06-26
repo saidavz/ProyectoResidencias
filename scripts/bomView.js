@@ -1,10 +1,13 @@
  document.addEventListener('DOMContentLoaded', function() {
     loadBOMData();
+
+    const BASE = 'http://localhost:3000/api';
+
   });
 
   async function loadBOMData() {
     try {
-      const response = await fetch(`${window.location.origin}/api/bomView`); 
+      const response = await fetch(`${BASE}/bomView`); 
       const data = await response.json();
       displayBOMData(data);
     } catch (error) {
@@ -20,7 +23,6 @@
       return;
     }
   // URL del backend
-  const BASE = `${window.location.origin}/api`;
 
   //Funcion para cargar proyectos en el select
   async function loadProjects() {

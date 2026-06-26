@@ -287,7 +287,7 @@
             return;
           }
           try {
-            const res = await fetch(`${baseURL}/products/search?term=${encodeURIComponent(term)}`);
+            const res = await fetch(`${baseURL}/api/products/search?term=${encodeURIComponent(term)}`);
             const data = await res.json();
             contenedorSugerencias.innerHTML = '';
             data.forEach(item => {
@@ -304,8 +304,7 @@
             });
             contenedorSugerencias.style.display = data.length ? 'block' : 'none';
           } catch (err) {
-
-
+            console.error("Error projects search:", err);
           }
         });
 
@@ -330,7 +329,7 @@
             return;
           }
           try {
-            const res = await fetch(`${baseURL}/projects/search?term=${encodeURIComponent(term)}`);
+            const res = await fetch(`${baseURL}/api/projects/search?term=${encodeURIComponent(term)}`);
             const data = await res.json();
             contenedorSugerencias.innerHTML = '';
             data.forEach(item => {
@@ -378,7 +377,7 @@
 
           try {
             // Obtener tipos y marcas del proyecto seleccionado
-            const url = `${baseURL}/products/types-by-project/${encodeURIComponent(noProject)}${term ? `?term=${encodeURIComponent(term)}` : ''}`;
+            const url = `${baseURL}/api/products/types-by-project/${encodeURIComponent(noProject)}${term ? `?term=${encodeURIComponent(term)}` : ''}`;
             const res = await fetch(url);
             const data = await res.json();
 
@@ -579,7 +578,7 @@
         // Buscar stock en AUT-STOCK para el número de parte
         (async () => {
           try {
-            const resStock = await fetch(`${baseURL}/stock/by-project?no_project=AUT-STOCK`);
+            const resStock = await fetch(`${baseURL}/api/stock/by-project?no_project=AUT-STOCK`);
             if (resStock.ok) {
               const stockData = await resStock.json();
               const found = stockData.find(item => item.no_part === producto.no_part);
@@ -788,7 +787,7 @@
           }
 
           try {
-            const response = await fetch(`${baseURL}/vendors?term=${encodeURIComponent(term)}`);
+            const response = await fetch(`${baseURL}/api/vendors?term=${encodeURIComponent(term)}`);
             const data = await response.json();
 
             contenedorSugerencias.innerHTML = '';
@@ -827,7 +826,7 @@
           }
         });
       }
-      fetch(`${baseURL}/networks`).then(r => r.json()).then(data => {
+      fetch(`${baseURL}/api/networks`).then(r => r.json()).then(data => {
         const networkSelect = document.querySelector('select[name="network"]');
         if (!networkSelect) return;
         networkSelect.innerHTML = '<option value="">Select network...</option>';
@@ -859,7 +858,7 @@
           }
 
           if (network) {
-            fetch(`${baseURL}/network/balance/${encodeURIComponent(network)}`)
+            fetch(`${baseURL}/api/network/balance/${encodeURIComponent(network)}`)
               .then(r => r.json())
               .then(data => {
                 document.getElementById('balanceAmount').textContent = `$${parseFloat(data.balance).toFixed(2)}`;
@@ -986,7 +985,7 @@
         let balanceActual = 0;
         if (network) {
           try {
-            const balanceRes = await fetch(`${baseURL}/network/balance/${encodeURIComponent(network)}`);
+            const balanceRes = await fetch(`${baseURL}/api/network/balance/${encodeURIComponent(network)}`);
             const balanceData = await balanceRes.json();
             balanceActual = parseFloat(balanceData.balance);
           } catch (err) {
@@ -1025,7 +1024,7 @@
         button.textContent = 'Saving...';
 
         try {
-          const res = await fetch(`${baseURL}/purchases`, {
+          const res = await fetch(`${baseURL}/api/purchases`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)

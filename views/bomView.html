@@ -234,7 +234,7 @@
 
 
         document.addEventListener('DOMContentLoaded', function () {
-            const BASE = `${window.location.origin}/api`;
+            const BASE = "http://127.0.0.1:3000/api";
 
             const projectSearchInput = document.getElementById('projectSearchBomView');
             const projectSuggestions = document.getElementById('projectSuggestionsBomView');
@@ -259,7 +259,7 @@
             // Cargar todos los proyectos al iniciar
             async function loadAllProjects() {
                 try {
-                    const res = await fetch(`${BASE}/projects/all-including-inactive`);
+                    const res = await fetch(`${BASE}/api/projects/all-including-inactive`);
                     allProjects = await res.json();
                 } catch (err) {
 
@@ -331,7 +331,7 @@
 
             // Cargar BOM filtrado por proyecto
             async function loadBOMDataByProject(noProject) {
-                let url = `${BASE}/bomView`;
+                let url = `${BASE}/api/bomView`;
                 const params = new URLSearchParams();
                 if (noProject) {
                     params.append('no_project', noProject);
@@ -358,8 +358,9 @@
             }
 
             // Cargar todos los BOM al inicio
+            
             async function loadAllBOMData() {
-                let url = `${BASE}/bomView`;
+                let url = `${BASE}/api/bomView`;
                 try {
 
 

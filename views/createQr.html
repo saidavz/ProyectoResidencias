@@ -94,8 +94,8 @@
                         <div class="producto-item card p-4 p-md-5">
                             <div class="row">
                                 <!-- Select de proyecto con productos en PO -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label" for="projectSearch">Search a project</label>
+                                <div class="col-md-12 mb-3"> <label class="form-label" for="sSearch">Search a
+                                        project</label>
                                     <input type="text" class="form-control bg-secondary text-light" id="projectSearch"
                                         list="projectSearchList" placeholder="Type project number or name"
                                         autocomplete="off" required>
@@ -105,43 +105,9 @@
                                         <option value="">Select a project</option>
                                     </select>
                                 </div>
-                                <!-- Campo Rack Number existente -->
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Rack Number</label>
-                                    <select class="form-select bg-secondary text-light" name="rackNumber"
-                                        id="rackNumberSelect" required>
-                                        <option value="" selected disabled hidden>Select a rack number</option>
-
-                                        <!-- Racks fijos del 1 al 25 -->
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                        <option value="3">3</option>
-                                        <option value="4">4</option>
-                                        <option value="5">5</option>
-                                        <option value="6">6</option>
-                                        <option value="7">7</option>
-                                        <option value="8">8</option>
-                                        <option value="9">9</option>
-                                        <option value="10">10</option>
-                                        <option value="11">11</option>
-                                        <option value="12">12</option>
-                                        <option value="13">13</option>
-                                        <option value="14">14</option>
-                                        <option value="15">15</option>
-                                        <option value="16">16</option>
-                                        <option value="17">17</option>
-                                        <option value="18">18</option>
-                                        <option value="19">19</option>
-                                        <option value="20">20</option>
-                                        <option value="21">21</option>
-                                        <option value="22">22</option>
-                                        <option value="23">23</option>
-                                        <option value="24">24</option>
-                                        <option value="25">25</option>
-                                    </select>
-
-                                </div>
                             </div>
+
+
                             <!-- Tabla de productos por proyecto PO -->
                             <div class="mt-4">
                                 <div class="entry-table-wrapper hidden" id="projectTableWrapper">
@@ -150,12 +116,21 @@
                                             <tr>
                                                 <th>No. Part</th>
                                                 <th>Description</th>
+                                                <th style="width:220px;">
+                                                    Location
+                                                    <br>
+                                                    <small class="text-warning">
+                                                        Example: R1-E2-A
+                                                    </small>
+                                                </th>
                                                 <th>QR Code ID</th>
                                                 <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody id="projectProductsBody">
                                         </tbody>
+                                        <datalist id="locationList">
+                                        </datalist>
                                     </table>
                                 </div>
                                 <div class="entry-empty-state" id="projectEmptyState">
@@ -181,30 +156,7 @@
     </main>
 
     <!-- Modal para seleccionar Rack -->
-    <div class="modal fade" id="selectRackModal" tabindex="-1" aria-labelledby="selectRackModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content bg-dark text-white">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="selectRackModalLabel">Select Rack Number</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Rack Number</label>
-                        <input type="text" class="form-control bg-secondary text-light" id="modalRackInput"
-                            list="modalRackNumberList" placeholder="Type or select rack number" autocomplete="off">
-                        <datalist id="modalRackNumberList"></datalist>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="confirmRackSelectBtn">Select Rack</button>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Modal de confirmación para regenerar QR -->
     <div class="modal fade" id="confirmQRModal" tabindex="-1" aria-labelledby="confirmQRModalLabel" aria-hidden="true">
@@ -242,17 +194,27 @@
             const currentPage = window.location.pathname.split('/').pop() || 'index.html';
 
             if (currentPage === 'createQr.html' || currentPage === '') {
-                // Resaltar Inventory c
-                const inventoryLinks = document.querySelectorAll('a[href="createQr.html"]');
-                inventoryLinks.forEach(link => {
-                    link.parentElement.parentElement.querySelector('.dropdown-toggle').classList.add('active');
-                });
+
+                const inventoryLink = document.querySelector('a[href="createQr.html"]');
+
+                if (inventoryLink) {
+
+                    const dropdownToggle = inventoryLink
+                        .closest('.nav-item.dropdown')
+                        ?.querySelector('.dropdown-toggle');
+
+                    if (dropdownToggle) {
+                        dropdownToggle.classList.add('active');
+                    }
+
+                }
+
             }
         });
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const BASE = `${window.location.origin}/api`;
+            const BASE = "http://127.0.0.1:3000";
             const projectSelect = document.getElementById('projectSelect');
             const projectSearch = document.getElementById('projectSearch');
             const projectSearchList = document.getElementById('projectSearchList');
@@ -260,29 +222,38 @@
             const tbody = document.getElementById('projectProductsBody');
             const emptyState = document.getElementById('projectEmptyState');
             const confirmQRModal = new bootstrap.Modal(document.getElementById('confirmQRModal'));
-            const selectRackModal = new bootstrap.Modal(document.getElementById('selectRackModal'));
-            const rackNumberSelect = document.getElementById('rackNumberSelect');
-            const modalRackInput = document.getElementById('modalRackInput');
-            const modalRackNumberList = document.getElementById('modalRackNumberList');
             let currentQRAction = null; // Para guardar la acción pendiente del QR
-            let pendingRackSelection = null; // Para guardar la acción pendiente de selección de rack
             let projectOptions = [];
 
 
             let allRows = [];
 
             // Cargar proyectos que tienen productos en PO
-            fetch(`${BASE}/projects-po`)
-                .then(res => res.json())
+            fetch(`${BASE}/api/projects-po`)
+                .then(async res => {
+                    console.log("Status:", res.status);
+
+                    const text = await res.text();
+                    console.log("Respuesta:", text);
+
+                    return JSON.parse(text);
+                })
                 .then(data => {
+                    console.log("Datos recibidos:", data);
+
                     projectOptions = Array.isArray(data) ? data : [];
+
                     projectOptions.forEach(proj => {
                         const option = document.createElement('option');
                         option.value = proj.no_project;
                         option.textContent = proj.name_project;
-                        option.dataset.status = proj.status; // Guardar status en atributo data-status
+                        option.dataset.status = proj.status;
+
                         projectSelect.appendChild(option);
                     });
+
+                    console.log("Proyectos:", projectOptions);
+                    console.log("Opciones del select:", projectSelect.options.length);
 
                     refreshProjectSearchSuggestions('');
                 })
@@ -369,7 +340,7 @@
                         return null;
                     }
 
-                    const response = await fetch(`${BASE}/stock/qr-code?no_part=${encodeURIComponent(normalizedNoPart)}&no_project=${encodeURIComponent(normalizedNoProject)}`);
+                    const response = await fetch(`${BASE}/api/stock/qr-code?no_part=${encodeURIComponent(normalizedNoPart)}&no_project=${encodeURIComponent(normalizedNoProject)}`);
                     const data = await response.json();
                     return data.qr_code || null;
                 } catch (error) {
@@ -401,7 +372,7 @@
 
                     // Obtener QR existente de forma asíncrona
                     getExistingQR(r.no_part, projectSelect.value).then(existingQR => {
-                        const qrIdCell = tr.querySelector('td:nth-child(3)');
+                        const qrIdCell = tr.querySelector('td:nth-child(4)');
                         if (qrIdCell) {
                             qrIdCell.textContent = existingQR ? existingQR : '-';
                             qrIdCell.classList.add(existingQR ? 'text-success' : 'text-muted');
@@ -409,18 +380,37 @@
                     });
 
                     tr.innerHTML = `
-                        <td>${safe(r.no_part)}</td>
-                        <td>${safe(r.description)}</td>
-                        <td>-</td>
-                        <td>
-                            <button type="button" class="btn btn-sm text-white" 
-                                    style="background-color: #000000; border-color: #000000;" 
-                                    data-part="${safe(r.no_part)}"
-                                    onclick="generateQR(this.dataset.part)">
+                    <td>${safe(r.no_part)}</td>
 
-                                <i class="bi bi-qr-code me-1"></i>Generate QR
-                            </button>
-                        </td>
+                    <td>${safe(r.description)}</td>
+                
+                    <td>
+                        <input
+                            type="text"
+                            class="form-control location-input"
+                            placeholder="R1-E2-A"
+                            maxlength="15"
+                            data-part="${safe(r.no_part)}">
+                    </td>
+                
+                    <td>-</td>
+                
+                    <td>
+                
+                        <button
+                            type="button"
+                            class="btn btn-sm text-white"
+                            style="background-color:#000;border-color:#000"
+                            onclick="generateQR(this)"
+                            data-part="${safe(r.no_part)}">
+                
+                            <i class="bi bi-qr-code me-1"></i>
+                
+                            Generate QR
+                
+                        </button>
+                
+                    </td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -431,54 +421,15 @@
             projectSelect.addEventListener('change', () => {
                 const pid = projectSelect.value;
                 tbody.innerHTML = '';
-                const rackSelect = rackNumberSelect;
 
-                if (!pid) {
-                    tableWrapper.classList.add('hidden');
-                    emptyState.classList.remove('show');
-                    rackSelect.disabled = false;
-                    rackSelect.value = '';
-                    return;
-                }
 
-                // Obtener status de la opción seleccionada
-                const selectedOption = projectSelect.options[projectSelect.selectedIndex];
-                const projectStatus = selectedOption.dataset.status;
-                const isInactive = !projectStatus || projectStatus.toUpperCase() !== 'ACTIVE';
 
-                if (isInactive) {
-                    // Proyecto inactivo - deshabilitar selección de rack
-                    rackSelect.disabled = true;
-                    rackSelect.value = '';
-                } else {
-                    // Proyecto activo - habilitar y verificar si ya tiene QRs
-                    rackSelect.disabled = false;
-                    rackSelect.value = '';
 
-                    // Obtener el rack usado por primera vez en este proyecto
-                    fetch(`${BASE}/stock/first-rack?no_project=${encodeURIComponent(pid)}`)
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.rack) {
-                                // Proyecto ya tiene QRs - rellenar y deshabilitar
-
-                                rackSelect.value = data.rack;
-                                rackSelect.disabled = true;
-
-                            } else {
-                                // Proyecto nuevo - permitir seleccionar obligatoriamente
-                                rackSelect.disabled = false;
-                                rackSelect.value = '';
-                            }
-                        })
-                        .catch(err => {
-                            console.error('Error getting first rack:', err);
-                        });
-                }
-
-                fetch(`${BASE}/purchases?projectId=${encodeURIComponent(pid)}`)
+                fetch(`${BASE}/api/purchases?projectId=${encodeURIComponent(pid)}`)
                     .then(res => res.json())
                     .then(rows => {
+                        console.log("ROWS:", rows);
+
                         allRows = rows;
 
                         if (Array.isArray(rows) && rows.length > 0) {
@@ -505,7 +456,7 @@
                         no_part: currentQRAction.no_part,
                         no_project: currentQRAction.no_project
                     };
-                    fetch(`${BASE}/stock/entry`, {
+                    fetch(`${BASE}/api/stock/entry`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -528,58 +479,40 @@
                     currentQRAction = null;
                 }
             });
+            function validateRackFormat(value) {
+                const pattern = /^[A-Z]\d-[A-Z]\d-[A-Z]$/;
+                return pattern.test(value);
+            }
 
-            // Evento para confirmar la selección de rack
-            document.getElementById('confirmRackSelectBtn').addEventListener('click', () => {
-                const selectedRack = normalizeValue(modalRackInput.value);
 
-                if (!selectedRack) {
-                    alert('Please select a rack number');
+
+            // Función para generar QR y guardar en stock
+            window.generateQR = async function (button) {
+
+                const row = button.closest("tr");
+
+                const locationInput = row.querySelector(".location-input");
+
+                const location = normalizeValue(locationInput.value);
+
+                // Validar vacío
+                if (!location) {
+                    alert("Please enter a location.");
+                    locationInput.focus();
                     return;
                 }
 
-                if (pendingRackSelection) {
-                    selectRackModal.hide();
-                    createNewQR(
-                        pendingRackSelection.no_part,
-                        selectedRack,
-                        pendingRackSelection.no_project
-                    );
-                    pendingRackSelection = null;
-                    modalRackInput.value = '';
+                // Validar formato R1-E2-A
+                if (!validateRackFormat(location)) {
+                    alert("Invalid format. Use: R1-E2-A");
+                    locationInput.focus();
+                    return;
                 }
-            });
 
-            // Obtiene rack existente para no_part en AUT-STOCK.
-            async function getExistingRackForAUTSTOCK(noPart) {
-                try {
-                    const res = await fetch(`${BASE}/stock/by-part-austocked/${encodeURIComponent(noPart)}`);
-                    if (!res.ok) return null;
-                    const data = await res.json();
-                    return data?.rack ? String(data.rack).trim() : null;
-                } catch (err) {
-                    console.error('Error fetching AUT-STOCK rack:', err);
-                    return null;
-                }
-            }
+                const noPart = button.dataset.part;
 
-            // Obtiene rack existente para no_part en proyectos inactivos (excluyendo AUT-STOCK)
-            async function getExistingRackForInactiveProjects(noPart) {
-                try {
-                    const res = await fetch(`${BASE}/stock/by-part-inactive/${encodeURIComponent(noPart)}`);
-                    if (!res.ok) return null;
-                    const data = await res.json();
-                    return data?.rack ? String(data.rack).trim() : null;
-                } catch (err) {
-                    console.error('Error fetching inactive projects rack:', err);
-                    return null;
-                }
-            }
-
-            // Función para generar QR y guardar en stock
-            window.generateQR = async function (noPart) {
-                const rackSelect = document.querySelector('[name="rackNumber"]');
                 const normalizedNoPart = normalizeValue(noPart);
+
                 const noProject = normalizeValue(projectSelect.value);
 
                 if (!noProject) {
@@ -592,50 +525,6 @@
                     return;
                 }
 
-                // Obtener status del proyecto
-                const selectedOption = projectSelect.options[projectSelect.selectedIndex];
-                const projectStatus = selectedOption.dataset.status;
-                const isInactive = !projectStatus || projectStatus.toUpperCase() !== 'ACTIVE';
-
-                if (isInactive) {
-                    // PROYECTO INACTIVO: Buscar rack en AUT-STOCK
-                    let existingRack = await getExistingRackForAUTSTOCK(normalizedNoPart);
-
-                    if (existingRack) {
-                        // Si existe en AUT-STOCK, usar su rack automáticamente
-                        createNewQR(normalizedNoPart, existingRack, noProject);
-                        return;
-                    }
-
-                    // Si no existe en AUT-STOCK, buscar en otros proyectos inactivos
-                    existingRack = await getExistingRackForInactiveProjects(normalizedNoPart);
-
-                    if (existingRack) {
-                        // Si existe en otro proyecto inactivo, usar ese rack automáticamente
-                        createNewQR(normalizedNoPart, existingRack, noProject);
-                        return;
-                    }
-
-                    // Si no existe en ningún lugar, mostrar modal para seleccionar rack
-                    pendingRackSelection = {
-                        no_part: normalizedNoPart,
-                        no_project: noProject
-                    };
-                    document.getElementById('modalRackInput').value = '';
-                    selectRackModal.show();
-                    return;
-                }
-
-                // PROYECTO ACTIVO: Usar rack del formulario principal
-                const rack = normalizeValue(rackNumberSelect.value);
-
-                if (!rack) {
-                    alert('Please select a rack number');
-                    rackNumberSelect.focus();
-                    return;
-                }
-
-
                 // Verificar si ya existe un QR previo
                 getExistingQR(normalizedNoPart, noProject).then(existingQR => {
                     if (existingQR) {
@@ -643,14 +532,14 @@
                         currentQRAction = {
                             qr_code: existingQR,
                             no_part: normalizedNoPart,
-                            rack: rack,
+                            rack: location,
                             no_project: noProject
                         };
                         document.getElementById('existingQRId').textContent = existingQR;
                         confirmQRModal.show();
                     } else {
                         // Si no existe, crear uno nuevo
-                        createNewQR(normalizedNoPart, rack, noProject);
+                        createNewQR(normalizedNoPart, location, noProject);
                     }
                 });
             };
@@ -662,7 +551,7 @@
                 const normalizedRack = normalizeValue(rack);
 
                 if (!normalizedNoPart || !normalizedNoProject || !normalizedRack) {
-                    alert('Please select a rack number before creating a QR');
+                    alert('Please select a location number before creating a QR');
                     return;
                 }
 
@@ -674,13 +563,13 @@
                 };
 
                 // Enviar al servidor
-                fetch(`${BASE}/stock/entry`), {
+                fetch(`${BASE}/api/stock/entry`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(data)
-                }
+                })
                     .then(res => res.json())
                     .then(result => {
                         if (result.success) {
@@ -710,7 +599,7 @@
                     const partCell = row.querySelector('td:first-child');
                     const currentPart = normalizeValue(partCell?.textContent).toLowerCase();
                     if (partCell && currentPart === targetPart) {
-                        const qrCell = row.querySelector('td:nth-child(3)');
+                        const qrCell = row.querySelector('td:nth-child(4)');
                         if (qrCell) {
                             qrCell.textContent = qrCode;
                             qrCell.classList.remove('text-muted');

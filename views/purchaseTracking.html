@@ -699,7 +699,7 @@
       // Cargar todos los proyectos al inicio
       async function loadAllProjects() {
         try {
-          const res = await fetch(`${BASE}/projects/all`);
+          const res = await fetch(`${BASE}/api/projects/all`);
           allProjects = await res.json();
         } catch (err) {
 
@@ -780,7 +780,7 @@
       // Cargar compras filtradas por proyecto
       async function loadPurchasesDataByProject(noProject) {
         try {
-          let url = `${BASE}/purchases`;
+          let url = `${BASE}api/purchases`;
           if (noProject) {
             url += `?projectId=${encodeURIComponent(noProject)}`;
           }
@@ -813,8 +813,9 @@
             queryParams.set('prNumber', cleanPr);
           }
           const url = queryParams.toString()
-            ? `${BASE}/trackingCards?${queryParams.toString()}`
-            : `${BASE}/trackingCards`;
+            ? `${BASE}/api/trackingCards?${queryParams.toString()}`
+            : `${BASE}/api/trackingCards`;
+
           const res = await fetch(url);
           const data = await res.json();
 
@@ -857,7 +858,7 @@
       //Funcion para cargar los porcentajes
       async function loadPurchasesData() {
         try {
-          const response = await fetch(`${BASE}/purchases`);
+          const BASE = "http://127.0.0.1:3000";
           const data = await response.json();
           const activeData = filterActiveProjectRows(data);
           allPurchasesData = activeData; // Guardar datos globalmente
@@ -1319,8 +1320,7 @@
 
         // Guardar el cambio en el backend
         try {
-          const response = await fetch(`${BASE}/purchases/status`, {
-            method: 'PUT',
+          const response = await fetch(`${BASE}/api/purchases/status`, {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dataToSend)
           });

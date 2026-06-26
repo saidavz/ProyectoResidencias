@@ -233,7 +233,7 @@
         }
 
         async function fetchProjectSuggestions(term) {
-          const response = await fetch(`${baseURL}/projects/search?term=${encodeURIComponent(term)}`);
+          const response = await fetch(`${baseURL}api/projects/search?term=${encodeURIComponent(term)}`);
           const data = await response.json();
           if (!Array.isArray(data)) {
             return [];
@@ -488,7 +488,7 @@
       }
 
       function saveOrderMock(payload) {
-        return fetch(`${baseURL}/requisitions/save`, {
+        return fetch(`${baseURL}api/requisitions/save`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)

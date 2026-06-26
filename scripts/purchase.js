@@ -43,8 +43,8 @@ const upload = multer({ dest: path.join(projectRoot, "uploads") });
 const pool = new pg.Pool({
   user: 'postgres',
   host: 'localhost',
-  database: 'db_purchase_system',//verifica bien al cambiarlo
-  password: 'automationdb', //verifica bien al cambiarlo
+  database: 'bd_purchase_system',//verifica bien al cambiarlo
+  password: 'postgresql', //verifica bien al cambiarlo
   port: 5432,
 });
 
@@ -1248,7 +1248,7 @@ app.get('/api/networks', async (req, res) => {
     res.status(500).json({ error: 'Error loading networks' });
   }
 });
-
+//bp.no_qis, AGREGARLA SISIS
 app.get('/api/purchases', async (req, res) => {
   try {
     const { projectId } = req.query;
@@ -1258,7 +1258,7 @@ app.get('/api/purchases', async (req, res) => {
         pr.name_project AS project_name,
         pr.no_project AS no_project,
         pr.status AS project_status,
-        bp.no_qis,
+        
         p.no_part,
         p.description,
         pd.vendor_name,
@@ -1307,11 +1307,10 @@ app.get('/api/purchases', async (req, res) => {
 
     const result = await pool.query(query, params);
     res.json(result.rows);
-  } catch (error) {
-
-
-    res.status(500).json({ error: 'Error loading purchases' });
-  }
+  }catch (error) {
+      console.error("PURCHASES ERROR:", error); // 👈 CLAVE
+      res.status(500).json({ error: error.message }); // 👈 mostrar causa real
+    }
 });
 
 // Endpoint para actualizar el status de un item en bom_project y campos en purchase
@@ -2527,13 +2526,14 @@ app.delete("/api/bom/:no_project", async (req, res) => {
 
 
 // Visualización de Materiales por Proyecto)
+//bp.no_qis, AGREGARLA SISI
 app.get('/api/bomView', async (req, res) => {
   const noProject = req.query.no_project;
   try {
     let query =
       `SELECT 
               pr.name_project,
-              bp.no_qis,
+          
               bp.quantity_project AS quantity_requested,
               p.type_p,
               p.no_part,

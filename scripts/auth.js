@@ -28,9 +28,8 @@
 
 
   function getApiBase() {
-    return `${window.location.origin}/api`;
+    return 'http://127.0.0.1:3000';
   }
-
 
   function normalizeRole(value) {
     return String(value || '')
